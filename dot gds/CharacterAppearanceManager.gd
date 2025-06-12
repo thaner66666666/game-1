@@ -67,6 +67,10 @@ static func create_player_appearance(character: CharacterBody3D, config := {}):
 	var eyes_cfg = config.get("eyes", {})
 	_create_eyes(character, eyes_cfg, main_mesh, body_radius)
 
+	# MOUTH - new
+	var mouth_cfg = config.get("mouth", {})
+	_create_mouth(character, mouth_cfg, main_mesh, body_radius)
+
 	# HANDS
 	var hands_cfg = config.get("hands", {})
 	_create_hands(character, hands_cfg)
@@ -90,6 +94,7 @@ static func _clear_existing_appearance(character: CharacterBody3D):
 		"LeftArm", "RightArm", "LeftLeg", "RightLeg",
 		"LeftHand", "RightHand", "LeftFoot", "RightFoot", "Foot0", "Foot1",
 		"LeftEye", "RightEye",  # Added eyes
+		"Mouth", "MouthSphere0", "MouthSphere1", "MouthSphere2",  # Added mouth and spheres
 		"Hair", "Mustache", "Goatee", "Beard"
 	]
 	
@@ -263,6 +268,176 @@ static func _create_eyes(_character: CharacterBody3D, cfg := {}, mesh_instance: 
 		
 		highlight.position = Vector3(eye_size * 0.15, eye_size * 0.15, eye_size * 0.4)
 		eyeball.add_child(highlight)
+
+# --- MOUTH SYSTEM ---
+
+static func _create_mouth(_character: CharacterBody3D, cfg := {}, mesh_instance: MeshInstance3D = null, body_radius: float = BODY_RADIUS):
+	"""Create a mouth using 3 small spheres, positioned horizontally below the nose area, scaled with body_radius.
+	   Mouth Y position is dynamically calculated based on eye spacing and body size for proper proportions."""
+	if not mesh_instance:
+		return
+
+	# Remove existing mouth if present
+	var old_mouth = mesh_instance.get_node_or_null("Mouth")
+	if old_mouth:
+		old_mouth.queue_free()
+
+	var mouth_color = cfg.get("color", Color(0.1, 0.08, 0.07))
+	var mouth_size = cfg.get("size", body_radius * 0.18)
+	var mouth_spacing = cfg.get("spacing", body_radius * 0.18)
+
+	# Calculate mouth Y position dynamically
+	var _eye_spacing = cfg.get("eye_spacing", EYE_SPACING)
+	var eye_height = cfg.get("eye_height", EYE_POSITION_HEIGHT)
+	var min_mouth_eye_distance = 0.13 * body_radius + 0.04  # Minimum vertical distance from eyes, scales with body
+	var default_mouth_offset = 0.18 * body_radius           # Default offset below eyes, scales with body
+
+	var mouth_height = eye_height - max(min_mouth_eye_distance, default_mouth_offset)
+	# Clamp mouth_height to not go above (too close to) eyes
+	if mouth_height > eye_height - min_mouth_eye_distance:
+		mouth_height = eye_height - min_mouth_eye_distance
+
+	var mouth_z = cfg.get("z_offset", -body_radius * 0.92)  # Slightly in front of face
+
+	# Material (dark, shiny)
+	var mouth_material = StandardMaterial3D.new()
+	mouth_material.albedo_color = mouth_color
+	mouth_material.metallic = 0.7
+	mouth_material.roughness = 0.15
+	mouth_material.emission_enabled = true
+	mouth_material.emission = mouth_color * 0.2
+
+	var mouth = Node3D.new()
+	mouth.name = "Mouth"
+	mesh_instance.add_child(mouth)
+	mouth.position = Vector3(0, mouth_height, mouth_z)
+
+	# Create 3 spheres: left, center, right, named MouthSphere0, MouthSphere1, MouthSphere2
+	var positions = [
+		Vector3(-mouth_spacing, 0, 0),
+		Vector3(0, 0, 0),
+		Vector3(mouth_spacing, 0, 0)
+	]
+	for i in range(3):
+		var part = MeshInstance3D.new()
+		part.name = "MouthSphere%d" % i
+		var sphere = SphereMesh.new()
+		sphere.radius = mouth_size
+		sphere.height = mouth_size * 2
+		part.mesh = sphere
+		part.material_override = mouth_material
+		part.position = positions[i]
+		mouth.add_child(part)
+
+	# Store neutral positions for animation reference
+	mouth.set_meta("neutral_positions", positions)
+	mouth.set_meta("mouth_size", mouth_size)
+	mouth.set_meta("mouth_spacing", mouth_spacing)
+
+	# Default to neutral
+	set_mouth_neutral(mesh_instance, 0.0)
+
+static func set_mouth_neutral(mesh_instance: MeshInstance3D, duration := 0.18):
+	"""Tween mouth to neutral (straight horizontal line)"""
+	var mouth = mesh_instance.get_node_or_null("Mouth")
+	if not mouth: return
+	var spacing = mouth.get_meta("mouth_spacing")
+	var positions = [
+		Vector3(-spacing, 0, 0),
+		Vector3(0, 0, 0),
+		Vector3(spacing, 0, 0)
+	]
+	_tween_mouth_spheres(mouth, positions, duration)
+
+static func set_mouth_smile(mesh_instance: MeshInstance3D, duration := 0.18):
+	"""Tween mouth to a smile expression (curve up)"""
+	var mouth = mesh_instance.get_node_or_null("Mouth")
+	if not mouth: return
+	var spacing = mouth.get_meta("mouth_spacing")
+	var mouth_size = mouth.get_meta("mouth_size")
+	var smile_y = mouth_size * 0.7
+	var positions = [
+		Vector3(-spacing, smile_y, 0),
+		Vector3(0, 0, 0),
+		Vector3(spacing, smile_y, 0)
+	]
+	_tween_mouth_spheres(mouth, positions, duration)
+
+static func set_mouth_frown(mesh_instance: MeshInstance3D, duration := 0.18):
+	"""Tween mouth to a frown expression (curve down)"""
+	var mouth = mesh_instance.get_node_or_null("Mouth")
+	if not mouth: return
+	var spacing = mouth.get_meta("mouth_spacing")
+	var mouth_size = mouth.get_meta("mouth_size")
+	var frown_y = -mouth_size * 0.7
+	var positions = [
+		Vector3(-spacing, frown_y, 0),
+		Vector3(0, 0, 0),
+		Vector3(spacing, frown_y, 0)
+	]
+	_tween_mouth_spheres(mouth, positions, duration)
+
+static func set_mouth_surprise(mesh_instance: MeshInstance3D, duration := 0.18):
+	"""Tween mouth to a surprised expression (stacked vertically)"""
+	var mouth = mesh_instance.get_node_or_null("Mouth")
+	if not mouth: return
+	var mouth_size = mouth.get_meta("mouth_size")
+	var _spacing = mouth.get_meta("mouth_spacing")
+	var vertical = mouth_size * 0.7
+	var positions = [
+		Vector3(0, vertical, 0),
+		Vector3(0, 0, 0),
+		Vector3(0, -vertical, 0)
+	]
+	_tween_mouth_spheres(mouth, positions, duration)
+
+static func _tween_mouth_spheres(mouth: Node3D, target_positions: Array, duration: float):
+	# Animate each mouth sphere to its target position using a Tween created from the mouth node
+	if not mouth:
+		push_warning("Mouth node missing for tween.")
+		return
+	var tween = mouth.create_tween()
+	tween.set_parallel(true)
+	for i in range(3):
+		var part = mouth.get_node_or_null("MouthSphere%d" % i)
+		if part:
+			tween.tween_property(part, "position", target_positions[i], duration)
+		else:
+			push_warning("MouthSphere%d missing for mouth animation." % i)
+
+# FIXED: Test utility with simple approach for Godot 4.4.1
+static func test_mouth_expressions(mesh_instance: MeshInstance3D, delay := 0.4):
+	"""Test utility: cycles through all mouth expressions for visual debugging"""
+	var expressions = [
+		"set_mouth_neutral",
+		"set_mouth_smile", 
+		"set_mouth_frown",
+		"set_mouth_surprise",
+		"set_mouth_neutral"
+	]
+	
+	# Execute each expression with delays
+	for i in range(expressions.size()):
+		var expr = expressions[i]
+		var timer_delay = delay * i
+		
+		# Use call_deferred to schedule each expression
+		mesh_instance.get_tree().create_timer(timer_delay).timeout.connect(
+			func(): _execute_mouth_expression(mesh_instance, expr)
+		)
+
+# Helper function for the test utility
+static func _execute_mouth_expression(mesh_instance: MeshInstance3D, expression: String):
+	"""Execute a specific mouth expression"""
+	match expression:
+		"set_mouth_neutral":
+			set_mouth_neutral(mesh_instance)
+		"set_mouth_smile":
+			set_mouth_smile(mesh_instance)
+		"set_mouth_frown":
+			set_mouth_frown(mesh_instance)
+		"set_mouth_surprise":
+			set_mouth_surprise(mesh_instance)
 
 static func animate_eyes_look_at(character: CharacterBody3D, target_position: Vector3):
 	"""Make eyes look at a target position"""

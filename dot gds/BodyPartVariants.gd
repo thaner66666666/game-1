@@ -124,6 +124,7 @@ static var NOSE_VARIANTS = {
 # =================================
 static var mouth_styles = ["flat", "smile", "frown", "line", "open", "grin"]
 static var mouth_widths = [0.04, 0.05, 0.06, 0.07, 0.08]
+static var mouth_expressions = ["neutral", "smile", "frown", "surprise", "talking"]
 
 static var MOUTH_VARIANTS = {
 	"tiny": {"style": "flat", "width": 0.04, "name": "Tiny Mouth"},
