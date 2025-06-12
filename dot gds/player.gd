@@ -217,21 +217,38 @@ func _setup_hand_references():
 		print("✅ Found RightFoot!")
 	else:
 		print("⚠️ RightFoot node not found!")
+	# --- WEAPON ATTACH POINT (parent to right hand if possible) ---
+	var right_hand = get_node_or_null("RightHand")
+	if right_hand:
+		# Remove existing WeaponAttachPoint from previous parent if needed
+		var wap = right_hand.get_node_or_null("WeaponAttachPoint")
+		if not wap:
+			weapon_attach_point = Node3D.new()
+			weapon_attach_point.name = "WeaponAttachPoint"
+			right_hand.add_child(weapon_attach_point)
+			print("✅ Created WeaponAttachPoint as child of RightHand")
+		else:
+			weapon_attach_point = wap
+			print("✅ Found existing WeaponAttachPoint under RightHand")
+		# Position relative to hand (tweak as needed)
+		weapon_attach_point.position = Vector3(0.12, 0, 0.0)
+		weapon_attach_point.rotation_degrees = Vector3(0, 0, 0)
+	else:
+		# Fallback: add to player root
+		weapon_attach_point = get_node_or_null("WeaponAttachPoint")
+		if not weapon_attach_point:
+			weapon_attach_point = Node3D.new()
+			weapon_attach_point.name = "WeaponAttachPoint"
+			add_child(weapon_attach_point)
+			print("⚠️ Created WeaponAttachPoint at player root (RightHand missing)")
+		else:
+			print("✅ Found existing WeaponAttachPoint at player root")
+		weapon_attach_point.position = Vector3(0.44, -0.2, 0)
+		weapon_attach_point.rotation_degrees = Vector3(0, 0, 0)
 
 func _setup_weapon_attach_point():
-	# Get the existing WeaponAttachPoint from the scene
-	weapon_attach_point = get_node_or_null("WeaponAttachPoint")
-	if not weapon_attach_point:
-		weapon_attach_point = Node3D.new()
-		weapon_attach_point.name = "WeaponAttachPoint"
-		add_child(weapon_attach_point)
-		print("⚠️ Created new WeaponAttachPoint - should use existing one")
-	else:
-		print("✅ Found existing WeaponAttachPoint")
-	
-	# Position for weapon (adjust as needed)
-	weapon_attach_point.position = Vector3(0.44, -0.2, 0)  # Right hand position
-	weapon_attach_point.rotation_degrees = Vector3(0, 0, 0)
+	# This is now handled in _setup_hand_references to ensure correct parenting.
+	pass
 
 func _connect_weapon_manager_signals():
 	if WeaponManager:
@@ -266,6 +283,7 @@ func _show_weapon_visual(weapon_resource):
 		_:
 			mesh = _create_simple_sword_mesh()
 	if mesh:
+		# Attach weapon visual to WeaponAttachPoint (not directly to hand)
 		weapon_attach_point.add_child(mesh)
 		equipped_weapon_mesh = mesh
 

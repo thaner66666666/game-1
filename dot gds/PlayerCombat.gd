@@ -169,12 +169,18 @@ func _on_attack_cooldown_finished():
 
 func _play_attack_animation(combo_idx: int):
 	# Handles hand animation for attacks (punch, sword, etc.)
-	if right_hand and right_hand_original_pos != Vector3.ZERO:
-		_play_punch_animation(combo_idx)
-	if weapon:
-		WeaponAnimationManager.play_attack_animation(weapon, player)
+	var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
+	if not current_weapon:
+		# Unarmed: play punch animation on hand
+		if right_hand and right_hand_original_pos != Vector3.ZERO:
+			_play_punch_animation(combo_idx)
 	else:
-		WeaponAnimationManager.play_attack_animation(null, player)
+		# Armed: play weapon animation, which should move the WeaponAttachPoint (hand + weapon)
+		if player.has_node("WeaponAttachPoint"):
+			var weapon_attach_point = player.get_node("WeaponAttachPoint")
+			WeaponAnimationManager.play_attack_animation(current_weapon, weapon_attach_point)
+		else:
+			WeaponAnimationManager.play_attack_animation(current_weapon, player)
 	# Combo feedback (debug only, replace with real effects as needed)
 	# --- Combo particle effects ---
 	_spawn_combo_particles(combo_idx)
