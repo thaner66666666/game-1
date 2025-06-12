@@ -246,6 +246,9 @@ func _create_enhanced_sword():
 	pommel.add_child(gem)
 	weapon_parts.append(gem)
 
+	# Standardize: sword points up (0,1,0)
+	self.rotation_degrees = Vector3.ZERO
+
 func _create_enhanced_bow():
 	"""Create detailed bow pickup visual"""
 	# Main bow frame (curved using multiple segments)
@@ -298,6 +301,9 @@ func _create_enhanced_bow():
 	
 	bow_frame.add_child(string_segment)
 	weapon_parts.append(string_segment)
+
+	# Standardize: bow held vertically, string facing right
+	self.rotation_degrees = Vector3.ZERO
 
 func _create_enhanced_staff():
 	"""Create detailed staff pickup visual"""
@@ -359,6 +365,9 @@ func _create_enhanced_staff():
 	
 	# Floating runes around the orb
 	_create_floating_runes(orb)
+
+	# Standardize: staff points up (0,1,0)
+	self.rotation_degrees = Vector3.ZERO
 
 func _create_floating_runes(parent: MeshInstance3D):
 	"""Create floating magical runes around staff orb"""
