@@ -9,6 +9,6 @@ attack_damage = 25
 attack_range = 2.5
 attack_cooldown = 0.8
 attack_cone_angle = 100.0
-weapon_type = 0
+weapon_type = 1
 visual_scene_path = ""
 metadata/_custom_type_script = "uid://5qmrhqf2jngf"

@@ -1,8 +1,13 @@
 extends Resource
 class_name WeaponResource
 
-# WeaponType enum for cross-script compatibility
-enum WeaponType { UNARMED, SWORD, BOW, STAFF }
+# WeaponType enum - explicit values to match resource files
+enum WeaponType { 
+	UNARMED = 0,
+	SWORD = 1, 
+	BOW = 2, 
+	STAFF = 3 
+}
 
 @export var weapon_name: String = "Fist"
 @export var attack_damage: int = 10
