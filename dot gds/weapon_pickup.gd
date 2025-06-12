@@ -34,7 +34,7 @@ func _ready():
 	# Print scene node structure and mesh_instance existence
 	print("🗡️ Node children: ", get_children())
 	print("🗡️ mesh_instance exists: ", mesh_instance != null)
-	print("🗡️ mesh_instance path: ", mesh_instance.get_path() if mesh_instance else "None")
+	print("🗡️ mesh_instance path: ", str(mesh_instance.get_path()) if mesh_instance else "None")
 	
 	print("🗡️ Enhanced Weapon Pickup: Setting up...")
 	add_to_group("weapon_pickup")

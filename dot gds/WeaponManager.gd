@@ -5,8 +5,6 @@
 
 extends Node
 
-class_name WeaponManager # For global accessibility and singleton pattern
-
 signal weapon_equipped(weapon_resource)
 signal weapon_unequipped()
 # New: Signal for stat changes (for UI, etc.)
@@ -102,7 +100,7 @@ func restore_base_stats(p: CharacterBody3D) -> void:
 	emit_signal("weapon_stats_changed", base_stats)
 
 # Applies or restores stats based on current weapon
-def _apply_weapon_to_player() -> void:
+func _apply_weapon_to_player() -> void:
 	var p = get_player()
 	if not p: return
 	cache_base_stats(p)
