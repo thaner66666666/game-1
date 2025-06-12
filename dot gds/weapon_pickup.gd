@@ -11,7 +11,7 @@ extends Area3D
 @export var bob_speed: float = 2.0
 
 # References to scene nodes
-@onready var mesh_instance: MeshInstance3D = $MeshInstance3D
+@onready var mesh_instance: MeshInstance3D = get_node_or_null("MeshInstance3D")
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
 
 # Floating text and interaction
@@ -25,6 +25,17 @@ var time_alive: float = 0.0
 var weapon_parts: Array[MeshInstance3D] = []
 
 func _ready():
+	print("🗡️ Weapon Pickup Ready - weapon_resource: ", weapon_resource)
+	if weapon_resource:
+		print("🗡️ Weapon name: ", weapon_resource.weapon_name)
+		print("🗡️ Weapon type: ", weapon_resource.weapon_type)
+	else:
+		print("❌ No weapon_resource assigned!")
+	# Print scene node structure and mesh_instance existence
+	print("🗡️ Node children: ", get_children())
+	print("🗡️ mesh_instance exists: ", mesh_instance != null)
+	print("🗡️ mesh_instance path: ", mesh_instance.get_path() if mesh_instance else "None")
+	
 	print("🗡️ Enhanced Weapon Pickup: Setting up...")
 	add_to_group("weapon_pickup")
 	collision_layer = 4
@@ -37,12 +48,20 @@ func _ready():
 	
 	_find_player()
 	_create_floating_text()
-	# Always setup visual, even if weapon_resource is null
-	_setup_enhanced_visual()
-	# Also defer setup to ensure visuals after scene is fully loaded
-	call_deferred("_setup_enhanced_visual")
+	# Defer visual setup to ensure scene is fully loaded
+	call_deferred("_deferred_setup_visual")
+
+func _deferred_setup_visual():
+	print("🗡️ _deferred_setup_visual called")
+	if weapon_resource:
+		print("🗡️ _deferred_setup_visual: weapon_resource present, calling _setup_enhanced_visual")
+		_setup_enhanced_visual()
+	else:
+		print("🗡️ _deferred_setup_visual: weapon_resource is null, calling _create_default_sword_visual")
+		_create_default_sword_visual()
 
 func _setup_enhanced_visual():
+	print("🗡️ _setup_enhanced_visual called")
 	"""Create enhanced weapon pickup visual"""
 	# FIRST: Clear the original mesh to get rid of the white ball
 	if mesh_instance:
@@ -50,7 +69,8 @@ func _setup_enhanced_visual():
 		mesh_instance.material_override = null
 	
 	if not weapon_resource:
-		_create_default_visual()
+		print("🗡️ _setup_enhanced_visual: weapon_resource is null, calling _create_default_sword_visual")
+		_create_default_sword_visual()
 		return
 	
 	# Clear any existing parts
@@ -59,13 +79,17 @@ func _setup_enhanced_visual():
 	# Create weapon-specific enhanced visual
 	match weapon_resource.weapon_type:
 		WeaponResource.WeaponType.SWORD:
+			print("🗡️ _setup_enhanced_visual: Creating enhanced sword visual")
 			_create_enhanced_sword()
 		WeaponResource.WeaponType.BOW:
+			print("🗡️ _setup_enhanced_visual: Creating enhanced bow visual")
 			_create_enhanced_bow()
 		WeaponResource.WeaponType.STAFF:
+			print("🗡️ _setup_enhanced_visual: Creating enhanced staff visual")
 			_create_enhanced_staff()
 		_:
-			_create_default_visual()
+			print("🗡️ _setup_enhanced_visual: Unknown type, calling _create_default_sword_visual")
+			_create_default_sword_visual()
 	
 	# Create collision shape
 	var collision = SphereShape3D.new()
@@ -79,7 +103,7 @@ func _clear_weapon_parts():
 			part.queue_free()
 	weapon_parts.clear()
 	
-	# Clear the original mesh_instance content but keep the node
+	# Always clear the original mesh_instance content but keep the node
 	if mesh_instance:
 		mesh_instance.mesh = null
 		mesh_instance.material_override = null
@@ -292,8 +316,17 @@ func _create_floating_runes(parent: MeshInstance3D):
 		parent.add_child(rune)
 		weapon_parts.append(rune)
 
+func _create_default_sword_visual():
+	print("🗡️ _create_default_sword_visual called: Creating default sword visual")
+	"""Create a default sword visual if weapon_resource is null"""
+	_clear_weapon_parts()
+	_create_enhanced_sword()
+
 func _create_default_visual():
 	"""Create enhanced default pickup visual"""
+	if not mesh_instance:
+		print("❌ mesh_instance is null, cannot create default visual")
+		return
 	var default_mesh = SphereMesh.new()
 	default_mesh.radius = 0.25
 	default_mesh.height = 0.35
@@ -313,7 +346,7 @@ func _create_floating_text():
 	"""Create floating interaction text"""
 	floating_text = Label3D.new()
 	floating_text.name = "FloatingText"
-	floating_text.text = "Press Q to Pick Up"
+	floating_text.text = "Press E to Pick Up"
 	floating_text.position = Vector3(0, 1.5, 0)
 	floating_text.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	floating_text.no_depth_test = true
@@ -357,7 +390,7 @@ func _animate_staff_effects(delta):
 				part.rotation_degrees.z += 45 * delta
 
 func _input(event):
-	if event.is_action_pressed("interaction") and player_in_range and not get_meta("pickup_disabled", false):
+	if Input.is_action_just_pressed("interaction") and player_in_range and not get_meta("pickup_disabled", false):
 		_interact_with_weapon()
 
 func _on_area_entered(area: Area3D):
@@ -382,10 +415,10 @@ func _update_interaction_text():
 	var player_has_weapon = WeaponManager.is_weapon_equipped()
 	
 	if player_has_weapon:
-		floating_text.text = "Press Q to Swap for %s" % weapon_name
+		floating_text.text = "Press E to Swap for %s" % weapon_name
 		floating_text.modulate = Color(0.8, 0.8, 1.0, 0.9)
 	else:
-		floating_text.text = "Press Q to Pick Up %s" % weapon_name
+		floating_text.text = "Press E to Pick Up %s" % weapon_name
 		floating_text.modulate = Color(0.3, 1.0, 0.3, 0.9)
 
 func _interact_with_weapon():
@@ -429,10 +462,10 @@ func set_weapon_resource(new_resource: WeaponResource):
 	weapon_resource = new_resource
 	if weapon_resource and "weapon_name" in weapon_resource:
 		set_meta("weapon_name", weapon_resource.weapon_name)
-	# Always setup visual when resource is set
+	# Always setup visual when resource is set, using deferred call for consistency
 	if is_inside_tree():
 		print("🗡️ Setting up visuals for weapon_resource: ", weapon_resource)
-		_setup_enhanced_visual()
+		call_deferred("_deferred_setup_visual")
 		if player_in_range:
 			_update_interaction_text()
 
