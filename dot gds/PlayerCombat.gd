@@ -175,12 +175,14 @@ func _play_attack_animation(combo_idx: int):
 		if right_hand and right_hand_original_pos != Vector3.ZERO:
 			_play_punch_animation(combo_idx)
 	else:
-		# Armed: play weapon animation, which should move the WeaponAttachPoint (hand + weapon)
-		if player.has_node("WeaponAttachPoint"):
-			var weapon_attach_point = player.get_node("WeaponAttachPoint")
-			WeaponAnimationManager.play_attack_animation(current_weapon, weapon_attach_point)
+		# Armed: play weapon animation using player's weapon_attach_point reference
+		if player.weapon_attach_point and is_instance_valid(player.weapon_attach_point):
+			print("✅ Using player's weapon_attach_point reference: ", player.weapon_attach_point.get_path())
+			WeaponAnimationManager.play_attack_animation(current_weapon, player.weapon_attach_point)
 		else:
+			print("❌ Player weapon_attach_point is null or invalid!")
 			WeaponAnimationManager.play_attack_animation(current_weapon, player)
+	
 	# Combo feedback (debug only, replace with real effects as needed)
 	# --- Combo particle effects ---
 	_spawn_combo_particles(combo_idx)
