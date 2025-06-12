@@ -8,14 +8,6 @@ const STAFF_DURATION = 0.4
 func play_attack_animation(weapon: WeaponResource, attacker: Node3D):
 	"""Main entry point - use direct weapon_attach_point reference"""
 	if not weapon:
-		print("[WeaponAnimationManager] No weapon provided!")
-		return
-	if not weapon.has_method("get_visual_node"):
-		print("[WeaponAnimationManager] Weapon missing get_visual_node() method!")
-		return
-	var weapon_visual = weapon.get_visual_node() if weapon.has_method("get_visual_node") else null
-	if not weapon_visual or not is_instance_valid(weapon_visual):
-		print("[WeaponAnimationManager] Weapon visual node is missing or invalid!")
 		return
 	
 	# Get WeaponAttachPoint directly from player
@@ -28,7 +20,6 @@ func play_attack_animation(weapon: WeaponResource, attacker: Node3D):
 		return
 	
 	print("✅ Found WeaponAttachPoint at: ", wap.get_path())
-	print("[WeaponAnimationManager] Calling animation for weapon type: ", weapon.weapon_type)
 	
 	match weapon.weapon_type:
 		WeaponResource.WeaponType.SWORD:
@@ -86,12 +77,3 @@ func _play_staff_animation(wap: Node3D):
 	# Return
 	tween.tween_property(wap, "position", orig_pos, STAFF_DURATION * 0.4).set_delay(STAFF_DURATION * 0.6)
 	tween.tween_property(wap, "rotation_degrees", orig_rot, STAFF_DURATION * 0.4).set_delay(STAFF_DURATION * 0.6)
-
-# Debug/test function to manually trigger weapon animation
-func test_play_animation(attacker: Node3D):
-	print("[WeaponAnimationManager] test_play_animation called!")
-	var weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
-	if not weapon:
-		print("[WeaponAnimationManager] No weapon equipped for test!")
-		return
-	play_attack_animation(weapon, attacker)

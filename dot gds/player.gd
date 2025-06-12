@@ -231,9 +231,10 @@ func _setup_hand_references():
 		else:
 			weapon_attach_point = wap
 			print("✅ Found existing WeaponAttachPoint under RightHand")
-		# Standardize: always set to zero rotation for all weapons
-		weapon_attach_point.position = Vector3(0.0, 0.1, 0.0)
-		weapon_attach_point.rotation_degrees = Vector3.ZERO
+		
+		# FIXED: Better positioning and rotation for sword orientation
+		weapon_attach_point.position = Vector3(0.0, 0.1, 0.0)  # Slightly up from hand center
+		weapon_attach_point.rotation_degrees = Vector3(0, 0, -90)  # Rotate so sword points up instead of sideways
 	else:
 		# Fallback: add to player root
 		weapon_attach_point = get_node_or_null("WeaponAttachPoint")
@@ -245,7 +246,7 @@ func _setup_hand_references():
 		else:
 			print("✅ Found existing WeaponAttachPoint at player root")
 		weapon_attach_point.position = Vector3(0.44, -0.2, 0)
-		weapon_attach_point.rotation_degrees = Vector3.ZERO
+		weapon_attach_point.rotation_degrees = Vector3(0, 0, -90)  # Same rotation fix
 
 func _setup_weapon_attach_point():
 	# This is now handled in _setup_hand_references to ensure correct parenting.

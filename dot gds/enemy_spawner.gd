@@ -14,13 +14,6 @@ var latest_room_position: Vector3 = Vector3.ZERO
 var current_wave: int = 1
 var wave_timer: Timer
 
-# --- Wave System Interface ---
-var wave_active: bool = false
-var is_spawning: bool = false
-var enemies_spawned: int = 0
-var total_enemies_for_wave: int = 0
-var max_waves: int = 5
-
 func _ready():
 	player = get_tree().get_first_node_in_group("player")
 	if not player:
@@ -32,16 +25,15 @@ func _ready():
 	wave_timer.timeout.connect(spawn_wave)
 	add_child(wave_timer)
 
+	spawn_wave()
+
 func spawn_wave():
 	for i in range(enemies_per_wave):
 		var spawn_position = _get_valid_spawn_position()
 		if spawn_position != Vector3.ZERO:
-			if enemy_scene:
-				var enemy = enemy_scene.instantiate()
-				enemy.global_position = spawn_position
-				add_child(enemy)
-			else:
-				push_error("enemy_scene is null! Assign a PackedScene in the inspector.")
+			var enemy = enemy_scene.instantiate()
+			enemy.global_position = spawn_position
+			add_child(enemy)
 	wave_timer.start()
 
 func _get_valid_spawn_position() -> Vector3:
@@ -73,31 +65,3 @@ func _is_position_valid(pos: Vector3) -> bool:
 
 func update_latest_room(pos: Vector3):
 	latest_room_position = pos
-
-# --- Wave System Interface ---
-func get_wave_info() -> Dictionary:
-	return {
-		"current_wave": current_wave,
-		"max_waves": max_waves,
-		"current_enemies": get_tree().get_nodes_in_group("enemies").size(),
-		"enemies_spawned": enemies_spawned,
-		"total_enemies_for_wave": total_enemies_for_wave,
-		"wave_active": wave_active,
-		"is_spawning": is_spawning
-	}
-
-func start_wave_system():
-	current_wave = 1
-	wave_active = true
-	is_spawning = false
-	enemies_spawned = 0
-	total_enemies_for_wave = enemies_per_wave
-	spawn_wave()
-
-func set_newest_spawning_room(room_rect):
-	# room_rect is a Rect2, use its center for latest_room_position
-	if room_rect:
-		var center = room_rect.center
-		latest_room_position = Vector3(center.x, 1, center.y)
-	else:
-		latest_room_position = Vector3.ZERO

@@ -12,13 +12,9 @@ func _ready():
 	if spawner_scene:
 		var spawner = spawner_scene.instantiate()
 		spawner.name = "EnemySpawner"
-		spawner.enemy_scene = load("res://Scenes/enemy.tscn") # Assign before adding to scene
 		add_child(spawner)
 		spawner.add_to_group("spawner")
 		print("✅ Enemy spawner instantiated from Scenes/spawner.tscn and added to group")
-		# Start wave system after enemy_scene is set
-		if spawner.has_method("start_wave_system"):
-			spawner.start_wave_system()
 	else:
 		print("❌ Could not load Scenes/spawner.tscn!")
 	

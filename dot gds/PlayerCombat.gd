@@ -170,25 +170,18 @@ func _on_attack_cooldown_finished():
 func _play_attack_animation(combo_idx: int):
 	# Handles hand animation for attacks (punch, sword, etc.)
 	var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
-	if not WeaponManager.is_weapon_equipped():
-		print("[PlayerCombat] No weapon equipped, using punch animation.")
+	if not current_weapon:
+		# Unarmed: play punch animation on hand
 		if right_hand and right_hand_original_pos != Vector3.ZERO:
 			_play_punch_animation(combo_idx)
-		else:
-			print("[PlayerCombat] Right hand not found for punch animation!")
-		return
-	# Armed: play weapon animation using player's weapon_attach_point reference
-	if not current_weapon:
-		print("[PlayerCombat] WeaponManager returned null weapon!")
-		return
-	if player.weapon_attach_point and is_instance_valid(player.weapon_attach_point):
-		print("✅ Using player's weapon_attach_point reference: ", player.weapon_attach_point.get_path())
-		print("[PlayerCombat] Calling WeaponAnimationManager.play_attack_animation with attach_point")
-		WeaponAnimationManager.play_attack_animation(current_weapon, player.weapon_attach_point)
 	else:
-		print("❌ Player weapon_attach_point is null or invalid!")
-		print("[PlayerCombat] Calling WeaponAnimationManager.play_attack_animation with player as fallback")
-		WeaponAnimationManager.play_attack_animation(current_weapon, player)
+		# Armed: play weapon animation using player's weapon_attach_point reference
+		if player.weapon_attach_point and is_instance_valid(player.weapon_attach_point):
+			print("✅ Using player's weapon_attach_point reference: ", player.weapon_attach_point.get_path())
+			WeaponAnimationManager.play_attack_animation(current_weapon, player.weapon_attach_point)
+		else:
+			print("❌ Player weapon_attach_point is null or invalid!")
+			WeaponAnimationManager.play_attack_animation(current_weapon, player)
 	
 	# Combo feedback (debug only, replace with real effects as needed)
 	# --- Combo particle effects ---
@@ -335,11 +328,3 @@ func _spawn_weapon_trail(weapon_param):
 		if player.has_node(trail_name):
 			var trail = player.get_node(trail_name)
 			trail.restart()
-
-# Debug/test function to manually trigger weapon animation from PlayerCombat
-func test_weapon_animation():
-	print("[PlayerCombat] test_weapon_animation called!")
-	if not player:
-		print("[PlayerCombat] No player reference!")
-		return
-	WeaponAnimationManager.test_play_animation(player)

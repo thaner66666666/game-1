@@ -82,9 +82,6 @@ func _create_sword_mesh(visual: MeshInstance3D):
 	material.emission_enabled = true
 	material.emission = Color(0.7, 0.8, 1.0) * 0.1
 	visual.material_override = material
-	
-	# Standardize: sword points up (0,1,0)
-	visual.rotation_degrees = Vector3.ZERO
 
 func _create_bow_mesh(visual: MeshInstance3D):
 	# Create bow as a curved arc using multiple segments
@@ -131,10 +128,6 @@ func _create_bow_mesh(visual: MeshInstance3D):
 	
 	bow_container.add_child(string_segment)
 
-	# Standardize: bow held vertically, string facing right
-	visual.rotation_degrees = Vector3.ZERO
-	bow_container.rotation_degrees = Vector3(0, 0, 0)
-
 func _create_staff_mesh(visual: MeshInstance3D):
 	# Create staff shaft
 	var staff = CylinderMesh.new()
@@ -150,9 +143,6 @@ func _create_staff_mesh(visual: MeshInstance3D):
 	material.emission_enabled = true
 	material.emission = Color(0.4, 0.6, 1.0) * 0.2
 	visual.material_override = material
-	
-	# Standardize: staff points up (0,1,0)
-	visual.rotation_degrees = Vector3.ZERO
 	
 	# Add crystal orb at top
 	var orb = MeshInstance3D.new()

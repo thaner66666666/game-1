@@ -198,20 +198,20 @@ func _create_enhanced_sword():
 	
 	# Handle wrap (rings)
 	for i in range(4):
-		var wrap = MeshInstance3D.new()
-		var wrap_mesh = CylinderMesh.new()
-		wrap_mesh.top_radius = 0.052
-		wrap_mesh.bottom_radius = 0.052
-		wrap_mesh.height = 0.018
-		wrap.mesh = wrap_mesh
-		wrap.position = Vector3(0, -0.17 - i * 0.07, 0)
-		var wrap_material = StandardMaterial3D.new()
-		wrap_material.albedo_color = Color(0.7, 0.6, 0.3)
-		wrap_material.metallic = 0.7
-		wrap_material.roughness = 0.25
-		wrap.material_override = wrap_material
-		handle.add_child(wrap)
-		weapon_parts.append(wrap)
+		var handle_wrap = MeshInstance3D.new()
+		var handle_wrap_mesh = CylinderMesh.new()
+		handle_wrap_mesh.top_radius = 0.052
+		handle_wrap_mesh.bottom_radius = 0.052
+		handle_wrap_mesh.height = 0.018
+		handle_wrap.mesh = handle_wrap_mesh
+		handle_wrap.position = Vector3(0, -0.17 - i * 0.07, 0)
+		var handle_wrap_material = StandardMaterial3D.new()
+		handle_wrap_material.albedo_color = Color(0.7, 0.6, 0.3)
+		handle_wrap_material.metallic = 0.7
+		handle_wrap_material.roughness = 0.25
+		handle_wrap.material_override = handle_wrap_material
+		handle.add_child(handle_wrap)
+		weapon_parts.append(handle_wrap)
 	
 	# Pommel (rounded, metallic, with a gem)
 	var pommel = MeshInstance3D.new()
@@ -245,9 +245,6 @@ func _create_enhanced_sword():
 	gem.material_override = gem_material
 	pommel.add_child(gem)
 	weapon_parts.append(gem)
-
-	# Standardize: sword points up (0,1,0)
-	self.rotation_degrees = Vector3.ZERO
 
 func _create_enhanced_bow():
 	"""Create detailed bow pickup visual"""
@@ -301,9 +298,6 @@ func _create_enhanced_bow():
 	
 	bow_frame.add_child(string_segment)
 	weapon_parts.append(string_segment)
-
-	# Standardize: bow held vertically, string facing right
-	self.rotation_degrees = Vector3.ZERO
 
 func _create_enhanced_staff():
 	"""Create detailed staff pickup visual"""
@@ -365,9 +359,6 @@ func _create_enhanced_staff():
 	
 	# Floating runes around the orb
 	_create_floating_runes(orb)
-
-	# Standardize: staff points up (0,1,0)
-	self.rotation_degrees = Vector3.ZERO
 
 func _create_floating_runes(parent: MeshInstance3D):
 	"""Create floating magical runes around staff orb"""
@@ -470,7 +461,7 @@ func _animate_staff_effects(delta):
 			if part.material_override and part.material_override.billboard_mode == BaseMaterial3D.BILLBOARD_ENABLED:
 				part.rotation_degrees.z += 45 * delta
 
-func _input(event):
+func _input(_event):
 	if Input.is_action_just_pressed("interaction") and player_in_range and not get_meta("pickup_disabled", false):
 		_interact_with_weapon()
 
