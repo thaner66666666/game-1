@@ -47,6 +47,10 @@ var right_foot: MeshInstance3D
 @onready var movement_component: PlayerMovement = $MovementComponent
 @onready var combat_component: PlayerCombat = $CombatComponent
 
+# Weapon system variables
+var weapon_attach_point: Node3D = null
+var equipped_weapon_mesh: MeshInstance3D = null
+
 # Base stats for weapon system
 var base_attack_damage := 10
 var base_attack_range := 2.0
@@ -147,6 +151,8 @@ func _setup_player():
 	_initialize_currency()
 	_initialize_base_stats()
 	_setup_hand_references()
+	_setup_weapon_attach_point()
+	_connect_weapon_manager_signals()
 
 func _configure_collision():
 	collision_layer = 1
@@ -212,80 +218,101 @@ func _setup_hand_references():
 	else:
 		print("⚠️ RightFoot node not found!")
 
-func randomize_character():
-	if mesh_instance:
-		CharacterAppearanceManager.create_random_character(self)
-		print("🎲 Player appearance randomized!")
-
-func set_character_appearance(config: Dictionary):
-	if mesh_instance:
-		CharacterAppearanceManager.create_player_appearance(self, config)
-		print("🎨 Player appearance updated with custom config")
-
-func get_character_seed_config(seed_value: int):
-	return CharacterGenerator.generate_character_with_seed(seed_value)
-
-func _input(event):
-	if event.is_action_pressed("ui_text_completion_accept"):  # F1 key
-		var warrior_config = CharacterGenerator.generate_character_by_type("warrior")
-		set_character_appearance(warrior_config)
-	
-	if event.is_action_pressed("drop_weapon"):
-		if WeaponManager.is_weapon_equipped():
-			var weapon_resource = WeaponManager.get_current_weapon()
-			if weapon_resource:
-				# Spawn weapon pickup at player's position using LootManager
-				if Engine.has_singleton("LootManager"):
-					var loot_mgr = Engine.get_singleton("LootManager")
-					if loot_mgr.has_method("spawn_weapon_pickup"):
-						loot_mgr.spawn_weapon_pickup(global_position, weapon_resource, true)
-				WeaponManager.unequip_weapon()
-
-func _physics_process(delta):
-	if is_dead:
-		return
-
-	movement_component.handle_mouse_look()
-
-	# Use PlayerMovement state instead of local is_being_knocked_back
-	if movement_component.is_being_knocked_back:
-		movement_component.handle_knockback(delta)
-		movement_component.apply_gravity(delta)
-		move_and_slide()
-		return
-
-	movement_component.handle_movement_and_dash(delta)
-	combat_component.handle_attack_input()
-	_handle_health_regen(delta)
-	movement_component.handle_dash_cooldown(delta)
-	_handle_invulnerability(delta)
-	
-	# --- Animation logic moved to signal handlers ---
-	_handle_advanced_blinking(delta)
-
-# Combines movement and dash logic for efficiency
-func _handle_health_regen(delta: float):
-	# No regen during combat (attacking or cooldown)
-	if is_dead or current_health >= max_health:
-		return
-	if combat_component and combat_component.state != combat_component.CombatState.IDLE:
-		return
-	var time_since_damage = Time.get_ticks_msec() / 1000.0 - last_damage_time
-	if time_since_damage >= health_regen_delay:
-		var old_health = current_health
-		current_health = min(current_health + (health_regen_rate * delta), max_health)
-		if current_health != old_health:
-			health_changed.emit(current_health, max_health)
-
-func _handle_invulnerability(delta: float):
-	if invulnerability_timer > 0:
-		invulnerability_timer -= delta
-		if mesh_instance and mesh_instance.material_override:
-			var flash_intensity = sin(invulnerability_timer * 30) * 0.5 + 0.5
-			mesh_instance.material_override.albedo_color = Color.RED if flash_intensity > 0.5 else Color(0.9, 0.7, 0.6)
+func _setup_weapon_attach_point():
+	# Get the existing WeaponAttachPoint from the scene
+	weapon_attach_point = get_node_or_null("WeaponAttachPoint")
+	if not weapon_attach_point:
+		weapon_attach_point = Node3D.new()
+		weapon_attach_point.name = "WeaponAttachPoint"
+		add_child(weapon_attach_point)
+		print("⚠️ Created new WeaponAttachPoint - should use existing one")
 	else:
-		if mesh_instance and mesh_instance.material_override:
-			mesh_instance.material_override.albedo_color = Color(0.9, 0.7, 0.6)
+		print("✅ Found existing WeaponAttachPoint")
+	
+	# Position for weapon (adjust as needed)
+	weapon_attach_point.position = Vector3(0.44, -0.2, 0)  # Right hand position
+	weapon_attach_point.rotation_degrees = Vector3(0, 0, 0)
+
+func _connect_weapon_manager_signals():
+	if WeaponManager:
+		if not WeaponManager.weapon_equipped.is_connected(_on_weapon_equipped):
+			WeaponManager.weapon_equipped.connect(_on_weapon_equipped)
+		if not WeaponManager.weapon_unequipped.is_connected(_on_weapon_unequipped):
+			WeaponManager.weapon_unequipped.connect(_on_weapon_unequipped)
+		print("✅ Connected to WeaponManager signals")
+	
+	# Show weapon if already equipped at start
+	if WeaponManager and WeaponManager.is_weapon_equipped():
+		_on_weapon_equipped(WeaponManager.get_current_weapon())
+
+func _on_weapon_equipped(weapon_resource):
+	_show_weapon_visual(weapon_resource)
+
+func _on_weapon_unequipped():
+	_hide_weapon_visual()
+
+func _show_weapon_visual(weapon_resource):
+	_hide_weapon_visual()
+	if not weapon_resource or not weapon_attach_point:
+		return
+	var mesh = null
+	match int(weapon_resource.weapon_type):
+		int(WeaponResource.WeaponType.SWORD):
+			mesh = _create_simple_sword_mesh()
+		int(WeaponResource.WeaponType.BOW):
+			mesh = _create_simple_bow_mesh()
+		int(WeaponResource.WeaponType.STAFF):
+			mesh = _create_simple_staff_mesh()
+		_:
+			mesh = _create_simple_sword_mesh()
+	if mesh:
+		weapon_attach_point.add_child(mesh)
+		equipped_weapon_mesh = mesh
+
+func _hide_weapon_visual():
+	if equipped_weapon_mesh and is_instance_valid(equipped_weapon_mesh):
+		equipped_weapon_mesh.queue_free()
+	equipped_weapon_mesh = null
+
+func _create_simple_sword_mesh() -> MeshInstance3D:
+	var sword = MeshInstance3D.new()
+	var blade = BoxMesh.new()
+	blade.size = Vector3(0.08, 0.7, 0.12)
+	sword.mesh = blade
+	sword.position = Vector3(0, 0.35, 0)
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.8, 0.8, 1.0)
+	mat.metallic = 0.8
+	mat.roughness = 0.2
+	sword.material_override = mat
+	return sword
+
+func _create_simple_bow_mesh() -> MeshInstance3D:
+	var bow = MeshInstance3D.new()
+	var bow_mesh = CylinderMesh.new()
+	bow_mesh.top_radius = 0.03
+	bow_mesh.bottom_radius = 0.03
+	bow_mesh.height = 0.7
+	bow.mesh = bow_mesh
+	bow.rotation_degrees = Vector3(0, 0, 90)
+	bow.position = Vector3(0, 0.35, 0)
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.5, 0.3, 0.1)
+	bow.material_override = mat
+	return bow
+
+func _create_simple_staff_mesh() -> MeshInstance3D:
+	var staff = MeshInstance3D.new()
+	var staff_mesh = CylinderMesh.new()
+	staff_mesh.top_radius = 0.025
+	staff_mesh.bottom_radius = 0.035
+	staff_mesh.height = 0.9
+	staff.mesh = staff_mesh
+	staff.position = Vector3(0, 0.45, 0)
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.4, 0.25, 0.1)
+	staff.material_override = mat
+	return staff
 
 # Coin/XP pickup system
 func _on_area_pickup_entered(area: Area3D):
@@ -578,3 +605,67 @@ func _set_mouth_expression(expr: String):
 			CharacterAppearanceManager.set_mouth_surprise(mesh_instance)
 		_:
 			CharacterAppearanceManager.set_mouth_neutral(mesh_instance)
+
+func _input(event):
+	if event.is_action_pressed("ui_text_completion_accept"):  # F1 key
+		var warrior_config = CharacterGenerator.generate_character_by_type("warrior")
+		set_character_appearance(warrior_config)
+	if event.is_action_pressed("drop_weapon"):
+		if WeaponManager.is_weapon_equipped():
+			var weapon_resource = WeaponManager.get_current_weapon()
+			if weapon_resource:
+				if LootManager:
+					LootManager.spawn_weapon_pickup(global_position, weapon_resource, true)
+				WeaponManager.unequip_weapon()
+
+func _physics_process(delta):
+	if is_dead:
+		return
+
+	movement_component.handle_mouse_look()
+
+	if movement_component.is_being_knocked_back:
+		movement_component.handle_knockback(delta)
+		movement_component.apply_gravity(delta)
+		move_and_slide()
+		return
+
+	movement_component.handle_movement_and_dash(delta)
+	combat_component.handle_attack_input()
+	_handle_health_regen(delta)
+	movement_component.handle_dash_cooldown(delta)
+	_handle_invulnerability(delta)
+	_handle_advanced_blinking(delta)
+
+func _handle_health_regen(delta: float):
+	if is_dead or current_health >= max_health:
+		return
+	if combat_component and combat_component.state != combat_component.CombatState.IDLE:
+		return
+	var time_since_damage = Time.get_ticks_msec() / 1000.0 - last_damage_time
+	if time_since_damage >= health_regen_delay:
+		var old_health = current_health
+		current_health = min(current_health + (health_regen_rate * delta), max_health)
+		if current_health != old_health:
+			health_changed.emit(current_health, max_health)
+
+func _handle_invulnerability(delta: float):
+	if invulnerability_timer > 0:
+		invulnerability_timer -= delta
+		if mesh_instance and mesh_instance.material_override:
+			var flash_intensity = sin(invulnerability_timer * 30) * 0.5 + 0.5
+			mesh_instance.material_override.albedo_color = Color.RED if flash_intensity > 0.5 else Color(0.9, 0.7, 0.6)
+	else:
+		if mesh_instance and mesh_instance.material_override:
+			mesh_instance.material_override.albedo_color = Color(0.9, 0.7, 0.6)
+func set_character_appearance(config: Dictionary):
+	if mesh_instance and CharacterAppearanceManager:
+		CharacterAppearanceManager.create_player_appearance(self, config)
+
+func randomize_character():
+	if mesh_instance and CharacterAppearanceManager:
+		var config = CharacterGenerator.generate_random_character_config()
+		set_character_appearance(config)
+
+func get_character_seed_config(seed_value: int):
+	return CharacterGenerator.generate_character_with_seed(seed_value)

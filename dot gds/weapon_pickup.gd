@@ -76,15 +76,21 @@ func _setup_enhanced_visual():
 	# Clear any existing parts
 	_clear_weapon_parts()
 	
-	# Create weapon-specific enhanced visual
-	match weapon_resource.weapon_type:
-		WeaponResource.WeaponType.SWORD:
+	# Debug: Print the actual weapon_type value and enum mapping
+	print("🗡️ weapon_resource.weapon_type value: ", weapon_resource.weapon_type)
+	print("🗡️ WeaponType.SWORD: ", int(WeaponResource.WeaponType.SWORD))
+	print("🗡️ WeaponType.BOW: ", int(WeaponResource.WeaponType.BOW))
+	print("🗡️ WeaponType.STAFF: ", int(WeaponResource.WeaponType.STAFF))
+	
+	# Use integer values for matching
+	match int(weapon_resource.weapon_type):
+		int(WeaponResource.WeaponType.SWORD):
 			print("🗡️ _setup_enhanced_visual: Creating enhanced sword visual")
 			_create_enhanced_sword()
-		WeaponResource.WeaponType.BOW:
+		int(WeaponResource.WeaponType.BOW):
 			print("🗡️ _setup_enhanced_visual: Creating enhanced bow visual")
 			_create_enhanced_bow()
-		WeaponResource.WeaponType.STAFF:
+		int(WeaponResource.WeaponType.STAFF):
 			print("🗡️ _setup_enhanced_visual: Creating enhanced staff visual")
 			_create_enhanced_staff()
 		_:
@@ -109,70 +115,136 @@ func _clear_weapon_parts():
 		mesh_instance.material_override = null
 
 func _create_enhanced_sword():
-	"""Create detailed sword pickup visual"""
-	# Main blade
+	"""Create a visually detailed sword pickup"""
+	# Main blade (longer, thinner, more sword-like)
 	var blade = MeshInstance3D.new()
 	var blade_mesh = BoxMesh.new()
-	blade_mesh.size = Vector3(0.08, 1.0, 0.15)
+	blade_mesh.size = Vector3(0.07, 1.5, 0.11)  # Longer and thinner
 	blade.mesh = blade_mesh
-	blade.position = Vector3(0, 0.1, 0)
+	blade.position = Vector3(0, 0.45, 0)
 	
-	# Enhanced blade material
+	# Blade material: metallic, shiny, bluish tint
 	var blade_material = StandardMaterial3D.new()
-	blade_material.albedo_color = Color(0.9, 0.9, 1.0)
-	blade_material.metallic = 0.95
-	blade_material.roughness = 0.1
+	blade_material.albedo_color = Color(0.85, 0.9, 1.0)
+	blade_material.metallic = 1.0
+	blade_material.roughness = 0.07
+	blade_material.specular = 0.9
 	blade_material.emission_enabled = true
-	blade_material.emission = Color(0.8, 0.9, 1.0) * glow_intensity * 0.3
+	blade_material.emission = Color(0.7, 0.85, 1.0) * glow_intensity * 0.25
+	blade_material.rim_enabled = true
+	blade_material.rim = 0.7
 	blade.material_override = blade_material
 	
 	add_child(blade)
 	weapon_parts.append(blade)
 	
-	# Crossguard
+	# Fuller (groove) - subtle, inset box
+	var fuller = MeshInstance3D.new()
+	var fuller_mesh = BoxMesh.new()
+	fuller_mesh.size = Vector3(0.025, 1.3, 0.03)
+	fuller.mesh = fuller_mesh
+	fuller.position = Vector3(0, 0.05, 0.04)
+	var fuller_material = StandardMaterial3D.new()
+	fuller_material.albedo_color = Color(0.7, 0.8, 1.0)
+	fuller_material.metallic = 0.95
+	fuller_material.roughness = 0.05
+	fuller.material_override = fuller_material
+	blade.add_child(fuller)
+	weapon_parts.append(fuller)
+	
+	# Crossguard (wider, slightly curved)
 	var crossguard = MeshInstance3D.new()
 	var guard_mesh = BoxMesh.new()
-	guard_mesh.size = Vector3(0.4, 0.05, 0.12)
+	guard_mesh.size = Vector3(0.55, 0.07, 0.13)
 	crossguard.mesh = guard_mesh
-	crossguard.position = Vector3(0, -0.35, 0)
-	
+	crossguard.position = Vector3(0, -0.78, 0)
 	var guard_material = StandardMaterial3D.new()
-	guard_material.albedo_color = Color(0.6, 0.5, 0.3)
-	guard_material.metallic = 0.8
-	guard_material.roughness = 0.3
+	guard_material.albedo_color = Color(0.8, 0.7, 0.3)
+	guard_material.metallic = 0.95
+	guard_material.roughness = 0.18
+	guard_material.emission_enabled = true
+	guard_material.emission = Color(1.0, 0.9, 0.4) * 0.12
 	crossguard.material_override = guard_material
-	
 	blade.add_child(crossguard)
 	weapon_parts.append(crossguard)
 	
-	# Handle
+	# Crossguard ends (rounded tips)
+	for side in [-1, 1]:
+		var guard_tip = MeshInstance3D.new()
+		var tip_mesh = SphereMesh.new()
+		tip_mesh.radius = 0.045
+		tip_mesh.height = 0.06
+		guard_tip.mesh = tip_mesh
+		guard_tip.position = Vector3(0.27 * side, 0, 0)
+		guard_tip.material_override = guard_material
+		crossguard.add_child(guard_tip)
+		weapon_parts.append(guard_tip)
+	
+	# Handle (longer, wrapped look)
 	var handle = MeshInstance3D.new()
 	var handle_mesh = CylinderMesh.new()
-	handle_mesh.top_radius = 0.04
-	handle_mesh.bottom_radius = 0.045
-	handle_mesh.height = 0.25
+	handle_mesh.top_radius = 0.045
+	handle_mesh.bottom_radius = 0.05
+	handle_mesh.height = 0.38
 	handle.mesh = handle_mesh
-	handle.position = Vector3(0, -0.5, 0)
-	
+	handle.position = Vector3(0, -0.98, 0)
 	var handle_material = StandardMaterial3D.new()
-	handle_material.albedo_color = Color(0.3, 0.2, 0.1)
-	handle_material.roughness = 0.8
+	handle_material.albedo_color = Color(0.25, 0.18, 0.09)
+	handle_material.roughness = 0.7
+	handle_material.metallic = 0.2
 	handle.material_override = handle_material
-	
 	blade.add_child(handle)
 	weapon_parts.append(handle)
 	
-	# Pommel
+	# Handle wrap (rings)
+	for i in range(4):
+		var wrap = MeshInstance3D.new()
+		var wrap_mesh = CylinderMesh.new()
+		wrap_mesh.top_radius = 0.052
+		wrap_mesh.bottom_radius = 0.052
+		wrap_mesh.height = 0.018
+		wrap.mesh = wrap_mesh
+		wrap.position = Vector3(0, -0.17 - i * 0.07, 0)
+		var wrap_material = StandardMaterial3D.new()
+		wrap_material.albedo_color = Color(0.7, 0.6, 0.3)
+		wrap_material.metallic = 0.7
+		wrap_material.roughness = 0.25
+		wrap.material_override = wrap_material
+		handle.add_child(wrap)
+		weapon_parts.append(wrap)
+	
+	# Pommel (rounded, metallic, with a gem)
 	var pommel = MeshInstance3D.new()
 	var pommel_mesh = SphereMesh.new()
-	pommel_mesh.radius = 0.06
-	pommel_mesh.height = 0.08
+	pommel_mesh.radius = 0.07
+	pommel_mesh.height = 0.09
 	pommel.mesh = pommel_mesh
-	pommel.position = Vector3(0, -0.65, 0)
-	pommel.material_override = guard_material
-	
-	blade.add_child(pommel)
+	pommel.position = Vector3(0, -0.22, 0)
+	var pommel_material = StandardMaterial3D.new()
+	pommel_material.albedo_color = Color(0.8, 0.7, 0.3)
+	pommel_material.metallic = 1.0
+	pommel_material.roughness = 0.1
+	pommel.material_override = pommel_material
+	handle.add_child(pommel)
 	weapon_parts.append(pommel)
+	
+	# Pommel gem
+	var gem = MeshInstance3D.new()
+	var gem_mesh = SphereMesh.new()
+	gem_mesh.radius = 0.035
+	gem_mesh.height = 0.04
+	gem.mesh = gem_mesh
+	gem.position = Vector3(0, -0.09, 0)
+	var gem_material = StandardMaterial3D.new()
+	gem_material.albedo_color = Color(0.2, 0.7, 1.0, 0.85)
+	gem_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gem_material.emission_enabled = true
+	gem_material.emission = Color(0.3, 0.7, 1.0) * 0.7
+	gem_material.rim_enabled = true
+	gem_material.rim = 0.8
+	gem.material_override = gem_material
+	pommel.add_child(gem)
+	weapon_parts.append(gem)
 
 func _create_enhanced_bow():
 	"""Create detailed bow pickup visual"""
