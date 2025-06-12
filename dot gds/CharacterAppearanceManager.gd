@@ -291,7 +291,7 @@ static func _create_mouth(_character: CharacterBody3D, cfg := {}, mesh_instance:
 	var mouth_spacing = cfg.get("spacing", body_radius * 0.18)
 
 	# Calculate mouth Y position dynamically
-	var eye_spacing = cfg.get("eye_spacing", EYE_SPACING)
+	var _eye_spacing = cfg.get("eye_spacing", EYE_SPACING)
 	var eye_height = cfg.get("eye_height", EYE_POSITION_HEIGHT)
 	# Increased offsets to move mouth significantly lower
 	var min_mouth_eye_distance = 0.33 * body_radius + 0.14  # was 0.13 * body_radius + 0.04
@@ -346,11 +346,11 @@ static func set_mouth_neutral(mesh_instance: MeshInstance3D, duration := 0.18):
 	"""Tween mouth to neutral (straight horizontal line)"""
 	var mouth = mesh_instance.get_node_or_null("Mouth")
 	if not mouth: return
-	var spacing = mouth.get_meta("mouth_spacing")
+	var _spacing = mouth.get_meta("mouth_spacing")
 	var positions = [
-		Vector3(-spacing, 0, 0),
+		Vector3(-_spacing, 0, 0),
 		Vector3(0, 0, 0),
-		Vector3(spacing, 0, 0)
+		Vector3(_spacing, 0, 0)
 	]
 	CharacterAppearanceManager._tween_mouth_spheres(mouth, positions, duration)
 
@@ -358,13 +358,13 @@ static func set_mouth_smile(mesh_instance: MeshInstance3D, duration := 0.18):
 	"""Tween mouth to a smile expression (curve up)"""
 	var mouth = mesh_instance.get_node_or_null("Mouth")
 	if not mouth: return
-	var spacing = mouth.get_meta("mouth_spacing")
+	var _spacing = mouth.get_meta("mouth_spacing")
 	var mouth_size = mouth.get_meta("mouth_size")
 	var smile_y = mouth_size * 0.7
 	var positions = [
-		Vector3(-spacing, smile_y, 0),
+		Vector3(-_spacing, smile_y, 0),
 		Vector3(0, 0, 0),
-		Vector3(spacing, smile_y, 0)
+		Vector3(_spacing, smile_y, 0)
 	]
 	CharacterAppearanceManager._tween_mouth_spheres(mouth, positions, duration)
 
@@ -372,13 +372,13 @@ static func set_mouth_frown(mesh_instance: MeshInstance3D, duration := 0.18):
 	"""Tween mouth to a frown expression (curve down)"""
 	var mouth = mesh_instance.get_node_or_null("Mouth")
 	if not mouth: return
-	var spacing = mouth.get_meta("mouth_spacing")
+	var _spacing = mouth.get_meta("mouth_spacing")
 	var mouth_size = mouth.get_meta("mouth_size")
 	var frown_y = -mouth_size * 0.7
 	var positions = [
-		Vector3(-spacing, frown_y, 0),
+		Vector3(-_spacing, frown_y, 0),
 		Vector3(0, 0, 0),
-		Vector3(spacing, frown_y, 0)
+		Vector3(_spacing, frown_y, 0)
 	]
 	CharacterAppearanceManager._tween_mouth_spheres(mouth, positions, duration)
 
@@ -387,7 +387,7 @@ static func set_mouth_surprise(mesh_instance: MeshInstance3D, duration := 0.18):
 	var mouth = mesh_instance.get_node_or_null("Mouth")
 	if not mouth: return
 	var mouth_size = mouth.get_meta("mouth_size")
-	var spacing = mouth.get_meta("mouth_spacing")
+	var _spacing = mouth.get_meta("mouth_spacing")
 	var vertical = mouth_size * 0.7
 	var positions = [
 		Vector3(0, vertical, 0),

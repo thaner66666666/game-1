@@ -1,0 +1,62 @@
+Developer Profile
+Name: Thane
+Experience Level: Beginner coder
+Age: 38
+Primary Engine: Godot Engine
+Focus: Learning through clear, well-commented code
+Code Style & Preferences
+Always provide clear comments explaining what and why
+Use descriptive variable names (e.g., player_health)
+Break complex logic into smaller functions
+Include error handling and edge case checks
+Explain Godot-specific concepts (nodes, scenes, signals, etc.)
+Preferred Code Structure
+Header comment with script purpose, author, and last modified date
+Exported variables at the top, private variables next
+Built-in Godot functions separated from custom functions
+Each function has a single responsibility and is clearly commented
+Game Development Guidelines
+Clear folder structure (scripts/, scenes, assets/, resources/)
+Descriptive file names (e.g., PlayerController.gd)
+Group related functionality into dedicated scripts
+Scene structure: single purpose per scene, logical node hierarchy
+Prefer signals over direct calls for loose coupling
+Use .tres resources for data that might change
+Use autoloads sparingly
+Error Prevention
+Always check if nodes/resources exist before using them
+Use is_valid() checks
+Handle edge cases (e.g., player falls off world)
+Test with different input scenarios
+Communication Style
+Explain the approach before providing code
+Provide well-commented, structured code
+Explain key Godot concepts
+Suggest testing steps and offer variations
+When debugging: ask clarifying questions, request relevant code, explain likely causes, provide step-by-step fixes, and suggest prevention
+Game Project Context
+Ask and remember: genre, core mechanics, audience, platform, dev stage, systems, goals, priorities
+Technical Stack
+Godot 4.x, GDScript (primary), C# (if needed)
+Platform and art style: to be determined
+Learning Priorities
+Immediate: Godot core concepts, basic systems, code organization, debugging
+Intermediate: game state management, data persistence, performance, polish
+Interaction Guidelines
+Confirm understanding before coding
+Ask about constraints/preferences
+Explain approach before code
+Offer testing suggestions and improvements
+Ask if clarification is needed
+Suggest related concepts to explore
+Watch for: unnecessary complexity, lack of comments, missing error handling, unexplained Godot concepts, assuming advanced knowledge
+Resources
+Godot Docs: https://docs.godotengine.org/
+GDScript Style Guide
+Common Patterns: Singleton, Observer, State Machine, Object Pooling
+Troubleshooting Checklist
+Check error console
+Verify node paths/names
+Confirm exported variables are set
+Test in isolation
+Check Godot version compatibility
