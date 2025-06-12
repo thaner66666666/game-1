@@ -285,8 +285,11 @@ func force_next_wave():
 
 func get_spawn_debug_info() -> String:
 	"""Get debug info about spawning"""
+	# Returns a formatted string with spawn center, player position, and distance
+	var player_pos := player.global_position if player else Vector3.ZERO
+	var distance := spawn_center_cache.distance_to(player_pos) if player else -1.0
 	return "Spawn Center: %s | Player: %s | Distance: %.1f" % [
 		spawn_center_cache,
-		player.global_position if player else "NULL",
-		spawn_center_cache.distance_to(player.global_position) if player else -1
+		player_pos,
+		distance
 	]
