@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://dwwxbkubw0opu"]
+
+[ext_resource type="Script" uid="uid://b8g7ecbhogfcb" path="res://dot gds/destructible_object.gd" id="1_syd6f"]
+
+[node name="destructible_barrel" type="StaticBody3D"]
+script = ExtResource("1_syd6f")
+object_type = 1

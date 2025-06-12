@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://d0ulm16lan2ub"
+path="res://.godot/imported/Smiling_Slime_Cube_0606115431_texture.obj-6daa57a88b93f9a572035a6ebeca2cd3.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Smiling_Slime_Cube_0606115431_texture.obj-6daa57a88b93f9a572035a6ebeca2cd3.mesh"]
+
+source_file="res://3d Models/Smiling_Slime_Cube_0606115431_texture_obj/Smiling_Slime_Cube_0606115431_texture.obj"
+dest_files=["res://.godot/imported/Smiling_Slime_Cube_0606115431_texture.obj-6daa57a88b93f9a572035a6ebeca2cd3.mesh", "res://.godot/imported/Smiling_Slime_Cube_0606115431_texture.obj-6daa57a88b93f9a572035a6ebeca2cd3.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

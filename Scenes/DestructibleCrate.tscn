@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://brm0saqc0t5rk"]
+
+[ext_resource type="Script" uid="uid://b8g7ecbhogfcb" path="res://dot gds/destructible_object.gd" id="1_4dtby"]
+
+[node name="DestructibleCrate" type="StaticBody3D"]
+script = ExtResource("1_4dtby")

@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://cvtobmcdladcp"]
+
+[ext_resource type="Script" uid="uid://cpxa5kc6ivgs5" path="res://dot gds/weapon_pickup.gd" id="1_tqm4g"]
+
+[node name="WeaponPickup" type="Area3D"]
+script = ExtResource("1_tqm4g")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+
+[connection signal="area_entered" from="." to="." method="_on_area_entered"]
+[connection signal="area_exited" from="." to="." method="_on_area_exited"]

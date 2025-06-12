@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://171m2y50axl7"]
+
+[ext_resource type="Script" uid="uid://b2k2nyppdm0gy" path="res://dot gds/xp_orb.gd" id="1_4esmx"]
+
+[node name="XPOrb" type="Area3D"]
+script = ExtResource("1_4esmx")

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bmfp2bp11g4ip"]
+
+[ext_resource type="Script" uid="uid://d1joq2xwig0x3" path="res://dot gds/health_potion.gd" id="1_00e4y"]
+
+[node name="HealthPotion" type="Area3D"]
+script = ExtResource("1_00e4y")

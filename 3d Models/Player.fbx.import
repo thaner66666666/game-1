@@ -1,0 +1,44 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://7rg3aveq42x8"
+path="res://.godot/imported/Player.fbx-2b5b10785272e5958588a708a7301db9.scn"
+
+[deps]
+
+source_file="res://3d Models/Player.fbx"
+dest_files=["res://.godot/imported/Player.fbx-2b5b10785272e5958588a708a7301db9.scn"]
+
+[params]
+
+nodes/root_type="CharacterBody3D"
+nodes/root_name="Player_Character"
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=false
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=false
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=true
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+_subresources={
+"nodes": {
+"PATH:AnimationPlayer": {
+"import/skip_import": true
+}
+}
+}
+fbx/importer=0
+fbx/allow_geometry_helper_nodes=false
+fbx/embedded_image_handling=1
