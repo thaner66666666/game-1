@@ -1,5 +1,8 @@
 extends Node
 
+signal weapon_equipped(weapon_resource)
+signal weapon_unequipped()
+
 static var instance: WeaponManager
 
 var base_stats: Dictionary = {}
@@ -61,6 +64,7 @@ func _apply_weapon_to_player() -> void:
 		p.set("attack_cooldown", max(0.1, base_stats.attack_cooldown - (current_weapon.attack_cooldown * 0.1)))
 		p.set("attack_cone_angle", base_stats.attack_cone_angle + current_weapon.attack_cone_angle)
 		print("🗡️ Equipped: ", current_weapon.weapon_name, " (stats added to base)")
+		emit_signal("weapon_equipped", current_weapon)
 	else:
 		# Restore base stats when unarmed
 		p.set("attack_damage", base_stats.attack_damage)
@@ -68,3 +72,4 @@ func _apply_weapon_to_player() -> void:
 		p.set("attack_cooldown", base_stats.attack_cooldown)
 		p.set("attack_cone_angle", base_stats.attack_cone_angle)
 		print("👊 Unarmed. Player stats restored to base.")
+		emit_signal("weapon_unequipped")

@@ -281,8 +281,10 @@ func _drop_weapon_with_physics(position: Vector3, parent: Node):
 	var weapon_pickup = weapon_pickup_scene.instantiate()
 	parent.add_child(weapon_pickup)
 	
-	# Set the weapon resource
+	# Set the weapon resource immediately
 	weapon_pickup.set_weapon_resource(weapon_resource)
+	# Ensure visuals are set up after scene is ready
+	weapon_pickup.call_deferred("_setup_enhanced_visual")
 	# Mark as coming from physics for pickup delay
 	weapon_pickup.set_meta("from_physics", true)
 	

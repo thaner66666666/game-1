@@ -37,9 +37,10 @@ func _ready():
 	
 	_find_player()
 	_create_floating_text()
-	# Only setup visual if weapon_resource is already set
-	if weapon_resource:
-		_setup_enhanced_visual()
+	# Always setup visual, even if weapon_resource is null
+	_setup_enhanced_visual()
+	# Also defer setup to ensure visuals after scene is fully loaded
+	call_deferred("_setup_enhanced_visual")
 
 func _setup_enhanced_visual():
 	"""Create enhanced weapon pickup visual"""
@@ -356,7 +357,7 @@ func _animate_staff_effects(delta):
 				part.rotation_degrees.z += 45 * delta
 
 func _input(event):
-	if event.is_action_pressed("drop_weapon") and player_in_range and not get_meta("pickup_disabled", false):
+	if event.is_action_pressed("interaction") and player_in_range and not get_meta("pickup_disabled", false):
 		_interact_with_weapon()
 
 func _on_area_entered(area: Area3D):
@@ -424,11 +425,13 @@ func _swap_weapons():
 		queue_free()
 
 func set_weapon_resource(new_resource: WeaponResource):
+	print("🗡️ set_weapon_resource called with: ", new_resource)
 	weapon_resource = new_resource
 	if weapon_resource and "weapon_name" in weapon_resource:
 		set_meta("weapon_name", weapon_resource.weapon_name)
 	# Always setup visual when resource is set
 	if is_inside_tree():
+		print("🗡️ Setting up visuals for weapon_resource: ", weapon_resource)
 		_setup_enhanced_visual()
 		if player_in_range:
 			_update_interaction_text()

@@ -229,6 +229,17 @@ func _input(event):
 	if event.is_action_pressed("ui_text_completion_accept"):  # F1 key
 		var warrior_config = CharacterGenerator.generate_character_by_type("warrior")
 		set_character_appearance(warrior_config)
+	
+	if event.is_action_pressed("drop_weapon"):
+		if WeaponManager.is_weapon_equipped():
+			var weapon_resource = WeaponManager.get_current_weapon()
+			if weapon_resource:
+				# Spawn weapon pickup at player's position using LootManager
+				if Engine.has_singleton("LootManager"):
+					var loot_mgr = Engine.get_singleton("LootManager")
+					if loot_mgr.has_method("spawn_weapon_pickup"):
+						loot_mgr.spawn_weapon_pickup(global_position, weapon_resource, true)
+				WeaponManager.unequip_weapon()
 
 func _physics_process(delta):
 	if is_dead:
