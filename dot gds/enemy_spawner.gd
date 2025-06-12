@@ -28,6 +28,9 @@ func _ready():
 	spawn_wave()
 
 func spawn_wave():
+	if enemy_scene == null:
+		push_error("[EnemySpawner] enemy_scene is not set! Please assign a PackedScene in the Inspector.")
+		return
 	for i in range(enemies_per_wave):
 		var spawn_position = _get_valid_spawn_position()
 		if spawn_position != Vector3.ZERO:
