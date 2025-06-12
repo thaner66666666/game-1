@@ -136,6 +136,7 @@ func _ready():
 		combat_component.attack_state_changed.connect(_on_combat_attack_state_changed)
 	# Initialize blinking system
 	_reset_blink_timer()
+	# _start_mouth_expression_test() # <-- Disabled automatic mouth expression cycling
 
 func _setup_player():
 	add_to_group("player")
@@ -524,3 +525,45 @@ func _reset_blink_timer():
 	get_tree().create_timer(0.3).timeout.connect(
 		func(): is_blinking = false
 	)
+
+# --- Mouth Expression Test System ---
+var _mouth_expression_timer: Timer = null
+var _mouth_expression_index := 0
+var _mouth_expressions := [
+	"neutral",
+	"smile",
+	"frown",
+	"surprise"
+]
+
+func _start_mouth_expression_test():
+	if not mesh_instance:
+		return
+	if not _mouth_expression_timer:
+		_mouth_expression_timer = Timer.new()
+		_mouth_expression_timer.wait_time = 2.0
+		_mouth_expression_timer.one_shot = false
+		_mouth_expression_timer.autostart = true
+		add_child(_mouth_expression_timer)
+		_mouth_expression_timer.timeout.connect(_cycle_mouth_expression)
+	_mouth_expression_index = 0
+	_set_mouth_expression(_mouth_expressions[_mouth_expression_index])
+
+func _cycle_mouth_expression():
+	_mouth_expression_index = (_mouth_expression_index + 1) % _mouth_expressions.size()
+	_set_mouth_expression(_mouth_expressions[_mouth_expression_index])
+
+func _set_mouth_expression(expr: String):
+	if not mesh_instance:
+		return
+	match expr:
+		"neutral":
+			CharacterAppearanceManager.set_mouth_neutral(mesh_instance)
+		"smile":
+			CharacterAppearanceManager.set_mouth_smile(mesh_instance)
+		"frown":
+			CharacterAppearanceManager.set_mouth_frown(mesh_instance)
+		"surprise":
+			CharacterAppearanceManager.set_mouth_surprise(mesh_instance)
+		_:
+			CharacterAppearanceManager.set_mouth_neutral(mesh_instance)

@@ -67,9 +67,13 @@ static func create_player_appearance(character: CharacterBody3D, config := {}):
 	var eyes_cfg = config.get("eyes", {})
 	_create_eyes(character, eyes_cfg, main_mesh, body_radius)
 
-	# MOUTH - new
+	# MOUTH - ensure this is always called and mouth is created
 	var mouth_cfg = config.get("mouth", {})
 	_create_mouth(character, mouth_cfg, main_mesh, body_radius)
+	if main_mesh.get_node_or_null("Mouth"):
+		print("✅ Mouth node created successfully!")
+	else:
+		push_warning("❌ Mouth node was NOT created!")
 
 	# HANDS
 	var hands_cfg = config.get("hands", {})
@@ -201,7 +205,7 @@ static func _create_eyes(_character: CharacterBody3D, cfg := {}, mesh_instance: 
 	var eye_height = cfg.get("height", EYE_POSITION_HEIGHT)
 
 	# Calculate Z position for eyes based on body_radius
-	var base_z_offset = +.05  # Deeper into the head (was -0.15)
+	var base_z_offset = -.05  # Deeper into the head (was -0.15)
 	var adjustment_factor = -0.7  # Slightly more negative for deeper placement (was -0.625)
 	var eye_z = base_z_offset + (body_radius * adjustment_factor)
 
@@ -289,8 +293,9 @@ static func _create_mouth(_character: CharacterBody3D, cfg := {}, mesh_instance:
 	# Calculate mouth Y position dynamically
 	var eye_spacing = cfg.get("eye_spacing", EYE_SPACING)
 	var eye_height = cfg.get("eye_height", EYE_POSITION_HEIGHT)
-	var min_mouth_eye_distance = 0.13 * body_radius + 0.04  # Minimum vertical distance from eyes, scales with body
-	var default_mouth_offset = 0.18 * body_radius           # Default offset below eyes, scales with body
+	# Increased offsets to move mouth significantly lower
+	var min_mouth_eye_distance = 0.33 * body_radius + 0.14  # was 0.13 * body_radius + 0.04
+	var default_mouth_offset = 0.38 * body_radius           # was 0.18 * body_radius
 
 	var mouth_height = eye_height - max(min_mouth_eye_distance, default_mouth_offset)
 	# Clamp mouth_height to not go above (too close to) eyes
