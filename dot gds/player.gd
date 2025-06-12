@@ -97,6 +97,15 @@ signal player_died
 signal coin_collected(amount: int)
 signal xp_changed(xp: int, xp_to_next: int, level: int)
 
+# --- Eye Blinking System ---
+var blink_timer := 0.0
+var blink_interval := 0.0
+const BLINK_MIN_INTERVAL := 2.0
+const BLINK_MAX_INTERVAL := 6.0
+const BLINK_DURATION := 0.12
+var is_blinking := false
+var next_blink_time := 0.0
+
 func _on_dash_charges_changed(current_charges: int, max_charges: int):
 	dash_charges_changed.emit(current_charges, max_charges)  # Re-emit for UI
 
@@ -125,6 +134,8 @@ func _ready():
 		movement_component.body_animation_update.connect(_on_body_animation_update)
 	if combat_component:
 		combat_component.attack_state_changed.connect(_on_combat_attack_state_changed)
+	# Initialize blinking system
+	_reset_blink_timer()
 
 func _setup_player():
 	add_to_group("player")
@@ -221,16 +232,16 @@ func _input(event):
 func _physics_process(delta):
 	if is_dead:
 		return
-		
+
 	movement_component.handle_mouse_look()
-	
+
 	# Use PlayerMovement state instead of local is_being_knocked_back
 	if movement_component.is_being_knocked_back:
 		movement_component.handle_knockback(delta)
 		movement_component.apply_gravity(delta)
 		move_and_slide()
 		return
-		
+
 	movement_component.handle_movement_and_dash(delta)
 	combat_component.handle_attack_input()
 	_handle_health_regen(delta)
@@ -238,6 +249,7 @@ func _physics_process(delta):
 	_handle_invulnerability(delta)
 	
 	# --- Animation logic moved to signal handlers ---
+	_handle_advanced_blinking(delta)
 
 # Combines movement and dash logic for efficiency
 func _handle_health_regen(delta: float):
@@ -478,4 +490,37 @@ func _on_body_animation_update(body_pos: Vector3, body_rot: Vector3) -> void:
 func _process(_delta):
 	pass
 
-# No changes needed in this file. Fix the syntax error in PlayerMovement.gd.
+func _schedule_next_blink():
+	blink_interval = randf_range(BLINK_MIN_INTERVAL, BLINK_MAX_INTERVAL)
+	blink_timer = blink_interval
+
+func _handle_advanced_blinking(delta: float):
+	if is_dead or is_blinking:
+		return
+
+	blink_timer += delta
+	if blink_timer >= next_blink_time:
+		# 20% chance for double blink
+		if randf() < 0.2:
+			_do_double_blink()
+		else:
+			_do_single_blink()
+
+func _do_single_blink():
+	CharacterAppearanceManager.blink_eyes(self, 0.15)
+	_reset_blink_timer()
+
+func _do_double_blink():
+	CharacterAppearanceManager.blink_eyes(self, 0.1)
+	get_tree().create_timer(0.2).timeout.connect(
+		func(): CharacterAppearanceManager.blink_eyes(self, 0.1)
+	)
+	_reset_blink_timer()
+
+func _reset_blink_timer():
+	is_blinking = true
+	blink_timer = 0.0
+	next_blink_time = randf_range(2.0, 7.0)
+	get_tree().create_timer(0.3).timeout.connect(
+		func(): is_blinking = false
+	)
