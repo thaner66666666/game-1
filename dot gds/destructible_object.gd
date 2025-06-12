@@ -26,37 +26,129 @@ func _ready():
 	_setup_collision()
 
 func _create_visual():
-	"""Create mesh and collision entirely in code"""
 	# Remove any existing visual components
 	for child in get_children():
 		if child is MeshInstance3D or child is CollisionShape3D:
 			child.queue_free()
-	
-	# Create fresh mesh
-	mesh_instance = MeshInstance3D.new()
-	mesh_instance.name = "ObjectMesh"
-	add_child(mesh_instance)
-	
-	# Create wood material
+
+	# --- Randomize object transform for uniqueness ---
+	rotation = Vector3(
+		randf_range(-0.05, 0.05),
+		randf_range(0, TAU),
+		randf_range(-0.05, 0.05)
+	)
+	scale = Vector3.ONE * randf_range(0.96, 1.04)
+
+	# --- Materials ---
+	# Wood material with subtle grain, roughness variation, rim, emission, color variation
+	var wood_color = Color(
+		0.38 + randf_range(-0.03, 0.03),
+		0.23 + randf_range(-0.02, 0.02),
+		0.10 + randf_range(-0.01, 0.01)
+	)
 	wood_material = StandardMaterial3D.new()
-	wood_material.albedo_color = Color(0.4, 0.25, 0.1)  # Dark wood
-	wood_material.roughness = 0.9
+	wood_material.albedo_color = wood_color
+	wood_material.roughness = randf_range(0.7, 0.9)
 	wood_material.emission_enabled = true
-	wood_material.emission = Color(0.4, 0.25, 0.1) * glow_intensity
-	
+	wood_material.emission = wood_color * glow_intensity * randf_range(0.9, 1.1)
+	# Subtle normal mapping (simulate if no texture)
+	wood_material.normal_scale = 0.15
+	# Uncomment if you have a normal map:
+	# wood_material.normal_texture = preload("res://textures/wood_grain_normal.png")
+	# Add subtle wood variation using material properties only
+	wood_material.clearcoat = 0.2  # Adds subtle surface variation
+	wood_material.clearcoat_roughness = 0.8
+
+	var weathered_wood_material = wood_material.duplicate()
+	weathered_wood_material.albedo_color = wood_color.darkened(0.1)
+	weathered_wood_material.roughness = clamp(wood_material.roughness + 0.05, 0.7, 0.95)
+
+	# Metal material for bands, corners, hinges (high metallic, low roughness, rust tint, emission)
+	var rust_tint = Color(0.25, 0.13, 0.08) * randf_range(0.1, 0.25)
+	var metal_base = Color(0.32, 0.32, 0.36) * randf_range(0.85, 1.0)
+	var metal_color = metal_base.lerp(rust_tint, randf_range(0.2, 0.5))
+	var metal_material = StandardMaterial3D.new()
+	metal_material.albedo_color = metal_color
+	metal_material.metallic = randf_range(0.8, 0.9)
+	metal_material.roughness = randf_range(0.1, 0.3)
+	metal_material.emission_enabled = true
+	metal_material.emission = rust_tint * randf_range(0.2, 0.5)
+	# Optionally assign a normal map for weathering
+	metal_material.normal_scale = 0.08
+
+	var rope_material = StandardMaterial3D.new()
+	rope_material.albedo_color = Color(0.6, 0.5, 0.3)
+	rope_material.roughness = 0.7
+
 	match object_type:
+		ObjectType.BARREL:
+			# Main barrel body (slightly tapered cylinder)
+			mesh_instance = MeshInstance3D.new()
+			mesh_instance.name = "BarrelBody"
+			var barrel_mesh = CylinderMesh.new()
+			barrel_mesh.top_radius = 0.38
+			barrel_mesh.bottom_radius = 0.32
+			barrel_mesh.height = 1.0
+			barrel_mesh.radial_segments = 32
+			mesh_instance.mesh = barrel_mesh
+			mesh_instance.material_override = wood_material
+			add_child(mesh_instance)
+
+			# Metal bands (3-4)
+			for i in range(4):
+				var band = MeshInstance3D.new()
+				band.name = "MetalBand%d" % i
+				var band_mesh = CylinderMesh.new()
+				band_mesh.top_radius = 0.41
+				band_mesh.bottom_radius = 0.41
+				band_mesh.height = 0.05
+				band_mesh.radial_segments = 32
+				band.mesh = band_mesh
+				band.material_override = metal_material
+				band.position.y = -0.45 + i * 0.3
+				# Randomize band rotation/scale for uniqueness
+				band.rotation.y = randf_range(0, TAU)
+				band.scale = Vector3.ONE * randf_range(0.97, 1.03)
+				add_child(band)
+
+			# Top and bottom wooden caps
+			for cap_y in [-0.5, 0.5]:
+				var cap = MeshInstance3D.new()
+				cap.name = "BarrelCap_%s" % ("Bottom" if cap_y < 0 else "Top")
+				var cap_mesh = CylinderMesh.new()
+				cap_mesh.top_radius = 0.36
+				cap_mesh.bottom_radius = 0.36
+				cap_mesh.height = 0.04
+				cap_mesh.radial_segments = 32
+				cap.mesh = cap_mesh
+				cap.material_override = weathered_wood_material
+				cap.position.y = cap_y
+				cap.rotation.y = randf_range(0, TAU)
+				cap.scale = Vector3.ONE * randf_range(0.97, 1.03)
+				add_child(cap)
+
 		ObjectType.CRATE:
+			# Main box body only (simple crate, slightly beveled)
+			mesh_instance = MeshInstance3D.new()
+			mesh_instance.name = "CrateBody"
 			var box_mesh = BoxMesh.new()
 			box_mesh.size = Vector3(0.8, 0.8, 0.8)
 			mesh_instance.mesh = box_mesh
-		ObjectType.BARREL:
-			var cylinder_mesh = CylinderMesh.new()
-			cylinder_mesh.top_radius = 0.4
-			cylinder_mesh.bottom_radius = 0.4
-			cylinder_mesh.height = 1.0
-			mesh_instance.mesh = cylinder_mesh
-	
-	mesh_instance.material_override = wood_material
+			mesh_instance.material_override = weathered_wood_material
+			# Slight bevel effect by scaling
+			mesh_instance.scale = Vector3(0.97, 1.0, 0.97)
+			add_child(mesh_instance)
+
+			# Add a faint metallic band around the middle for visual interest
+			var band = MeshInstance3D.new()
+			band.name = "CrateBand"
+			var band_mesh = BoxMesh.new()
+			band_mesh.size = Vector3(0.82, 0.06, 0.82)
+			band.mesh = band_mesh
+			band.material_override = metal_material
+			band.position = Vector3(0, 0, 0)
+			band.scale = Vector3(1.0, 1.0, 1.0)
+			add_child(band)
 
 func _setup_collision():
 	"""Setup collision shape for physics and attacks"""
@@ -76,8 +168,8 @@ func _setup_collision():
 	
 	add_child(collision)
 	
-	# Set collision layers to match enemies (so player attacks can hit)
-	collision_layer = 2  # Same as enemies
+	# Set collision layers so objects are solid for player and still allow attacks
+	collision_layer = 1  # Player collides with this (solid)
 	collision_mask = 1   # Collide with world
 
 func take_damage(amount: int):

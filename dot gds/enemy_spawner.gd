@@ -62,7 +62,7 @@ var spawn_only_in_newest_room: bool = true
 var disable_player_proximity_spawn: bool = false
 
 # DEBUG: Visualize spawn attempts
-var show_spawn_debug: bool = true
+var show_spawn_debug: bool = false
 var debug_spawn_markers: Array = []
 
 # Multi-point spawn system
@@ -641,7 +641,7 @@ func _validate_spawn_area(world_pos: Vector3) -> Dictionary:
 	validation_result["reason"] = "All safety checks passed"
 	return validation_result
 
-func _create_debug_spawn_marker(position: Vector3, is_valid: bool, reason: String = ""):
+func _create_debug_spawn_marker(marker_position: Vector3, is_valid: bool, reason: String = ""):
 	if not show_spawn_debug:
 		return
 	
@@ -670,7 +670,7 @@ func _create_debug_spawn_marker(position: Vector3, is_valid: bool, reason: Strin
 	material.emission_enabled = true
 	marker.material_override = material
 	
-	marker.position = position + Vector3(0, 1, 0)
+	marker.position = marker_position + Vector3(0, 1, 0)
 	get_parent().add_child(marker)
 	debug_spawn_markers.append(marker)
 	
