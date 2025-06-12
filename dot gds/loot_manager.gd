@@ -358,20 +358,24 @@ func _create_physics_version(_original_item: Node, data: Dictionary) -> RigidBod
 	"""Create a RigidBody3D version for physics simulation"""
 	var physics_body = RigidBody3D.new()
 	physics_body.name = "PhysicsLoot"
-	
+
+	# Set up collision layers: layer 8 for loot, mask 1 for terrain/walls only
+	physics_body.collision_layer = 1 << 7  # Layer 8 (bit 7)
+	physics_body.collision_mask = 1 << 0   # Mask 1 (bit 0)
+
 	# Set up physics properties
 	physics_body.mass = 0.1
 	physics_body.gravity_scale = 1.0
 	physics_body.linear_damp = 0.5  # Some air resistance
 	physics_body.angular_damp = 0.8  # Reduce spinning
-	
+
 	# Create visual mesh
 	var mesh_instance = MeshInstance3D.new()
 	mesh_instance.mesh = data.get("mesh")
 	mesh_instance.material_override = data.get("material")
 	mesh_instance.scale = data.get("scale", Vector3.ONE)
 	physics_body.add_child(mesh_instance)
-	
+
 	# Create collision shape based on mesh type
 	var collision = CollisionShape3D.new()
 	if data.get("type") == "coin":
@@ -383,12 +387,12 @@ func _create_physics_version(_original_item: Node, data: Dictionary) -> RigidBod
 		var sphere_shape = SphereShape3D.new()
 		sphere_shape.radius = 0.18
 		collision.shape = sphere_shape
-	
+
 	physics_body.add_child(collision)
-	
+
 	# Store the original data for later conversion
 	physics_body.set_meta("loot_data", data)
-	
+
 	return physics_body
 
 func _wait_for_settle_and_convert(physics_body: RigidBody3D, original_data: Dictionary):
