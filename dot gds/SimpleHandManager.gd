@@ -172,7 +172,7 @@ func _position_weapon_visual(visual: Node3D, weapon_resource: WeaponResource):
 			
 		int(WeaponResource.WeaponType.BOW):
 			visual.position = Vector3(0, 0.5, 0)      # Center in hand
-			visual.rotation_degrees = Vector3(0, 0, 0) # Vertical bow
+			visual.rotation_degrees = Vector3(0, 0, 45) # Rotated 45 degrees for correct bow orientation
 			
 		int(WeaponResource.WeaponType.STAFF):
 			visual.position = Vector3(0, 0.7, 0)     # Staff extends up

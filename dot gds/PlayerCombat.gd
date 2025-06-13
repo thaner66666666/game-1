@@ -170,15 +170,22 @@ func _on_attack_cooldown_finished():
 func _play_attack_animation(combo_idx: int):
 	# Handles hand animation for attacks (punch, sword, etc.)
 	var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
+	# 🗡️ DEBUG CODE:
+	print("🗡️ DEBUG: Has weapon = ", current_weapon != null)
+	if current_weapon:
+		print("🗡️ DEBUG: Weapon name = ", current_weapon.weapon_name)
+		print("🗡️ DEBUG: weapon_attach_point exists = ", player.weapon_attach_point != null)
+		if player.weapon_attach_point:
+			print("🗡️ DEBUG: weapon_attach_point path = ", player.weapon_attach_point.get_path())
 	if not current_weapon:
 		# Unarmed: play punch animation on hand
 		if right_hand and right_hand_original_pos != Vector3.ZERO:
 			_play_punch_animation(combo_idx)
 	else:
-		# Armed: play weapon animation using player's weapon_attach_point reference
+		# Armed: play weapon animation using player reference (NOT weapon_attach_point!)
 		if player.weapon_attach_point and is_instance_valid(player.weapon_attach_point):
 			print("✅ Using player's weapon_attach_point reference: ", player.weapon_attach_point.get_path())
-			WeaponAnimationManager.play_attack_animation(current_weapon, player.weapon_attach_point)
+			WeaponAnimationManager.play_attack_animation(current_weapon, player)  # <-- FIXED: always use player
 		else:
 			print("❌ Player weapon_attach_point is null or invalid!")
 			WeaponAnimationManager.play_attack_animation(current_weapon, player)
