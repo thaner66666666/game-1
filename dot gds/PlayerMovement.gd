@@ -142,8 +142,8 @@ func initialize_animations():
 	personality_offset = randf_range(-0.1, 0.1)
 
 	# Get limb node references
-	left_hand_node = player.get_node_or_null("LeftHand")
-	right_hand_node = player.get_node_or_null("RightHand")
+	left_hand_node = player.get_node_or_null("LeftHandAnchor/LeftHand")
+	right_hand_node = player.get_node_or_null("RightHandAnchor/RightHand")
 	left_foot_node = player.get_node_or_null("LeftFoot")
 	right_foot_node = player.get_node_or_null("RightFoot")
 	body_node = player.get_node_or_null("MeshInstance3D")
@@ -177,6 +177,7 @@ func initialize_animations():
 		print("⚠️ Missing animation nodes: ", missing)
 	
 	print("📍 Animation origins captured - Body: ", body_origin, ", Hands: [", left_hand_origin, ", ", right_hand_origin, "], Feet: [", left_foot_origin, ", ", right_foot_origin, "]")
+
 
 func get_movement_direction_type(input_dir: Vector3, facing_dir: Vector3) -> MovementDirection:
 	"""Determine precise movement direction for better animations"""

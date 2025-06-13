@@ -1,4 +1,9 @@
 extends Node
+# PlayerCombat.gd
+# COORDINATE SYSTEM NOTE:
+# - Player faces POSITIVE Z direction (forward)
+# - All attack animations should use POSITIVE Z for forward movement
+# - Negative Z = backwards, Positive Z = forwards
 class_name PlayerCombat
 
 # Signals for combat events and animation coordination
@@ -80,8 +85,8 @@ func initialize(player_ref: CharacterBody3D, movement_ref: Node = null):
 		add_child(attack_timer)
 
 func _setup_hand_references():
-	left_hand = player.get_node_or_null("LeftHand")
-	right_hand = player.get_node_or_null("RightHand")
+	left_hand = player.get_node_or_null("LeftHandAnchor/LeftHand")
+	right_hand = player.get_node_or_null("RightHandAnchor/RightHand")
 	if right_hand:
 		right_hand_original_pos = right_hand.position
 		right_hand_original_rot = right_hand.rotation # <-- Store original rotation
@@ -92,6 +97,7 @@ func _setup_hand_references():
 		print("✅ Combat: Found LeftHand!")
 	else:
 		print("⚠️ Combat: LeftHand not found!")
+
 
 func set_weapon(_new_weapon: WeaponResource):
 	# No longer needed; always get weapon from WeaponManager
@@ -183,7 +189,8 @@ func _play_attack_animation(combo_idx: int):
 			print("🗡️ DEBUG: weapon_attach_point path = ", player.weapon_attach_point.get_path())
 	if not current_weapon:
 		# Unarmed: play punch animation on hand
-		if right_hand and right_hand_original_pos != Vector3.ZERO:
+		print("🥊 No weapon - calling _play_punch_animation")
+		if right_hand:
 			_play_punch_animation(combo_idx)
 	else:
 		# Armed: play weapon animation using player reference (NOT weapon_attach_point!)
@@ -193,7 +200,6 @@ func _play_attack_animation(combo_idx: int):
 		else:
 			print("❌ Player weapon_attach_point is null or invalid!")
 			WeaponAnimationManager.play_attack_animation(current_weapon, player)
-	
 	# Combo feedback (debug only, replace with real effects as needed)
 	# --- Combo particle effects ---
 	_spawn_combo_particles(combo_idx)
@@ -206,6 +212,7 @@ func _play_attack_animation(combo_idx: int):
 		print("[Combat] Combo 2: medium punch, particles")
 	elif combo_idx == 2:
 		print("[Combat] Combo 3: heavy punch, big particles")
+
 
 func _spawn_combo_particles(combo_idx: int):
 	# Spawn different particles for each combo level
@@ -230,12 +237,24 @@ func _play_impact_sound():
 		impact_sound.play()
 
 func _play_punch_animation(combo_idx := 0):
-	if not right_hand or right_hand_original_pos == Vector3.ZERO or is_punch_animating:
+	print("🥊 COORDINATE DEBUG:")
+	print("  - Player facing direction: ", player.get_facing_direction() if player.has_method("get_facing_direction") else "unknown")
+	print("  - Player transform.basis.z: ", player.transform.basis.z)
+	print("  - Right hand path: ", right_hand.get_path())
+	print("  - Right hand global position: ", right_hand.global_position)
+	print("  - Player global position: ", player.global_position)
+	print("🥊 _play_punch_animation called - right_hand: ", right_hand != null, " original_pos: ", right_hand_original_pos, " is_animating: ", is_punch_animating)
+	if not right_hand or is_punch_animating:
 		return
 	is_punch_animating = true
 	punch_animation_changed.emit(true)
 	# Play punch animation using AnimationPlayer
 	weapon_animation_player.play('punch')
+
+	# Anchor-based punch animation vectors
+	var anticipation_factor = 0.25
+	var punch_distance = Vector3(0, 0.05, 0.6)
+	var _anticipation_distance = punch_distance * -anticipation_factor
 
 	# Combo feedback (debug only, replace with real effects as needed)
 	# --- Play punch sound ---
@@ -246,6 +265,7 @@ func _play_punch_animation(combo_idx := 0):
 		print("[Combat] Combo 2: medium punch, particles")
 	elif combo_idx == 2:
 		print("[Combat] Combo 3: heavy punch, big particles")
+
 
 func _on_animation_finished(anim_name: StringName):
 	if anim_name == 'punch':
@@ -306,3 +326,10 @@ func _spawn_weapon_trail(weapon_param):
 		if player.has_node(trail_name):
 			var trail = player.get_node(trail_name)
 			trail.restart()
+
+# Helper function for consistent animation directions
+func get_forward_vector() -> Vector3:
+	return Vector3(0, 0, 1)  # Positive Z = forward
+
+func get_backward_vector() -> Vector3:
+	return Vector3(0, 0, -1)  # Negative Z = backward

@@ -202,8 +202,8 @@ func _initialize_currency():
 
 func _setup_hand_references():
 	# --- FEET (find them after character creation) ---
-	left_foot = get_node_or_null("LeftFoot")
-	right_foot = get_node_or_null("RightFoot")
+	left_foot = get_node_or_null("LeftFootAnchor/LeftFoot")
+	right_foot = get_node_or_null("RightFootAnchor/RightFoot")
 	if left_foot:
 		left_foot_original_pos = left_foot.position
 		left_foot_planted_pos = left_foot.position
@@ -216,6 +216,7 @@ func _setup_hand_references():
 		print("✅ Found RightFoot!")
 	else:
 		print("⚠️ RightFoot node not found!")
+
 
 func _setup_weapon_attach_point():
 	# --- WEAPON ATTACH POINT (parent to right hand if possible) ---
