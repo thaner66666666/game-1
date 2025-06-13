@@ -208,14 +208,23 @@ func _destroy():
 	"""Handle destruction and loot drops"""
 	if is_being_destroyed:
 		return
-	
+
 	is_being_destroyed = true
 	print("💥 Destroying ", name, "!")
-	
+
+	# 🔥 IMMEDIATE COLLISION DISABLE - This fixes your issue!
+	collision_layer = 0  # Remove from all collision layers
+	collision_mask = 0   # Stop colliding with anything
+
+	# Also disable the CollisionShape3D for extra safety
+	for child in get_children():
+		if child is CollisionShape3D:
+			child.disabled = true
+
 	_create_breaking_effect()
 	_drop_loot()
-	
-	# Clean up after effects finish
+
+	# Clean up after effects finish (but collision is already gone)
 	await get_tree().create_timer(DEBRIS_LIFETIME).timeout
 	queue_free()
 

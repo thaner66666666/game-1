@@ -1,4 +1,3 @@
-
 # damage_numbers.gd - Following damage numbers
 extends Node
 
