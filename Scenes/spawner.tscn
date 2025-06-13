@@ -4,4 +4,3 @@
 
 [node name="Spawner" type="Node3D"]
 script = ExtResource("1_yp5lu")
-max_distance_from_player = 10.0

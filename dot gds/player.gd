@@ -635,7 +635,7 @@ func _input(event):
 			var weapon_resource = WeaponManager.get_current_weapon()
 			if weapon_resource:
 				if LootManager:
-					LootManager.spawn_weapon_pickup(global_position, weapon_resource, true)
+					LootManager.spawn_weapon_pickup(global_position, weapon_resource)
 				WeaponManager.unequip_weapon()
 
 func _physics_process(delta):

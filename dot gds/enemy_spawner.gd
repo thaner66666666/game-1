@@ -1,295 +1,271 @@
-# EnemySpawner.gd - FIXED VERSION
-# Purpose: Spawns waves of enemies close to the player for immediate action
-# Author: Thane (Fixed by Claude)
-# Last Modified: June 12, 2025
-
+# enemy_spawner.gd - CLEAN REWRITE: Simple waves that work
 extends Node3D
 
-# === EXPORTED VARIABLES (Now with better defaults) ===
+# === SIGNALS FOR INTEGRATION ===
+signal wave_completed(wave_number: int)
+signal all_waves_completed
+signal enemy_spawned(enemy: Node3D)
+
+# === WAVE CONFIGURATION ===
+@export var max_waves: int = 10
+@export var base_enemies_per_wave: int = 3
+@export var enemy_increase_per_wave: int = 2
+@export var wave_delay: float = 3.0
+
+# === ENEMY SETTINGS ===
 @export var enemy_scene: PackedScene
-@export var spawn_radius_min: float = 2.0  # NEW: Minimum spawn distance (creates breathing room)
-@export var spawn_radius_max: float = 5.0  # FIXED: Closer spawn distance 
-@export var max_distance_from_player: float = 8.0  # NEW: Don't spawn too far away
-@export var spawn_attempts: int = 50  # Increased attempts for better positioning
-@export var enemies_per_wave: int = 5
-@export var wave_delay: float = 3.0  # Faster waves for more action
-@export var use_player_position: bool = true  # NEW: Prioritize player position over room center
+@export var spawn_distance_min: float = 4.0
+@export var spawn_distance_max: float = 8.0
+@export var spawn_attempts: int = 20
 
-# === PRIVATE VARIABLES ===
-var player: Node3D = null
-var latest_room_position: Vector3 = Vector3.ZERO
-var current_wave: int = 1
-var wave_timer: Timer = null
-var enemies_alive: Array = []
-var max_waves: int = 5
+# === CURRENT STATE ===
+var current_wave: int = 0
+var enemies_alive: Array[Node3D] = []
+var wave_active: bool = false
+var spawning_active: bool = false
 
-# NEW: Spawn positioning system
-var spawn_center_cache: Vector3 = Vector3.ZERO
-var last_spawn_update_time: float = 0.0
-const SPAWN_CENTER_UPDATE_INTERVAL = 1.0  # Update spawn center every second
+# === REFERENCES ===
+var player: Node3D
+var current_spawning_room: Rect2
+var map_size: Vector2 = Vector2(60, 60)
 
-signal wave_completed(wave_number: int)  # NEW: Signal for room generation
-signal all_waves_complete()
+# === TIMERS ===
+var wave_delay_timer: Timer
 
-func _ready() -> void:
-	print("🎯 IMPROVED Enemy Spawner: Starting up...")
+func _ready():
+	name = "EnemySpawner"
+	add_to_group("spawner")
+	print("🌊 Clean Wave System: Initializing...")
 	
+	_setup_system()
+
+func _setup_system():
+	"""Initialize the wave system"""
+	# Find player
 	player = get_tree().get_first_node_in_group("player")
 	if not player:
-		push_error("Player not found in group 'player'")
+		print("❌ Player not found!")
 		return
-
-	# Load fallback enemy scene
-	if enemy_scene == null:
-		var fallback_path = "res://Scenes/enemy.tscn"
-		if ResourceLoader.exists(fallback_path):
-			enemy_scene = load(fallback_path)
-			print("[EnemySpawner] Loaded fallback enemy scene.")
+	
+	# Load enemy scene if not set
+	if not enemy_scene:
+		if ResourceLoader.exists("res://Scenes/enemy.tscn"):
+			enemy_scene = load("res://Scenes/enemy.tscn")
+			print("✅ Loaded enemy scene")
 		else:
-			push_error("[EnemySpawner] No enemy scene set and fallback not found!")
+			print("❌ No enemy scene found!")
 			return
-
-	# Set up wave timer
-	wave_timer = Timer.new()
-	wave_timer.wait_time = wave_delay
-	wave_timer.one_shot = true
-	wave_timer.timeout.connect(_on_wave_timer_timeout)
-	add_child(wave_timer)
 	
-	print("✅ Improved Enemy Spawner ready!")
+	# Setup wave delay timer
+	wave_delay_timer = Timer.new()
+	wave_delay_timer.wait_time = wave_delay
+	wave_delay_timer.one_shot = true
+	wave_delay_timer.timeout.connect(_start_next_wave)
+	add_child(wave_delay_timer)
+	
+	print("✅ Wave System ready!")
 
-# === IMPROVED WAVE SYSTEM ===
-func start_wave() -> void:
-	if enemy_scene == null:
-		push_error("Enemy scene not set!")
+# === MAIN WAVE SYSTEM ===
+func start_wave_system():
+	"""PUBLIC: Start the entire wave system"""
+	if current_wave == 0:
+		print("🚀 Starting Wave System!")
+		current_wave = 1
+		_start_current_wave()
+
+func set_newest_spawning_room(room_rect: Rect2):
+	"""PUBLIC: Set the room where enemies should spawn"""
+	current_spawning_room = room_rect
+	print("🏠 Wave System: Set spawning room to ", room_rect)
+	
+	# If we haven't started waves yet, start now
+	if current_wave == 0:
+		start_wave_system()
+
+func _start_current_wave():
+	"""Start the current wave"""
+	if wave_active:
+		print("⚠️ Wave already active!")
 		return
-
-	print("🎯 [Wave %d] Starting with smart spawn positioning..." % current_wave)
+	
+	print("🌊 === STARTING WAVE ", current_wave, " ===")
+	
+	wave_active = true
+	spawning_active = true
 	enemies_alive.clear()
+	
+	# Calculate enemies for this wave
+	var total_enemies = base_enemies_per_wave + (current_wave - 1) * enemy_increase_per_wave
+	print("👹 Spawning ", total_enemies, " enemies for wave ", current_wave)
+	
+	# Spawn all enemies for this wave
+	for i in range(total_enemies):
+		var enemy = _spawn_single_enemy()
+		if enemy:
+			enemies_alive.append(enemy)
+			enemy_spawned.emit(enemy)
+	
+	spawning_active = false
+	print("✅ Wave ", current_wave, " active with ", enemies_alive.size(), " enemies")
 
-	# NEW: Smart spawn center calculation
-	var spawn_center = _calculate_smart_spawn_center()
-	print("🎯 Using spawn center: ", spawn_center)
+func _spawn_single_enemy() -> Node3D:
+	"""Spawn one enemy in the current room"""
+	var spawn_position = _find_spawn_position()
+	if spawn_position == Vector3.ZERO:
+		print("⚠️ Could not find spawn position")
+		return null
+	
+	# Create enemy
+	var enemy = enemy_scene.instantiate()
+	get_parent().add_child(enemy)
+	enemy.global_position = spawn_position
+	
+	# Scale enemy for current wave
+	_scale_enemy_for_wave(enemy)
+	
+	# Connect death signal
+	if enemy.has_signal("enemy_died"):
+		enemy.enemy_died.connect(_on_enemy_died.bind(enemy))
+	
+	print("✅ Spawned enemy at ", spawn_position)
+	return enemy
 
-	var enemies_spawned = 0
-	var spawn_attempts_used = 0
+func _find_spawn_position() -> Vector3:
+	"""Find a valid spawn position"""
+	var spawn_center = _get_spawn_center()
 	
-	# NEW: Spawn with better positioning logic
-	while enemies_spawned < enemies_per_wave and spawn_attempts_used < spawn_attempts:
-		var spawn_pos = _find_smart_spawn_position(spawn_center)
-		spawn_attempts_used += 1
-		
-		if spawn_pos == Vector3.ZERO:
-			print("🎯 Attempt %d failed, trying again..." % spawn_attempts_used)
-			continue
-		
-		var enemy = enemy_scene.instantiate()
-		add_child(enemy)
-		
-		# FIXED: Proper ground-level spawning
-		spawn_pos.y = 2.0  # Just above ground level, not floating in sky!
-		enemy.global_position = spawn_pos
-		
-		# Connect death signal
-		if enemy.has_signal("enemy_died"):
-			enemy.enemy_died.connect(_on_enemy_died)
-		
-		enemies_alive.append(enemy)
-		enemies_spawned += 1
-		
-		print("🎯 Enemy %d spawned at %s (Distance from player: %.1f)" % [
-			enemies_spawned, 
-			spawn_pos, 
-			spawn_pos.distance_to(player.global_position)
-		])
-	
-	print("✅ Wave %d complete: %d/%d enemies spawned!" % [current_wave, enemies_spawned, enemies_per_wave])
-
-# === NEW: SMART SPAWN CENTER CALCULATION ===
-func _calculate_smart_spawn_center() -> Vector3:
-	"""Calculate the best position to spawn enemies around"""
-	var now = Time.get_ticks_msec() / 1000.0
-	
-	# Cache the spawn center for performance
-	if now - last_spawn_update_time > SPAWN_CENTER_UPDATE_INTERVAL:
-		if use_player_position or latest_room_position == Vector3.ZERO:
-			# Prioritize player position for immediate action
-			spawn_center_cache = player.global_position
-			print("🎯 Using PLAYER position as spawn center")
-		else:
-			# Use room center but adjust toward player
-			var room_to_player = player.global_position - latest_room_position
-			spawn_center_cache = latest_room_position + (room_to_player * 0.3)  # 30% toward player
-			print("🎯 Using ADJUSTED room position as spawn center")
-		
-		last_spawn_update_time = now
-	
-	return spawn_center_cache
-
-# === NEW: SMART SPAWN POSITIONING ===
-func _find_smart_spawn_position(spawn_center: Vector3) -> Vector3:
-	"""Find optimal spawn position with multiple strategies"""
-	
-	# Strategy 1: Ring around player (best for combat)
-	var ring_position = _try_ring_spawn(spawn_center)
-	if ring_position != Vector3.ZERO:
-		return ring_position
-	
-	# Strategy 2: Random in range (fallback)
-	var random_position = _try_random_spawn(spawn_center)
-	if random_position != Vector3.ZERO:
-		return random_position
-	
-	# Strategy 3: Emergency spawn (last resort)
-	return _emergency_spawn(spawn_center)
-
-func _try_ring_spawn(center: Vector3) -> Vector3:
-	"""Try to spawn in a ring around the center for balanced encounters"""
-	for attempt in range(10):
+	# Try multiple positions around the spawn center
+	for attempt in range(spawn_attempts):
 		var angle = randf() * TAU
-		var distance = randf_range(spawn_radius_min, spawn_radius_max)
+		var distance = randf_range(spawn_distance_min, spawn_distance_max)
 		
-		var spawn_pos = center + Vector3(
+		var test_position = spawn_center + Vector3(
 			cos(angle) * distance,
-			0,
+			2.0,  # Always spawn at ground level
 			sin(angle) * distance
 		)
 		
-		if _is_spawn_position_valid(spawn_pos):
-			return spawn_pos
+		if _is_valid_spawn_position(test_position):
+			return test_position
 	
-	return Vector3.ZERO
+	print("⚠️ Using fallback spawn position")
+	return spawn_center + Vector3(randf_range(-3, 3), 2.0, randf_range(-3, 3))
 
-func _try_random_spawn(center: Vector3) -> Vector3:
-	"""Random spawn within range as fallback"""
-	for attempt in range(15):
-		var random_offset = Vector3(
-			randf_range(-spawn_radius_max, spawn_radius_max),
-			0,
-			randf_range(-spawn_radius_max, spawn_radius_max)
+func _get_spawn_center() -> Vector3:
+	"""Get the center point for spawning"""
+	if current_spawning_room != Rect2():
+		# Use room center
+		var room_center = current_spawning_room.get_center()
+		return Vector3(
+			(room_center.x - map_size.x / 2) * 2.0,
+			2.0,
+			(room_center.y - map_size.y / 2) * 2.0
 		)
-		
-		var spawn_pos = center + random_offset
-		
-		if _is_spawn_position_valid(spawn_pos):
-			return spawn_pos
-	
-	return Vector3.ZERO
+	else:
+		# Fallback to player position
+		return player.global_position
 
-func _emergency_spawn(center: Vector3) -> Vector3:
-	"""Emergency spawn if all else fails"""
-	print("⚠️ Using emergency spawn!")
-	var emergency_pos = center + Vector3(
-		randf_range(-2.0, 2.0),
-		0,
-		randf_range(-2.0, 2.0)
-	)
-	return emergency_pos
-
-# === IMPROVED VALIDATION ===
-func _is_spawn_position_valid(pos: Vector3) -> bool:
-	"""Enhanced validation for spawn positions"""
-	if not player:
-		return false
-	
+func _is_valid_spawn_position(pos: Vector3) -> bool:
+	"""Check if spawn position is valid"""
+	# Check distance from player
 	var player_distance = pos.distance_to(player.global_position)
-	
-	# Must be within our spawn range
-	if player_distance < spawn_radius_min or player_distance > max_distance_from_player:
+	if player_distance < 2.0 or player_distance > 15.0:
 		return false
 	
-	# Check for overlap with existing enemies
+	# Check for enemy overlap
 	for enemy in enemies_alive:
-		if is_instance_valid(enemy) and pos.distance_to(enemy.global_position) < 1.5:
+		if is_instance_valid(enemy) and pos.distance_to(enemy.global_position) < 2.0:
 			return false
 	
-	# NEW: Simple terrain check (avoid walls if possible)
+	# Check terrain if available
 	var terrain = get_tree().get_first_node_in_group("terrain")
 	if terrain and terrain.has_method("_is_valid_pos"):
-		var grid_x = int((pos.x / 2.0) + 30)  # Assuming 60x60 map
-		var grid_y = int((pos.z / 2.0) + 30)
-		if not terrain._is_valid_pos(grid_x, grid_y):
-			return false
+		var grid_x = int((pos.x / 2.0) + (map_size.x / 2))
+		var grid_y = int((pos.z / 2.0) + (map_size.y / 2))
+		return terrain._is_valid_pos(grid_x, grid_y)
 	
 	return true
 
-# === WAVE PROGRESSION (Improved) ===
-func _on_enemy_died() -> void:
-	# Clean up dead enemies
-	enemies_alive = enemies_alive.filter(func(e): return is_instance_valid(e) and not ("is_dead" in e and e.is_dead))
+func _scale_enemy_for_wave(enemy: Node3D):
+	"""Make enemies stronger each wave"""
+	if not enemy:
+		return
 	
-	print("🎯 Enemy died! Remaining: %d" % enemies_alive.size())
+	# Scale health, damage, and speed based on wave
+	var health_scale = 1.0 + (current_wave - 1) * 0.3  # +30% health per wave
+	var damage_scale = 1.0 + (current_wave - 1) * 0.2  # +20% damage per wave
+	var speed_scale = 1.0 + (current_wave - 1) * 0.1   # +10% speed per wave
 	
-	if enemies_alive.size() == 0:
-		print("🎉 Wave %d COMPLETE!" % current_wave)
-		wave_completed.emit(current_wave)  # Signal for room generation
-		
-		current_wave += 1
-		if current_wave <= max_waves:
-			print("⏳ Next wave in %.1f seconds..." % wave_delay)
-			wave_timer.start()
-		else:
-			print("🏆 ALL WAVES COMPLETE!")
-			all_waves_complete.emit()
-
-func _on_wave_timer_timeout() -> void:
-	start_wave()
-
-# === ROOM SYSTEM INTEGRATION (Improved) ===
-func set_newest_spawning_room(room_rect: Rect2) -> void:
-	var center = room_rect.position + room_rect.size * 0.5
-	latest_room_position = Vector3(center.x, 2.0, center.y)
-	print("🎯 Updated room position to: ", latest_room_position)
+	if "max_health" in enemy:
+		enemy.max_health = int(enemy.max_health * health_scale)
+		enemy.health = enemy.max_health
 	
-	# Start first wave if needed
-	if current_wave == 1 and enemies_alive.size() == 0:
-		start_wave()
-
-func update_latest_room(pos: Vector3) -> void:
-	latest_room_position = pos
-	print("🎯 Updated latest_room_position to: ", pos)
+	if "attack_damage" in enemy:
+		enemy.attack_damage = int(enemy.attack_damage * damage_scale)
 	
-	if current_wave == 1 and enemies_alive.size() == 0:
-		start_wave()
+	if "speed" in enemy:
+		enemy.speed = enemy.speed * speed_scale
 
-func start_wave_system() -> void:
-	if enemies_alive.size() == 0:
-		current_wave = 1
-		start_wave()
+# === WAVE COMPLETION SYSTEM ===
+func _on_enemy_died(enemy: Node3D):
+	"""Called when an enemy dies"""
+	enemies_alive.erase(enemy)
+	print("💀 Enemy died! Remaining: ", enemies_alive.size())
+	
+	# Check if wave is complete
+	if enemies_alive.size() == 0 and wave_active:
+		_complete_wave()
 
-# === UI/DEBUG INFO (Improved) ===
+func _complete_wave():
+	"""Complete the current wave"""
+	wave_active = false
+	
+	print("🎉 WAVE ", current_wave, " COMPLETED!")
+	
+	# Emit signal for room generation
+	wave_completed.emit(current_wave)
+	
+	# Check if all waves are done
+	if current_wave >= max_waves:
+		print("🏆 ALL WAVES COMPLETED!")
+		all_waves_completed.emit()
+		return
+	
+	# Start delay for next wave
+	print("⏳ Next wave starts in ", wave_delay, " seconds...")
+	wave_delay_timer.start()
+
+func _start_next_wave():
+	"""Start the next wave after delay"""
+	current_wave += 1
+	_start_current_wave()
+
+# === PUBLIC API FOR UI AND OTHER SYSTEMS ===
 func get_wave_info() -> Dictionary:
-	var wave_active = enemies_alive.size() > 0
-	var is_spawning = false  # Could track this during spawn_wave() if needed
+	"""Get current wave information for UI"""
+	var total_enemies_for_wave = base_enemies_per_wave + (current_wave - 1) * enemy_increase_per_wave
 	
 	return {
 		"current_wave": current_wave,
 		"max_waves": max_waves,
 		"current_enemies": enemies_alive.size(),
-		"enemies_spawned": enemies_per_wave if wave_active else 0,
-		"total_enemies_for_wave": enemies_per_wave,
+		"enemies_spawned": total_enemies_for_wave if wave_active else 0,
+		"total_enemies_for_wave": total_enemies_for_wave,
 		"wave_active": wave_active,
-		"is_spawning": is_spawning,
-		"spawn_center": spawn_center_cache,
-		"player_position": player.global_position if player else Vector3.ZERO
+		"is_spawning": spawning_active
 	}
 
 # === DEBUG FUNCTIONS ===
 func force_next_wave():
-	"""Debug function to skip to next wave"""
+	"""Debug: Skip to next wave"""
 	for enemy in enemies_alive:
 		if is_instance_valid(enemy):
 			enemy.queue_free()
 	enemies_alive.clear()
-	_on_enemy_died()
+	if wave_active:
+		_complete_wave()
 
-func get_spawn_debug_info() -> String:
-	"""Get debug info about spawning"""
-	# Returns a formatted string with spawn center, player position, and distance
-	var player_pos := player.global_position if player else Vector3.ZERO
-	var distance := spawn_center_cache.distance_to(player_pos) if player else -1.0
-	return "Spawn Center: %s | Player: %s | Distance: %.1f" % [
-		spawn_center_cache,
-		player_pos,
-		distance
-	]
+func force_start_waves():
+	"""Debug: Force start wave system"""
+	if current_wave == 0:
+		start_wave_system()

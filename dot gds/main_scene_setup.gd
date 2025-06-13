@@ -82,31 +82,32 @@ func _create_simple_room_generator() -> Node3D:
 		return null
 
 func _setup_spawner_for_rooms(spawner: Node3D, room_generator: Node3D):
-	"""Setup spawner to work with the newest room system"""
+	"""Connect spawner to room system"""
 	await get_tree().create_timer(1.0).timeout
 	
+	print("🔗 Connecting wave system to room generator...")
+	
+	# ✅ FIXED: Check if signal is already connected before connecting
+	if spawner.has_signal("wave_completed") and room_generator.has_method("_on_wave_completed"):
+		if not spawner.wave_completed.is_connected(room_generator._on_wave_completed):
+			spawner.wave_completed.connect(room_generator._on_wave_completed)
+			print("✅ Connected wave_completed signal!")
+		else:
+			print("ℹ️ wave_completed signal already connected, skipping...")
+	
+	# Give spawner the starting room
 	if room_generator.has_method("get_rooms"):
 		var rooms = room_generator.get_rooms()
 		if rooms.size() > 0:
-			var newest_room = rooms[rooms.size() - 1]  # Get the last (newest) room
-			
-			print("🎯 Setting spawner to newest room: ", newest_room)
-			
-			# Give spawner the newest room as the spawning area
-			if spawner.has_method("set_newest_spawning_room"):
-				spawner.set_newest_spawning_room(newest_room)
-			elif spawner.has_method("set_room_boundaries"):
-				var room_bounds = {
-					"rect": newest_room,
-					"map_size": Vector2(60, 60)
-				}
-				spawner.set_room_boundaries(room_bounds)
-			
-			# Start the wave system
-			if spawner.has_method("start_wave_system"):
-				spawner.start_wave_system()
-			
-			print("✅ Spawner setup complete with newest room focus!")
+			spawner.set_newest_spawning_room(rooms[0])
+			print("🏠 Set starting room for spawner")
+	
+	print("✅ Wave system integration complete!")
+	
+	# Start the wave system
+	if spawner.has_method("start_wave_system"):
+		spawner.start_wave_system()
+		print("🚀 Started wave progression system!")
 
 func _check_system_status():
 	var room_gen = get_node_or_null("SimpleRoomGenerator")
