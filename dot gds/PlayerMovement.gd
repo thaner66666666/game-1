@@ -511,10 +511,11 @@ func handle_dash_cooldown(_delta: float):
 		dash_charges_changed.emit(current_dash_charges, player.max_dash_charges)
 
 func get_movement_input() -> Vector3:
+	# Map input so that 'move_up' is -Z (forward), 'move_down' is +Z (backward)
 	var input_dir = Vector3(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		0,
-		Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
+		-Input.get_action_strength("move_up") + Input.get_action_strength("move_down")
 	)
 	return input_dir.normalized() if input_dir.length() > 0 else Vector3.ZERO
 

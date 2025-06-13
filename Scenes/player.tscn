@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://davx6xri0n0vt"]
+[gd_scene load_steps=9 format=3 uid="uid://davx6xri0n0vt"]
 
 [ext_resource type="Script" uid="uid://bt47480nh31yn" path="res://dot gds/player.gd" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://cqexju0dcbsij" path="res://dot gds/PlayerMovement.gd" id="2_cvnsp"]
@@ -9,11 +9,30 @@
 [sub_resource type="SphereShape3D" id="SphereShape3D_i3pqv"]
 
 [sub_resource type="Animation" id="Animation_6t5aa"]
-resource_name = "sword_attack"
+resource_name = "punch"
+length = 0.5
+tracks/0/type = "position_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("RightHandAnchor")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0, 1, -0.44, -0.2, 0, 0.166667, 1, -0.44, -0.2, 1, 0.5, 1, -0.44, -0.2, 0)
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_vgqql"]
+[sub_resource type="Animation" id="Animation_vgqql"]
+length = 0.001
+tracks/0/type = "position_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("RightHandAnchor")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0, 1, -0.44, -0.2, 0)
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_fkybt"]
 _data = {
-&"sword_attack": SubResource("Animation_6t5aa")
+&"RESET": SubResource("Animation_vgqql"),
+&"punch": SubResource("Animation_6t5aa")
 }
 
 [node name="Player" type="CharacterBody3D" groups=["player"]]
@@ -46,5 +65,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.44, -0.2, 0)
 
 [node name="WeaponAnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-&"": SubResource("AnimationLibrary_vgqql")
+&"": SubResource("AnimationLibrary_fkybt")
 }

@@ -326,6 +326,7 @@ func _move_toward_player():
 	var direction = (cached_player_pos - global_position)
 	direction.y = 0
 	direction = direction.normalized()
+	# Ensure -Z is forward for enemy movement
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 
@@ -336,6 +337,7 @@ func _face_player():
 	direction_to_player.y = 0
 	if direction_to_player.length() > 0.1:
 		direction_to_player = direction_to_player.normalized()
+		# Ensure -Z is forward for facing
 		var target_rotation_y = atan2(direction_to_player.x, direction_to_player.z)
 		var rotation_speed = 6.0
 		rotation.y = lerp_angle(rotation.y, target_rotation_y, rotation_speed * get_physics_process_delta_time())

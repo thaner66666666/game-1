@@ -16,6 +16,7 @@ var state: CombatState = CombatState.IDLE
 var player: CharacterBody3D = null
 var weapon: WeaponResource = null
 var movement_component: Node = null # Reference to PlayerMovement
+var weapon_animation_player: AnimationPlayer = null # Reference to WeaponAnimationPlayer
 
 # Hand animation references
 var left_hand: MeshInstance3D = null
@@ -48,6 +49,9 @@ func initialize(player_ref: CharacterBody3D, movement_ref: Node = null):
 	combo_index = 0
 	last_combo_time = 0.0
 	attack_cooldown = player.attack_cooldown if "attack_cooldown" in player else 1.0
+	weapon_animation_player = player.get_node('WeaponAnimationPlayer')
+	if weapon_animation_player:
+		weapon_animation_player.animation_finished.connect(_on_animation_finished)
 	_setup_hand_references()
 	# --- Audio setup ---
 	punch_sounds = []
@@ -230,55 +234,22 @@ func _play_punch_animation(combo_idx := 0):
 		return
 	is_punch_animating = true
 	punch_animation_changed.emit(true)
-	var punch_distance = Vector3(0, 0.08, -1.1)
-	var punch_time = 0.06 # Faster punch
-	var return_time = 0.2 # Slower return
-	var anticipation_time = 0.04
-	var anticipation_factor = 0.1 # 10% back
-	var anticipation_distance = punch_distance * -anticipation_factor
-	var anticipation_rot = Vector3(0, 0, deg_to_rad(-10)) # slight windup
-	var punch_rot = Vector3(0, 0, deg_to_rad(60)) # More dramatic rotation
+	# Play punch animation using AnimationPlayer
+	weapon_animation_player.play('punch')
 
-	# Vary punch based on combo
-	if combo_idx == 1:
-		punch_distance += Vector3(0.05, 0.03, -0.2)
+	# Combo feedback (debug only, replace with real effects as needed)
+	# --- Play punch sound ---
+	_play_punch_sound(combo_idx)
+	if combo_idx == 0:
+		print("[Combat] Combo 1: light punch")
+	elif combo_idx == 1:
+		print("[Combat] Combo 2: medium punch, particles")
 	elif combo_idx == 2:
-		punch_distance += Vector3(0.1, 0.06, -0.35)
+		print("[Combat] Combo 3: heavy punch, big particles")
 
-	var tween = create_tween()
-	tween.set_parallel(true)
-
-	# Anticipation: move back slightly and rotate a bit (starts at 0s)
-	tween.tween_property(
-		right_hand, "position",
-		right_hand_original_pos + anticipation_distance, anticipation_time
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(0.0)
-	tween.tween_property(
-		right_hand, "rotation",
-		right_hand_original_rot + anticipation_rot, anticipation_time
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT).set_delay(0.0)
-
-	# Punch forward: snap with overshoot (starts after anticipation)
-	tween.tween_property(
-		right_hand, "position",
-		right_hand_original_pos + punch_distance, punch_time
-	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(anticipation_time)
-	tween.tween_property(
-		right_hand, "rotation",
-		right_hand_original_rot + punch_rot, punch_time
-	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).set_delay(anticipation_time)
-
-	# Return: smooth settle (starts after punch)
-	tween.tween_property(
-		right_hand, "position",
-		right_hand_original_pos, return_time
-	).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN).set_delay(anticipation_time + punch_time)
-	tween.tween_property(
-		right_hand, "rotation",
-		right_hand_original_rot, return_time
-	).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN).set_delay(anticipation_time + punch_time)
-
-	tween.tween_callback(_on_punch_animation_finished).set_delay(anticipation_time + punch_time + return_time)
+func _on_animation_finished(anim_name: StringName):
+	if anim_name == 'punch':
+		_on_punch_animation_finished()
 
 func _on_punch_animation_finished():
 	is_punch_animating = false

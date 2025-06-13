@@ -483,6 +483,7 @@ func get_xp() -> int:
 	return xp
 
 func get_facing_direction() -> Vector3:
+	# Ensure facing direction is -Z (forward)
 	return -transform.basis.z
 
 func is_moving() -> bool:

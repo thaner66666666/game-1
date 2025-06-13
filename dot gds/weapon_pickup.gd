@@ -128,7 +128,8 @@ func _create_enhanced_sword():
 	blade_material.albedo_color = Color(0.85, 0.9, 1.0)
 	blade_material.metallic = 1.0
 	blade_material.roughness = 0.07
-	blade_material.specular = 0.9
+	blade_material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	blade_material.specular_color = Color(0.9, 0.9, 0.9)
 	blade_material.emission_enabled = true
 	blade_material.emission = Color(0.7, 0.85, 1.0) * glow_intensity * 0.25
 	blade_material.rim_enabled = true
@@ -245,6 +246,7 @@ func _create_enhanced_sword():
 	gem.material_override = gem_material
 	pommel.add_child(gem)
 	weapon_parts.append(gem)
+
 
 func _create_enhanced_bow():
 	"""Create detailed bow pickup visual"""
