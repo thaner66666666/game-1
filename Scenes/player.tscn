@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://davx6xri0n0vt"]
+[gd_scene load_steps=8 format=3 uid="uid://davx6xri0n0vt"]
 
 [ext_resource type="Script" uid="uid://bt47480nh31yn" path="res://dot gds/player.gd" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://cqexju0dcbsij" path="res://dot gds/PlayerMovement.gd" id="2_cvnsp"]
@@ -8,10 +8,16 @@
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_i3pqv"]
 
+[sub_resource type="Animation" id="Animation_6t5aa"]
+resource_name = "sword_attack"
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_vgqql"]
+_data = {
+&"sword_attack": SubResource("Animation_6t5aa")
+}
+
 [node name="Player" type="CharacterBody3D" groups=["player"]]
 script = ExtResource("1_4flbx")
-health_regen_rate = 0.0
-knockback_force = 6.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 
@@ -30,4 +36,15 @@ script = ExtResource("2_cvnsp")
 script = ExtResource("3_6t5aa")
 
 [node name="WeaponAttachPoint" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.616077, 0.0548823, -0.000475287)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.44, -0.231382, 0.0185283)
+
+[node name="RightHandAnchor" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.44, -0.2, 0)
+
+[node name="LeftHandAnchor" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.44, -0.2, 0)
+
+[node name="WeaponAnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_vgqql")
+}

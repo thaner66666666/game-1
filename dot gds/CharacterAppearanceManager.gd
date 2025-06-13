@@ -129,7 +129,41 @@ static func _create_simple_body(mesh_instance: MeshInstance3D, body_type: String
 	mesh_instance.material_override = SKIN_MATERIAL
 
 static func _create_hands(character: CharacterBody3D, cfg := {}):
-	"""Floating hands with shape and position options"""
+	"""Create hands that follow the anchor nodes"""
+	var _shape = cfg.get("shape", "fist")
+	var size = cfg.get("size", HAND_SIZE)
+	
+	# Find the anchor nodes
+	var right_anchor = character.get_node_or_null("RightHandAnchor")
+	var left_anchor = character.get_node_or_null("LeftHandAnchor")
+	
+	if not right_anchor or not left_anchor:
+		print("⚠️ Hand anchor nodes not found - falling back to old system")
+		_create_hands_old_way(character, cfg)
+		return
+	
+	# Create hands as children of anchors
+	for i in [-1, 1]:
+		var hand = MeshInstance3D.new()
+		var anchor = right_anchor if i > 0 else left_anchor
+		hand.name = "RightHand" if i > 0 else "LeftHand"
+		
+		var mesh = BoxMesh.new()
+		mesh.size = Vector3(size * 2.5, size * 1.5, size * 2.5)
+		hand.mesh = mesh
+		
+		# Position relative to anchor (anchor handles the animation)
+		hand.position = Vector3.ZERO  # At anchor position
+		hand.rotation_degrees = Vector3(0, 0, 90)
+		hand.material_override = SKIN_MATERIAL
+		
+		# Add hand as child of anchor
+		anchor.add_child(hand)
+		print("✅ Created ", hand.name, " at anchor")
+
+# Keep the old function as backup
+static func _create_hands_old_way(character: CharacterBody3D, cfg := {}):
+	"""Original hand creation code (backup)"""
 	var _shape = cfg.get("shape", "fist")
 	var size = cfg.get("size", HAND_SIZE)
 	var _dist = cfg.get("distance", 0.44)
@@ -141,7 +175,8 @@ static func _create_hands(character: CharacterBody3D, cfg := {}):
 		var mesh = BoxMesh.new()
 		mesh.size = Vector3(size * 2.5, size * 1.5, size * 2.5)
 		hand.mesh = mesh
-		hand.position = Vector3(i * _dist, _height, 0)
+		# FIXED: Right hand = negative X, Left hand = positive X
+		hand.position = Vector3(i * -_dist, _height, 0)  # Note the negative
 		hand.rotation_degrees = Vector3(0, 0, 90)
 		hand.material_override = SKIN_MATERIAL
 		character.add_child(hand)

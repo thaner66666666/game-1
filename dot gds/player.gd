@@ -34,11 +34,11 @@ extends CharacterBody3D
 @export var heal_amount_from_potion := 30
 
 @export_group("Animation")
-@export var body_lean_strength: float = 0.15      # Was 0.15 - much more lean
-@export var body_sway_strength: float = 0.50      # Was 0.08 - more bounce  
-@export var hand_swing_strength: float = 1      # Was 0.3 - bigger swings
-@export var foot_step_strength: float = 0.10       # Was 0.18 - bigger steps
-@export var side_step_modifier: float = .4       # Was 1.4 - more dramatic sides= 1.4
+@export var body_lean_strength: float = 0.15
+@export var body_sway_strength: float = 0.50
+@export var hand_swing_strength: float = 1.0
+@export var foot_step_strength: float = 0.10
+@export var side_step_modifier: float = 0.4
 
 # --- Node References (using @onready for caching) ---
 var left_foot: MeshInstance3D
@@ -140,7 +140,6 @@ func _ready():
 		combat_component.attack_state_changed.connect(_on_combat_attack_state_changed)
 	# Initialize blinking system
 	_reset_blink_timer()
-	# _start_mouth_expression_test() # <-- Disabled automatic mouth expression cycling
 
 func _setup_player():
 	add_to_group("player")
@@ -217,7 +216,8 @@ func _setup_hand_references():
 		print("✅ Found RightFoot!")
 	else:
 		print("⚠️ RightFoot node not found!")
-	
+
+func _setup_weapon_attach_point():
 	# --- WEAPON ATTACH POINT (parent to right hand if possible) ---
 	var right_hand = get_node_or_null("RightHand")
 	if right_hand:
@@ -247,10 +247,6 @@ func _setup_hand_references():
 			print("✅ Found existing WeaponAttachPoint at player root")
 		weapon_attach_point.position = Vector3(0.44, -0.2, 0)
 		weapon_attach_point.rotation_degrees = Vector3(0, 0, -90)  # Same rotation fix
-
-func _setup_weapon_attach_point():
-	# This is now handled in _setup_hand_references to ensure correct parenting.
-	pass
 
 func _connect_weapon_manager_signals():
 	if WeaponManager:
@@ -399,9 +395,9 @@ func take_damage(amount: int, from: Node3D = null):
 	invulnerability_timer = INVULNERABILITY_DURATION
 	health_changed.emit(current_health, max_health)
 	if from and movement_component:
-		movement_component.apply_knockback_from_enemy(from) # <-- FIXED
+		movement_component.apply_knockback_from_enemy(from)
 	if current_health <= 0 and not is_dead:
-		_handle_player_death() # <-- Use new method
+		_handle_player_death()
 	if current_health != old_health:
 		_show_damage_feedback(amount)
 
@@ -453,7 +449,6 @@ func _handle_player_death():
 	# Show death/game over screen (if available)
 	if has_node("/root/DeathScreen"):
 		get_node("/root/DeathScreen").show()
-	# Optionally: queue_free() or respawn logic here
 
 # Public API / Getters
 func get_health() -> int:
@@ -510,18 +505,18 @@ func get_player_stats() -> Dictionary:
 	return {
 		"health": current_health,
 		"max_health": max_health,
-		"dash_charges": movement_component.current_dash_charges,  # Use PlayerMovement
+		"dash_charges": movement_component.current_dash_charges,
 		"max_dash_charges": max_dash_charges,
 		"currency": currency,
 		"total_coins": total_coins_collected,
 		"attack_damage": attack_damage,
 		"speed": speed,
-		"is_dashing": movement_component.is_dashing,  # Use PlayerMovement
+		"is_dashing": movement_component.is_dashing,
 		"is_attacking": combat_component.state != combat_component.CombatState.IDLE,
 		"is_dead": is_dead,
 		"knockback_force": knockback_force,
 		"knockback_duration": knockback_duration,
-		"is_being_knocked_back": movement_component.is_being_knocked_back,  # Use PlayerMovement
+		"is_being_knocked_back": movement_component.is_being_knocked_back,
 		"xp": xp,
 		"level": level,
 		"current_weapon_name": current_weapon_name,
@@ -530,10 +525,10 @@ func get_player_stats() -> Dictionary:
 		"can_swap_weapon": is_instance_valid(nearby_weapon_pickup),
 		"combat_state": combat_component.state
 	}
+
 #region Animation Functions
 
 # --- Animation signal handlers ---
-
 func _on_hand_animation_update(_left_pos: Vector3, _right_pos: Vector3, _left_rot: Vector3, _right_rot: Vector3) -> void:
 	pass
 
@@ -643,7 +638,7 @@ func _input(event):
 			var weapon_resource = WeaponManager.get_current_weapon()
 			if weapon_resource:
 				if LootManager:
-					LootManager.spawn_weapon_pickup(global_position, weapon_resource)
+					LootManager.drop_weapon(global_position, weapon_resource)
 				WeaponManager.unequip_weapon()
 
 func _physics_process(delta):
@@ -686,6 +681,7 @@ func _handle_invulnerability(delta: float):
 	else:
 		if mesh_instance and mesh_instance.material_override:
 			mesh_instance.material_override.albedo_color = Color(0.9, 0.7, 0.6)
+
 func set_character_appearance(config: Dictionary):
 	if mesh_instance and CharacterAppearanceManager:
 		CharacterAppearanceManager.create_player_appearance(self, config)
