@@ -121,45 +121,57 @@ func _find_references():
 		enemy_spawner.wave_completed.connect(_on_wave_completed)
 		print("Protected Boundary Generator: ✅ Connected to wave system")
 
+# ...existing code...
 func generate_starting_room():
 	"""Generate the first room with protected boundaries"""
 	print("🛡️ Creating starting room with PROTECTED BOUNDARY...")
-	
 	_clear_everything()
 	_fill_with_walls()
 	_mark_boundary_walls()  # NEW: Mark which walls are permanent boundaries
-	
 	# Create starting room in center (well within safe zone)
 	var safe_area_start = boundary_thickness + safe_zone_margin
 	var safe_area_size = map_size - Vector2(safe_area_start * 2, safe_area_start * 2)
-	
 	var room_pos = Vector2(
 		safe_area_start + (safe_area_size.x - base_room_size.x) / 2,
 		safe_area_start + (safe_area_size.y - base_room_size.y) / 2
 	)
 	var starting_room = Rect2(room_pos, base_room_size)
-	
 	print("🛡️ Starting room positioned safely at: ", starting_room)
 	print("🛡️ Boundary zone: 0-", boundary_thickness, " and ", map_size.x - boundary_thickness, "-", map_size.x)
-	
-	# Carve out the room
 	_carve_room_shape(starting_room, RoomShape.SQUARE)
 	rooms.append(starting_room)
 	room_shapes.append(RoomShape.SQUARE)
 	current_room_count = 1
-	
-	# Generate walls (boundary walls will be marked as permanent)
 	_generate_all_walls_with_boundary_protection()
-	
-	# Move player to room center
 	_move_player_to_room(starting_room)
-	
-	# Spawn a chest randomly in the first room
 	_spawn_treasure_chest_random_in_room(starting_room)
 	_spawn_destructible_objects_in_room(starting_room)  # NEW: Spawn destructibles
-	
-	print("🛡️ Starting room created with PROTECTED BOUNDARIES!")
+	# TEST: Spawn a random sword in the first room for testing
+	if weapon_pickup_scene and typeof(WeaponPool) != TYPE_NIL:
+		var sword = null
+		# Try to get a random sword (not bow/staff)
+		var tries = 10
+		while tries > 0:
+			sword = WeaponPool.get_random_weapon(false)
+			if sword and sword.weapon_type == WeaponResource.WeaponType.SWORD:
+				break
+			tries -= 1
+		if sword and sword.weapon_type == WeaponResource.WeaponType.SWORD:
+			# Pick a random position in the room (avoid walls)
+			var min_x = int(starting_room.position.x) + 1
+			var max_x = int(starting_room.position.x + starting_room.size.x) - 2
+			var min_y = int(starting_room.position.y) + 1
+			var max_y = int(starting_room.position.y + starting_room.size.y) - 2
+			var rx = randi_range(min_x, max_x)
+			var ry = randi_range(min_y, max_y)
+			var pos = Vector3((rx - map_size.x / 2) * 2.0, 0.5, (ry - map_size.y / 2) * 2.0)
+			var pickup = weapon_pickup_scene.instantiate()
+			pickup.set("weapon_resource", sword)
+			add_child(pickup)
+			pickup.global_position = pos
+			print("🗡️ TEST: Spawned random sword (", sword.weapon_name, ") at ", pos)
 	terrain_generated.emit()
+# ...existing code...
 
 func _clear_everything():
 	"""Clear all generated content"""
