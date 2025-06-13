@@ -174,9 +174,9 @@ func initialize_animations():
 	if missing.size() == 0:
 		print("✅ All animation nodes found and positioned")
 	else:
-		print("⚠️ Missing animation nodes: %s" % missing)
+		print("⚠️ Missing animation nodes: ", missing)
 	
-	print("📍 Animation origins captured - Body: %s, Hands: [%s, %s], Feet: [%s, %s]" % [body_origin, left_hand_origin, right_hand_origin, left_foot_origin, right_foot_origin])
+	print("📍 Animation origins captured - Body: ", body_origin, ", Hands: [", left_hand_origin, ", ", right_hand_origin, "], Feet: [", left_foot_origin, ", ", right_foot_origin, "]")
 
 func get_movement_direction_type(input_dir: Vector3, facing_dir: Vector3) -> MovementDirection:
 	"""Determine precise movement direction for better animations"""
@@ -600,7 +600,7 @@ func set_animation_settings(settings: Dictionary) -> void:
 		foot_step_strength = settings["foot_step_strength"]
 	if "side_step_modifier" in settings:
 		side_step_modifier = settings["side_step_modifier"]
-	print("✅ PlayerMovement animation settings applied: %s" % settings)
+	print("✅ PlayerMovement animation settings applied: ", settings)
 
 func _update_walking_animations(delta: float, input_direction: Vector3):
 	"""Enhanced walking animations with directional awareness and CROSSED FEET for side-stepping and smooth diagonals"""
