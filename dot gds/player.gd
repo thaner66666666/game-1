@@ -409,9 +409,12 @@ func _show_heal_feedback(heal_amount: int):
 	# Flash green
 	if mesh_instance and mesh_instance.material_override:
 		mesh_instance.material_override.albedo_color = Color(0.3, 1.0, 0.3)
-	# Floating heal text
-	if Engine.has_singleton("DamageNumbers"):
-		Engine.get_singleton("DamageNumbers").show_number(global_position, "+%d" % heal_amount, Color(0.3, 1.0, 0.3))
+	
+	# FIXED: Use the correct damage numbers system for healing
+	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
+	if damage_system:
+		damage_system.show_heal(heal_amount, self)
+	
 	# Play heal sound (if available)
 	if has_node("HealSound"):
 		$HealSound.play()
@@ -420,15 +423,20 @@ func _show_damage_feedback(damage_amount: int):
 	# Flash red
 	if mesh_instance and mesh_instance.material_override:
 		mesh_instance.material_override.albedo_color = Color(1.0, 0.2, 0.2)
-	# Floating damage text
-	if Engine.has_singleton("DamageNumbers"):
-		Engine.get_singleton("DamageNumbers").show_number(global_position, "-%d" % damage_amount, Color(1.0, 0.2, 0.2))
+	
+	# FIXED: Use the correct damage numbers system
+	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
+	if damage_system:
+		damage_system.show_damage(damage_amount, self, "normal")
+	
 	# Play damage sound (if available)
 	if has_node("DamageSound"):
 		$DamageSound.play()
+	
 	# Screen shake (if camera exists and supports it)
 	if camera and camera.has_method("shake"):
 		camera.shake(0.2, 4.0)
+	
 	# Damage particles (if available)
 	if has_node("DamageParticles"):
 		$DamageParticles.restart()
