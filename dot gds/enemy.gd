@@ -120,36 +120,12 @@ func _set_home():
 	patrol_target = home_position
 
 func _physics_process(delta):
-	if not is_spawn_complete:
-		_handle_spawn(delta)
-		_apply_gravity(delta)
-		move_and_slide()
-		_prevent_wall_clipping()
+	if not enabled:
+		velocity = Vector3.ZERO
+		if mesh_instance and is_instance_valid(mesh_instance):
+			mesh_instance.visible = false
 		return
-	if is_jumping:
-		_handle_jump_movement(delta)
-		move_and_slide()
-		_prevent_wall_clipping()
-		return
-	_apply_gravity(delta)
-	if is_being_knocked_back:
-		_handle_knockback(delta)
-		move_and_slide()
-		_prevent_wall_clipping()
-		return
-	if is_dead or not _is_player_valid():
-		slide_velocity *= slide_damping
-		velocity.x += slide_velocity.x * delta
-		velocity.z += slide_velocity.z * delta
-		move_and_slide()
-		_prevent_wall_clipping()
-		return
-	_update_cache(delta)
-	_handle_ai(delta)
-	_handle_enemy_separation(delta)
-	_apply_sliding(delta)
-	move_and_slide()
-	_prevent_wall_clipping()
+	# ...existing code...
 
 func _prevent_wall_clipping():
 	var terrain = get_tree().get_first_node_in_group("terrain")
@@ -431,3 +407,7 @@ func _drop_weapon():
 			LootManager.drop_weapon(global_position, self.weapon_resource)
 		else:
 			LootManager.drop_weapon(global_position)
+
+
+@export var enabled := true
+# ...existing code...

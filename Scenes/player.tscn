@@ -1,8 +1,15 @@
-[gd_scene load_steps=11 format=3 uid="uid://davx6xri0n0vt"]
+[gd_scene load_steps=14 format=3 uid="uid://davx6xri0n0vt"]
 
 [ext_resource type="Script" uid="uid://bt47480nh31yn" path="res://dot gds/player.gd" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://cqexju0dcbsij" path="res://dot gds/PlayerMovement.gd" id="2_cvnsp"]
 [ext_resource type="Script" uid="uid://chx8k2542vhd2" path="res://dot gds/PlayerCombat.gd" id="3_6t5aa"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6t5aa"]
+albedo_color = Color(0, 0, 0, 1)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_vgqql"]
+radius = 0.0
+height = 0.0
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_onrkg"]
 
@@ -29,10 +36,28 @@ tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = PackedFloat32Array(0, 1, 0.44, -0.2, 0, 0.1, 1, 0.44, -0.2, -1, 0.3, 1, 0.44, -0.2, 0)
 
+[sub_resource type="Animation" id="Animation_fkybt"]
+resource_name = "sword_slash"
+tracks/0/type = "position_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("RightHandAnchor")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0, 1, 0.44, -0.2, 0, 0.2, 1, 0.44, -0.2, 0)
+tracks/1/type = "rotation_3d"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("RightHandAnchor")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = PackedFloat32Array(0, 1, 0, 0, 0, 1, 0.2, 1, 0, 0, 0, 1)
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_fkybt"]
 _data = {
 &"RESET": SubResource("Animation_vgqql"),
-&"punch": SubResource("Animation_6t5aa")
+&"punch": SubResource("Animation_6t5aa"),
+&"sword_slash": SubResource("Animation_fkybt")
 }
 
 [sub_resource type="PrismMesh" id="PrismMesh_6t5aa"]
@@ -43,7 +68,8 @@ _data = {
 script = ExtResource("1_4flbx")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0113111, 0, 0.0101483)
+material_override = SubResource("StandardMaterial3D_6t5aa")
+mesh = SubResource("CapsuleMesh_vgqql")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("CapsuleShape3D_onrkg")
@@ -60,7 +86,7 @@ script = ExtResource("2_cvnsp")
 script = ExtResource("3_6t5aa")
 
 [node name="WeaponAttachPoint" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.44, -0.231382, 0.0185283)
+transform = Transform3D(-4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0, 1, 0.44, -0.2, 0)
 
 [node name="RightHandAnchor" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.44, -0.2, 0)

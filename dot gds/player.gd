@@ -1,5 +1,87 @@
 extends CharacterBody3D
 
+func bake_character_in_editor():
+	"""Call this function to bake character in editor"""
+	if not Engine.is_editor_hint():
+		return
+	print("🔥 Baking character in editor...")
+	# Generate random character
+	var config = CharacterGenerator.generate_random_character_config()
+	# Bake the character parts
+	_bake_hands_to_scene(config)
+	_bake_feet_to_scene(config)
+	_update_body_in_scene(config)
+	print("✅ Character baked! Save the scene to keep changes.")
+
+func _bake_hands_to_scene(config: Dictionary):
+	"""Bake hands directly into the scene anchors"""
+	var hands_cfg = config.get("hands", {})
+	var size = hands_cfg.get("size", 0.08)
+	for side in ["Left", "Right"]:
+		var anchor = get_node_or_null(side + "HandAnchor")
+		if not anchor:
+			continue
+		# Remove existing hand if any
+		var existing_hand = anchor.get_node_or_null(side + "Hand")
+		if existing_hand:
+			existing_hand.queue_free()
+		# Create new hand
+		var hand = MeshInstance3D.new()
+		hand.name = side + "Hand"
+		hand.owner = get_tree().edited_scene_root
+		var mesh = BoxMesh.new()
+		mesh.size = Vector3(size * 2.5, size * 1.5, size * 2.5)
+		hand.mesh = mesh
+		hand.rotation_degrees = Vector3(0, 0, 90)
+		# Apply material
+		var material = StandardMaterial3D.new()
+		material.albedo_color = config.get("skin_tone", Color(0.9, 0.7, 0.6))
+		material.roughness = 0.7
+		hand.material_override = material
+		anchor.add_child(hand)
+		print("✅ Baked ", side, "Hand")
+
+func _bake_feet_to_scene(config: Dictionary):
+	"""Bake feet as children of player"""
+	var foot_size = Vector3(0.15, 0.06, 0.25)
+	# Remove existing feet
+	for side in ["Left", "Right"]:
+		var existing_foot = get_node_or_null(side + "Foot")
+		if existing_foot:
+			existing_foot.queue_free()
+	for i in [-1, 1]:
+		var foot = MeshInstance3D.new()
+		foot.name = "LeftFoot" if i < 0 else "RightFoot"
+		foot.owner = get_tree().edited_scene_root
+		var mesh = BoxMesh.new()
+		mesh.size = Vector3(foot_size.x * 1.7, foot_size.y * 2.5, foot_size.z * 1.7)
+		foot.mesh = mesh
+		foot.position = Vector3(i * 0.25, -1.05 + 0.2 - 0.05, 0)
+		foot.scale = Vector3(0.85 * 0.75, 0.85, 0.85)
+		var material = StandardMaterial3D.new()
+		material.albedo_color = config.get("skin_tone", Color(0.9, 0.7, 0.6))
+		material.roughness = 0.7
+		foot.material_override = material
+		add_child(foot)
+		print("✅ Baked ", foot.name)
+
+func _update_body_in_scene(config: Dictionary):
+	"""Update the existing body mesh"""
+	var mesh_instance = get_node_or_null("MeshInstance3D")
+	if not mesh_instance:
+		return
+	# Create body mesh
+	var capsule_mesh = CapsuleMesh.new()
+	capsule_mesh.radius = config.get("body_radius", 0.3)
+	capsule_mesh.height = config.get("body_height", 1.5)
+	mesh_instance.mesh = capsule_mesh
+	# Apply skin material
+	var material = StandardMaterial3D.new()
+	material.albedo_color = config.get("skin_tone", Color(0.9, 0.7, 0.6))
+	material.roughness = 0.7
+	mesh_instance.material_override = material
+	print("✅ Updated body")
+
 # --- Inspector Properties ---
 @export_group("Movement")
 @export var speed := 5.0
