@@ -128,7 +128,10 @@ func _physics_process(delta):
 
 	# Use the delta parameter for all relevant updates
 	_update_cache(delta)
-	_handle_spawn(delta) if not is_spawn_complete else _handle_ai(delta)
+	if not is_spawn_complete:
+		_handle_spawn(delta)
+	else:
+		_handle_ai(delta)
 	_handle_knockback(delta)
 	_handle_enemy_separation(delta)
 	_apply_sliding(delta)
@@ -421,4 +424,3 @@ func _drop_weapon():
 
 
 @export var enabled := true
-# ...existing code...

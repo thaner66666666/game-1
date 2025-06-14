@@ -57,7 +57,7 @@ func _clear_weapon_visual():
 	pass
 
 
-func _create_weapon_visual(weapon_resource: WeaponResource) -> Node3D:
+func _create_weapon_visual(_weapon_resource: WeaponResource) -> Node3D:
 	return null
 
 func _create_sword_mesh(visual: MeshInstance3D):
@@ -237,7 +237,7 @@ func _hide_all_weapons():
 	var attach_point = get_parent()
 	if attach_point:
 		var names = ["SwordNode", "BowNode", "StaffNode"]
-		for name in names:
-			var node = attach_point.get_node_or_null(name)
+		for node_name in names:
+			var node = attach_point.get_node_or_null(node_name)
 			if node:
 				node.visible = false
