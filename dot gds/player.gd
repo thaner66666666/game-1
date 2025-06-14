@@ -67,19 +67,19 @@ func _bake_feet_to_scene(config: Dictionary):
 
 func _update_body_in_scene(config: Dictionary):
 	"""Update the existing body mesh"""
-	var mesh_instance = get_node_or_null("MeshInstance3D")
-	if not mesh_instance:
+	var body_mesh_instance = get_node_or_null("MeshInstance3D")
+	if not body_mesh_instance:
 		return
 	# Create body mesh
 	var capsule_mesh = CapsuleMesh.new()
 	capsule_mesh.radius = config.get("body_radius", 0.3)
 	capsule_mesh.height = config.get("body_height", 1.5)
-	mesh_instance.mesh = capsule_mesh
+	body_mesh_instance.mesh = capsule_mesh
 	# Apply skin material
 	var material = StandardMaterial3D.new()
 	material.albedo_color = config.get("skin_tone", Color(0.9, 0.7, 0.6))
 	material.roughness = 0.7
-	mesh_instance.material_override = material
+	body_mesh_instance.material_override = material
 	print("✅ Updated body")
 
 # --- Inspector Properties ---

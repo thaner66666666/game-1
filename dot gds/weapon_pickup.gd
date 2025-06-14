@@ -129,7 +129,6 @@ func _create_enhanced_sword():
 	blade_material.metallic = 1.0
 	blade_material.roughness = 0.07
 	blade_material.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
-	blade_material.specular_color = Color(0.9, 0.9, 0.9)
 	blade_material.emission_enabled = true
 	blade_material.emission = Color(0.7, 0.85, 1.0) * glow_intensity * 0.25
 	blade_material.rim_enabled = true
@@ -546,7 +545,6 @@ func set_weapon_resource(new_resource: WeaponResource):
 func _create_pickup_delay_effect(delay_time: float):
 	"""Create visual effect during pickup delay"""
 	print("🗡️ Weapon pickup delay effect for ", delay_time, " seconds")
-	
 	# Dim the weapon during delay
 	for part in weapon_parts:
 		if is_instance_valid(part) and part.material_override:
@@ -554,9 +552,7 @@ func _create_pickup_delay_effect(delay_time: float):
 			if material and material.emission_enabled:
 				var tween = create_tween()
 				tween.set_loops(int(delay_time * 2))
-				
 				var dim_emission = material.emission * 0.3
 				var normal_emission = material.emission
-				
 				tween.tween_property(material, "emission", dim_emission, 0.25)
 				tween.tween_property(material, "emission", normal_emission, 0.25)

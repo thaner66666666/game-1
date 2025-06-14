@@ -104,26 +104,27 @@ func _bake_feet(player: CharacterBody3D, config: Dictionary):
 
 func _bake_body(player: CharacterBody3D, config: Dictionary):
 	"""Update the existing MeshInstance3D with body"""
-	var mesh_instance = player.get_node_or_null("MeshInstance3D")
-	if not mesh_instance:
-		mesh_instance = MeshInstance3D.new()
-		mesh_instance.name = "MeshInstance3D"
-		player.add_child(mesh_instance)
-	
-	mesh_instance.owner = player.get_tree().edited_scene_root
-	
+	var body_mesh_instance = player.get_node_or_null("MeshInstance3D")
+	if not body_mesh_instance:
+		body_mesh_instance = MeshInstance3D.new()
+		body_mesh_instance.name = "MeshInstance3D"
+		player.add_child(body_mesh_instance)
+
+	body_mesh_instance.owner = player.get_tree().edited_scene_root
+
 	# Create body mesh
 	var capsule_mesh = CapsuleMesh.new()
 	capsule_mesh.radius = config.get("body_radius", 0.3)
 	capsule_mesh.height = config.get("body_height", 1.5)
-	mesh_instance.mesh = capsule_mesh
-	
+	body_mesh_instance.mesh = capsule_mesh
+
 	# Apply skin material
 	var material = StandardMaterial3D.new()
 	material.albedo_color = config.get("skin_tone", Color(0.9, 0.7, 0.6))
-	mesh_instance.material_override = material
-	
+	body_mesh_instance.material_override = material
+
 	print("✅ Baked body")
+
 
 func _bake_eyes(player: CharacterBody3D, config: Dictionary):
 	"""Bake eyes as children of MeshInstance3D"""

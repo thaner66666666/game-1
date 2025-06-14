@@ -15,7 +15,7 @@ func _ready():
 	# Initial refresh in case weapon is already equipped
 	refresh_weapon_hands()
 
-func _on_weapon_equipped(weapon_resource: WeaponResource):
+func _on_weapon_equipped(_weapon_resource: WeaponResource):
 	refresh_weapon_hands()
 
 func _on_weapon_unequipped():

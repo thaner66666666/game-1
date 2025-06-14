@@ -17,6 +17,7 @@ var _example_private_var: int = 0 # Example private variable
 func _ready() -> void:
 	# Called when the node is added to the scene
 	# ...existing code...
+	_example_private_var += 1 # Example usage to avoid unused variable warning
 	pass
 
 # ---

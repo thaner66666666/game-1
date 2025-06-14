@@ -125,7 +125,18 @@ func _physics_process(delta):
 		if mesh_instance and is_instance_valid(mesh_instance):
 			mesh_instance.visible = false
 		return
-	# ...existing code...
+
+	# Use the delta parameter for all relevant updates
+	_update_cache(delta)
+	_handle_spawn(delta) if not is_spawn_complete else _handle_ai(delta)
+	_handle_knockback(delta)
+	_handle_enemy_separation(delta)
+	_apply_sliding(delta)
+	_apply_gravity(delta)
+	_handle_jump_movement(delta)
+	move_and_slide()
+	_prevent_wall_clipping()
+
 
 func _prevent_wall_clipping():
 	var terrain = get_tree().get_first_node_in_group("terrain")

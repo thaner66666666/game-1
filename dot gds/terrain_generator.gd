@@ -21,13 +21,13 @@ func generate_optimized_terrain():
 	var attempts := 0
 	while rooms.size() < max_rooms and attempts < max_rooms * 5:
 		var size := Vector2(
-			randi_range(room_min_size.x, room_max_size.x),
-			randi_range(room_min_size.y, room_max_size.y)
+			int(randi_range(int(room_min_size.x), int(room_max_size.x))),
+			int(randi_range(int(room_min_size.y), int(room_max_size.y)))
 		)
 
 		var pos := Vector2(
-			randi_range(0, map_size.x - size.x),
-			randi_range(0, map_size.y - size.y)
+			int(randi_range(0, int(map_size.x - size.x))),
+			int(randi_range(0, int(map_size.y - size.y)))
 		)
 
 		var new_room := _create_room_shape(pos, size)
