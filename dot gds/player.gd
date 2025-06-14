@@ -128,6 +128,7 @@ var right_foot: MeshInstance3D
 
 @onready var movement_component: PlayerMovement = $MovementComponent
 @onready var combat_component: PlayerCombat = $CombatComponent
+@onready var sword_node: MeshInstance3D = $WeaponAttachPoint/SwordNode
 
 # Weapon system variables
 var weapon_attach_point: Node3D = null
@@ -353,23 +354,37 @@ func _show_weapon_visual(weapon_resource):
 	_hide_weapon_visual()
 	if not weapon_resource or not weapon_attach_point:
 		return
-	var mesh = null
+	# Only show/hide the existing SwordNode for swords
 	match int(weapon_resource.weapon_type):
 		int(WeaponResource.WeaponType.SWORD):
-			mesh = _create_simple_sword_mesh()
+			if sword_node:
+				sword_node.visible = true
+				equipped_weapon_mesh = sword_node
+			else:
+				print("⚠️ SwordNode not found!")
 		int(WeaponResource.WeaponType.BOW):
-			mesh = _create_simple_bow_mesh()
+			var mesh = _create_simple_bow_mesh()
+			if mesh:
+				weapon_attach_point.add_child(mesh)
+				equipped_weapon_mesh = mesh
 		int(WeaponResource.WeaponType.STAFF):
-			mesh = _create_simple_staff_mesh()
+			var mesh = _create_simple_staff_mesh()
+			if mesh:
+				weapon_attach_point.add_child(mesh)
+				equipped_weapon_mesh = mesh
 		_:
-			mesh = _create_simple_sword_mesh()
-	if mesh:
-		# Attach weapon visual to WeaponAttachPoint (not directly to hand)
-		weapon_attach_point.add_child(mesh)
-		equipped_weapon_mesh = mesh
+			if sword_node:
+				sword_node.visible = true
+				equipped_weapon_mesh = sword_node
+			else:
+				print("⚠️ SwordNode not found!")
 
 func _hide_weapon_visual():
-	if equipped_weapon_mesh and is_instance_valid(equipped_weapon_mesh):
+	# Hide the SwordNode if it exists
+	if sword_node:
+		sword_node.visible = false
+	# Remove any dynamically created weapon meshes
+	if equipped_weapon_mesh and is_instance_valid(equipped_weapon_mesh) and equipped_weapon_mesh != sword_node:
 		equipped_weapon_mesh.queue_free()
 	equipped_weapon_mesh = null
 

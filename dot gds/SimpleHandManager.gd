@@ -22,51 +22,43 @@ func _on_weapon_unequipped():
 	refresh_weapon_hands()
 
 func refresh_weapon_hands():
-	# Remove old visual if exists
-	_clear_weapon_visual()
-	
+	ensure_weapon_nodes()
+	_hide_all_weapons()
 	# Get current weapon from WeaponManager
+	var attach_point = get_parent()
 	var weapon_resource = null
 	if WeaponManager and WeaponManager.has_method("get_current_weapon"):
 		weapon_resource = WeaponManager.get_current_weapon()
-	
 	if weapon_resource == null:
 		print("🤷 SimpleHandManager: No weapon equipped")
 		return
-	
-	# Create new weapon visual
-	weapon_visual = _create_weapon_visual(weapon_resource)
-	if weapon_visual:
-		add_child(weapon_visual)
-		_position_weapon_visual(weapon_visual, weapon_resource)
-		print("✅ SimpleHandManager: Created visual for ", weapon_resource.weapon_name)
+	# Find and show the correct weapon node
+	var weapon_type = int(weapon_resource.weapon_type)
+	var weapon_node_name = ""
+	match weapon_type:
+		int(WeaponResource.WeaponType.SWORD):
+			weapon_node_name = "SwordNode"
+		int(WeaponResource.WeaponType.BOW):
+			weapon_node_name = "BowNode"
+		int(WeaponResource.WeaponType.STAFF):
+			weapon_node_name = "StaffNode"
+		_:
+			weapon_node_name = "SwordNode"
+	var weapon_node = attach_point.get_node_or_null(weapon_node_name)
+	if weapon_node:
+		weapon_node.visible = true
+		_apply_enhanced_materials(weapon_node, weapon_type)
+		print("✅ SimpleHandManager: Activated ", weapon_node_name)
 	else:
-		print("❌ SimpleHandManager: Failed to create visual for ", weapon_resource.weapon_name)
+		print("❌ SimpleHandManager: Could not find node ", weapon_node_name)
+
 
 func _clear_weapon_visual():
-	if weapon_visual and is_instance_valid(weapon_visual):
-		weapon_visual.queue_free()
-		weapon_visual = null
+	pass
+
 
 func _create_weapon_visual(weapon_resource: WeaponResource) -> Node3D:
-	if not weapon_resource:
-		return null
-	
-	var visual = MeshInstance3D.new()
-	visual.name = "WeaponVisual"
-	
-	# Create mesh and material based on weapon type
-	match int(weapon_resource.weapon_type):
-		int(WeaponResource.WeaponType.SWORD):
-			_create_sword_mesh(visual)
-		int(WeaponResource.WeaponType.BOW):
-			_create_bow_mesh(visual)
-		int(WeaponResource.WeaponType.STAFF):
-			_create_staff_mesh(visual)
-		_:
-			_create_sword_mesh(visual)
-	
-	return visual
+	return null
 
 func _create_sword_mesh(visual: MeshInstance3D):
 	# Create sword blade
@@ -181,3 +173,71 @@ func _position_weapon_visual(visual: Node3D, weapon_resource: WeaponResource):
 		_:
 			visual.position = Vector3(0, 0.5, 0)
 			visual.rotation_degrees = Vector3(0, 0, 0)
+
+
+func _apply_enhanced_materials(weapon_node: Node, weapon_type: int):
+	# Example: apply a glowing material or color based on weapon type
+	if weapon_type == int(WeaponResource.WeaponType.SWORD):
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.8, 0.85, 0.9)
+		mat.metallic = 0.9
+		mat.roughness = 0.2
+		mat.emission_enabled = true
+		mat.emission = Color(0.7, 0.8, 1.0) * 0.2
+		weapon_node.material_override = mat
+	elif weapon_type == int(WeaponResource.WeaponType.BOW):
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.4, 0.25, 0.1)
+		mat.roughness = 0.8
+		mat.emission_enabled = true
+		mat.emission = Color(0.7, 0.5, 0.2) * 0.1
+		weapon_node.material_override = mat
+	elif weapon_type == int(WeaponResource.WeaponType.STAFF):
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.3, 0.2, 0.1)
+		mat.roughness = 0.7
+		mat.emission_enabled = true
+		mat.emission = Color(0.4, 0.6, 1.0) * 0.3
+		weapon_node.material_override = mat
+
+
+func ensure_weapon_nodes():
+	var attach_point = get_parent()
+	if not attach_point:
+		return
+
+	var weapon_types = [
+		{"name": "SwordNode", "mesh": BoxMesh, "color": Color(0.8, 0.85, 0.9)},
+		{"name": "BowNode", "mesh": CylinderMesh, "color": Color(0.4, 0.25, 0.1)},
+		{"name": "StaffNode", "mesh": CylinderMesh, "color": Color(0.3, 0.2, 0.1)}
+	]
+
+	for wt in weapon_types:
+		if not attach_point.has_node(wt["name"]):
+			var mesh_instance = MeshInstance3D.new()
+			mesh_instance.name = wt["name"]
+			if wt["mesh"] == BoxMesh:
+				var mesh = BoxMesh.new()
+				mesh.size = Vector3(0.08, 1.2, 0.15)
+				mesh_instance.mesh = mesh
+			elif wt["mesh"] == CylinderMesh:
+				var mesh = CylinderMesh.new()
+				mesh.top_radius = 0.025
+				mesh.bottom_radius = 0.035
+				mesh.height = 1.0
+				mesh_instance.mesh = mesh
+			var mat = StandardMaterial3D.new()
+			mat.albedo_color = wt["color"]
+			mesh_instance.material_override = mat
+			mesh_instance.visible = false
+			attach_point.add_child(mesh_instance)
+
+
+func _hide_all_weapons():
+	var attach_point = get_parent()
+	if attach_point:
+		var names = ["SwordNode", "BowNode", "StaffNode"]
+		for name in names:
+			var node = attach_point.get_node_or_null(name)
+			if node:
+				node.visible = false
