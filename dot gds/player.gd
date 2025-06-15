@@ -285,20 +285,20 @@ func _initialize_currency():
 
 func _setup_hand_references():
 	# --- FEET (find them after character creation) ---
-	left_foot = get_node_or_null("LeftFootAnchor/LeftFoot")
-	right_foot = get_node_or_null("RightFootAnchor/RightFoot")
+	left_foot = get_node_or_null("LeftFoot")
+	right_foot = get_node_or_null("RightFoot")
 	if left_foot:
 		left_foot_original_pos = left_foot.position
 		left_foot_planted_pos = left_foot.position
-		print("✅ Found LeftFoot!")
+		print("✅ Found LeftFoot at: ", left_foot.get_path())
 	else:
-		print("⚠️ LeftFoot node not found!")
+		print("❌ LeftFoot not found!")
 	if right_foot:
 		right_foot_original_pos = right_foot.position
 		right_foot_planted_pos = right_foot.position
-		print("✅ Found RightFoot!")
+		print("✅ Found RightFoot at: ", right_foot.get_path())
 	else:
-		print("⚠️ RightFoot node not found!")
+		print("❌ RightFoot not found!")
 
 
 func _setup_weapon_attach_point():
@@ -729,6 +729,12 @@ func _set_mouth_expression(expr: String):
 			CharacterAppearanceManager.set_mouth_neutral(mesh_instance)
 
 func _input(event):
+	# Add this to your existing _input function
+	if Input.is_action_just_pressed("toggle_fullscreen"):
+		if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		else:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	if event.is_action_pressed("ui_text_completion_accept"):  # F1 key
 		var warrior_config = CharacterGenerator.generate_character_by_type("warrior")
 		set_character_appearance(warrior_config)
