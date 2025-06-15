@@ -1,10 +1,11 @@
-[gd_scene load_steps=20 format=3 uid="uid://davx6xri0n0vt"]
+[gd_scene load_steps=21 format=3 uid="uid://davx6xri0n0vt"]
 
 [ext_resource type="Script" uid="uid://bt47480nh31yn" path="res://dot gds/player.gd" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://cqexju0dcbsij" path="res://dot gds/PlayerMovement.gd" id="2_cvnsp"]
 [ext_resource type="Script" uid="uid://chx8k2542vhd2" path="res://dot gds/PlayerCombat.gd" id="3_6t5aa"]
 [ext_resource type="ArrayMesh" uid="uid://dpkhctk1q0bpg" path="res://3d Models/Sword/broadsword.obj" id="4_fkybt"]
 [ext_resource type="Script" uid="uid://kdl1nf2u8oxo" path="res://dot gds/SimpleHandManager.gd" id="4_vgqql"]
+[ext_resource type="ArrayMesh" uid="uid://dagubfxbsoacu" path="res://3d Models/Bow/bow_01.obj" id="5_x3wgy"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6t5aa"]
 albedo_color = Color(0, 0, 0, 1)
@@ -16,11 +17,6 @@ height = 0.0
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_onrkg"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_i3pqv"]
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_vgqql"]
-top_radius = 0.03
-bottom_radius = 0.03
-height = 0.7
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_fkybt"]
 top_radius = 0.025
@@ -49,6 +45,20 @@ tracks/1/path = NodePath("WeaponAttachPoint/SwordNode")
 tracks/1/interp = 1
 tracks/1/loop_wrap = true
 tracks/1/keys = PackedFloat32Array(0, 1, -0.0766866, 0.0476032, -0.0139694)
+tracks/2/type = "position_3d"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("LeftHandAnchor")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = PackedFloat32Array(0, 1, -0.44, -0.2, 0)
+tracks/3/type = "position_3d"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("WeaponAttachPoint/BowNode")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = PackedFloat32Array(0, 1, 0, 0, 0)
 
 [sub_resource type="Animation" id="Animation_6t5aa"]
 resource_name = "punch"
@@ -107,8 +117,55 @@ tracks/5/interp = 1
 tracks/5/loop_wrap = true
 tracks/5/keys = PackedFloat32Array(0, 1, 1, 1, 1, 0.1, 1, 1, 1, 1, 0.2, 1, 1, 1, 1, 0.266667, 1, 1, 1, 1, 0.5, 1, 1, 1, 1)
 
+[sub_resource type="Animation" id="Animation_3smsa"]
+resource_name = "Bow"
+length = 0.5
+tracks/0/type = "position_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("RightHandAnchor")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0, 1, 0.426209, -0.2, -0.0293823, 0.2, 1, 0.295064, -0.2, -0.880179, 0.25, 1, 0.295064, -0.2, -0.922781, 0.3, 1, 0.295064, -0.256661, -0.984159, 0.5, 1, 0.426209, -0.2, -0.0293823)
+tracks/1/type = "position_3d"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("LeftHandAnchor")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = PackedFloat32Array(0, 1, -0.44, -0.2, 0, 0.20397, 1, 0.236044, -0.2, -0.603911, 0.25, 1, 0.236044, -0.2, -0.323888, 0.3, 1, 0.236044, -0.0707018, 0.0244834, 0.5, 1, -0.44, -0.2, 0)
+tracks/2/type = "position_3d"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("WeaponAttachPoint/BowNode")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = PackedFloat32Array(0, 1, 0, 0, 0, 0.2, 1, 0, -0.152459, -0.831546, 0.25, 1, 0, -0.152459, -0.869495, 0.3, 1, 0.0467828, -0.152459, -0.952966, 0.5, 1, 0, 0, 0)
+tracks/3/type = "scale_3d"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("LeftHandAnchor")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = PackedFloat32Array(0, 1, 1, 1, 1, 0.20397, 1, 1, 1, 1, 0.25, 1, 1, 1, 1, 0.3, 1, 1, 1, 1, 0.5, 1, 1, 1, 1)
+tracks/4/type = "scale_3d"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("RightHandAnchor")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = PackedFloat32Array(0, 1, 1, 1, 1, 0.2, 1, 1, 1, 1, 0.25, 1, 1, 1, 1, 0.3, 1, 1, 1, 1, 0.5, 1, 1, 1, 1)
+tracks/5/type = "scale_3d"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("WeaponAttachPoint/BowNode")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = PackedFloat32Array(0, 1, 1, 1, 1, 0.2, 1, 1, 1, 1, 0.25, 1, 1, 1, 1, 0.3, 1, 1, 1, 1, 0.5, 1, 1, 1, 1)
+
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_fkybt"]
 _data = {
+&"Bow": SubResource("Animation_3smsa"),
 &"RESET": SubResource("Animation_vgqql"),
 &"punch": SubResource("Animation_6t5aa"),
 &"sword_slash": SubResource("Animation_x3wgy")
@@ -144,12 +201,13 @@ transform = Transform3D(-4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0, 1, 0.44, 
 
 [node name="SwordNode" type="MeshInstance3D" parent="WeaponAttachPoint"]
 transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -0.0766866, 0.0476032, -0.0139694)
+visible = false
 mesh = ExtResource("4_fkybt")
 
 [node name="BowNode" type="MeshInstance3D" parent="WeaponAttachPoint"]
-transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0.45, 0)
+transform = Transform3D(1.19374e-08, -1, 1.94435e-09, -0.0128768, -2.0979e-09, -0.999917, 0.999917, 1.19114e-08, -0.0128768, 0, 0, 0)
 visible = false
-mesh = SubResource("CylinderMesh_vgqql")
+mesh = ExtResource("5_x3wgy")
 
 [node name="StaffNode" type="MeshInstance3D" parent="WeaponAttachPoint"]
 transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0.45, 0)

@@ -40,6 +40,8 @@ func refresh_weapon_hands():
 			weapon_node_name = "SwordNode"
 		int(WeaponResource.WeaponType.BOW):
 			weapon_node_name = "BowNode"
+			# Only use the imported BowNode, do not create a new mesh
+			# _create_bow_mesh() call removed to avoid duplicate bow
 		int(WeaponResource.WeaponType.STAFF):
 			weapon_node_name = "StaffNode"
 		_:
