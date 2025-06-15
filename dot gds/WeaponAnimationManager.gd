@@ -21,9 +21,9 @@ func play_attack_animation(weapon: WeaponResource, attacker: Node3D):
 		WeaponResource.WeaponType.SWORD:
 			animation_name = "sword_slash"
 		WeaponResource.WeaponType.BOW:
-			animation_name = "bow_shot"
+			animation_name = "Bow"  # Fixed case to match actual animation name
 		WeaponResource.WeaponType.STAFF:
-			animation_name = "staff_cast"
+			animation_name = "staff_cast"  # Add this animation to player.tscn if needed
 		_:
 			animation_name = "punch"  # Fallback
 	
@@ -34,7 +34,4 @@ func play_attack_animation(weapon: WeaponResource, attacker: Node3D):
 	else:
 		print("⚠️ No ", animation_name, " animation found, using punch")
 		anim_player.play("punch")
-
-
-
 

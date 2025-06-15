@@ -176,11 +176,30 @@ func generate_starting_room():
 			)
 			sword_pickup.set_weapon_resource(sword_resource)
 			print("🗡️ Test sword spawned in room one!")
+
+	# SPAWN BOW IN ROOM ONE (center, offset)
+	if weapon_pickup_scene:
+		var bow_resource = null
+		if typeof(WeaponPool) != TYPE_NIL:
+			bow_resource = WeaponPool.get_weapon_by_name("Wooden Bow")
+		if not bow_resource:
+			bow_resource = load("res://Weapons/wooden_bow.tres")
+		if bow_resource:
+			var bow_pickup = weapon_pickup_scene.instantiate()
+			add_child(bow_pickup)
+			bow_pickup.global_position = Vector3(
+				(starting_room.get_center().x - map_size.x / 2) * 2.0 + 2.5,
+				0.5,
+				(starting_room.get_center().y - map_size.y / 2) * 2.0
+			)
+			bow_pickup.set_weapon_resource(bow_resource)
+			print("🏹 Bow spawned in room one!")
 	else:
-		print("⚠️ weapon_pickup_scene not loaded, cannot spawn test sword!")
+		print("⚠️ weapon_pickup_scene not loaded, cannot spawn test sword or bow!")
 	
 	print("🛡️ Starting room created with PROTECTED BOUNDARIES!")
 	terrain_generated.emit()
+
 
 func _clear_everything():
 	"""Clear all generated content"""

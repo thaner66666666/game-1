@@ -88,8 +88,8 @@ func _setup_enhanced_visual():
 			print("🗡️ _setup_enhanced_visual: Creating enhanced sword visual")
 			_create_enhanced_sword()
 		int(WeaponResource.WeaponType.BOW):
-			print("🗡️ _setup_enhanced_visual: Creating enhanced bow visual")
-			_create_enhanced_bow()
+			print("🗡️ _setup_enhanced_visual: Using simple bow visual")
+			_create_simple_bow_visual()
 		int(WeaponResource.WeaponType.STAFF):
 			print("🗡️ _setup_enhanced_visual: Creating enhanced staff visual")
 			_create_enhanced_staff()
@@ -147,58 +147,28 @@ func _create_enhanced_sword():
 	weapon_parts.append(sword_mesh_instance)
 
 
-func _create_enhanced_bow():
-	"""Create detailed bow pickup visual"""
-	# Main bow frame (curved using multiple segments)
-	var bow_frame = MeshInstance3D.new()
-	add_child(bow_frame)
-	weapon_parts.append(bow_frame)
+func _create_simple_bow_visual():
+	"""Create a simple bow visual instead of the complex one"""
+	_clear_weapon_parts()
 	
-	# Create bow curve using multiple small cylinders
-	var segments = 8
-	var bow_height = 0.8
-	var bow_width = 0.3
+	# Just create a simple bow representation for pickup
+	var bow = MeshInstance3D.new()
+	var bow_mesh = CylinderMesh.new()
+	bow_mesh.top_radius = 0.03
+	bow_mesh.bottom_radius = 0.03
+	bow_mesh.height = 0.7
+	bow.mesh = bow_mesh
+	bow.rotation_degrees = Vector3(0, 0, 90)
+	bow.position = Vector3(0, 0.35, 0)
 	
-	for i in range(segments):
-		var segment = MeshInstance3D.new()
-		var segment_mesh = CylinderMesh.new()
-		segment_mesh.top_radius = 0.02
-		segment_mesh.bottom_radius = 0.02
-		segment_mesh.height = bow_height / segments
-		segment.mesh = segment_mesh
-		
-		# Position segments in a bow curve
-		var t = float(i) / float(segments - 1)
-		var y = (t - 0.5) * bow_height
-		var curve_factor = sin(t * PI) * bow_width
-		segment.position = Vector3(curve_factor, y, 0)
-		segment.rotation_degrees = Vector3(0, 0, sin(t * PI) * 30)
-		
-		var bow_material = StandardMaterial3D.new()
-		bow_material.albedo_color = Color(0.4, 0.25, 0.1)
-		bow_material.roughness = 0.7
-		bow_material.emission_enabled = true
-		bow_material.emission = Color(0.3, 0.6, 0.2) * glow_intensity * 0.2
-		segment.material_override = bow_material
-		
-		bow_frame.add_child(segment)
-		weapon_parts.append(segment)
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.5, 0.3, 0.1)
+	mat.emission_enabled = true
+	mat.emission = Color(0.3, 0.6, 0.2) * glow_intensity * 0.2
+	bow.material_override = mat
 	
-	# Bow string
-	var string_segment = MeshInstance3D.new()
-	var string_mesh = BoxMesh.new()
-	string_mesh.size = Vector3(0.01, bow_height * 0.9, 0.01)
-	string_segment.mesh = string_mesh
-	string_segment.position = Vector3(bow_width * 0.7, 0, 0)
-	
-	var string_material = StandardMaterial3D.new()
-	string_material.albedo_color = Color(0.9, 0.9, 0.8)
-	string_material.emission_enabled = true
-	string_material.emission = Color(0.5, 0.5, 0.4) * 0.3
-	string_segment.material_override = string_material
-	
-	bow_frame.add_child(string_segment)
-	weapon_parts.append(string_segment)
+	add_child(bow)
+	weapon_parts.append(bow)
 
 func _create_enhanced_staff():
 	"""Create detailed staff pickup visual"""
