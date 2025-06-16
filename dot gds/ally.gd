@@ -11,6 +11,12 @@ extends CharacterBody3D
 @export var max_health := 100
 
 # References
+
+# Target position for roaming
+var roaming_target_position: Vector3 = Vector3.ZERO
+
+# Target position for roaming
+var target_position: Vector3 = Vector3(0, 0, 0)
 var player: CharacterBody3D
 var current_target: Node3D = null
 var attack_timer := 0.0
@@ -19,11 +25,14 @@ var attack_timer := 0.0
 var mesh_instance: MeshInstance3D
 var weapon_mesh: MeshInstance3D
 
-func _ready():
-	add_to_group("allies")
-	_find_player()
-	_create_visual()
-	print("🤝 Ally spawned and ready!")
+# Visual component references (for animations)
+var left_foot: MeshInstance3D
+var right_foot: MeshInstance3D
+var left_hand: MeshInstance3D
+var right_hand: MeshInstance3D
+
+signal ally_added
+signal ally_removed
 
 func _find_player():
 	player = get_tree().get_first_node_in_group("player")
@@ -31,81 +40,97 @@ func _find_player():
 		print("❌ Ally: Player not found!")
 
 func _create_visual():
-	# Create body
-	mesh_instance = MeshInstance3D.new()
-	var body_mesh = CapsuleMesh.new()
-	body_mesh.radius = 0.25
-	body_mesh.height = 1.4
-	mesh_instance.mesh = body_mesh
+	# Use CharacterAppearanceManager to create random appearance
+	print("🎨 Creating procedural ally appearance...")
 	
-	# Create material (blue to distinguish from enemies)
-	var material = StandardMaterial3D.new()
-	material.albedo_color = Color(0.2, 0.4, 1.0)
-	material.roughness = 0.7
-	mesh_instance.material_override = material
-	add_child(mesh_instance)
+	# Get the MeshInstance3D node from the scene
+	mesh_instance = get_node_or_null("MeshInstance3D")
+	if not mesh_instance:
+		# Create it if it doesn't exist
+		mesh_instance = MeshInstance3D.new()
+		mesh_instance.name = "MeshInstance3D"
+		add_child(mesh_instance)
+
+	# Ensure the MeshInstance3D has a valid mesh
+	if not mesh_instance.mesh:
+		mesh_instance.mesh = SphereMesh.new()  # Default to a sphere mesh
+
+	# Ensure the MeshInstance3D has a valid material
+	if not mesh_instance.material_override:
+		var material = StandardMaterial3D.new()
+		material.albedo_color = Color(0.4, 0.6, 1.0)  # Bluish tint for allies
+		mesh_instance.material_override = material
 	
-	# Create simple weapon
-	weapon_mesh = MeshInstance3D.new()
-	var sword_mesh = BoxMesh.new()
-	sword_mesh.size = Vector3(0.1, 0.6, 0.1)
-	weapon_mesh.mesh = sword_mesh
-	weapon_mesh.position = Vector3(0.3, 0.2, 0)
+	# Generate random character appearance
+	var config = CharacterGenerator.generate_random_character_config()
 	
-	var weapon_material = StandardMaterial3D.new()
-	weapon_material.albedo_color = Color(0.8, 0.8, 0.9)
-	weapon_material.metallic = 0.9
-	weapon_material.roughness = 0.2
-	weapon_mesh.material_override = weapon_material
-	mesh_instance.add_child(weapon_mesh)
+	# Apply blue-tinted skin for allies
+	config["skin_tone"] = Color(0.4, 0.6, 1.0)  # Bluish tint
 	
-	# Create collision
-	var collision = CollisionShape3D.new()
-	var shape = CapsuleShape3D.new()
-	shape.radius = 0.25
-	shape.height = 1.4
-	collision.shape = shape
-	add_child(collision)
+	# Apply the generated appearance using CharacterAppearanceManager
+	CharacterAppearanceManager.create_player_appearance(self, config)
+
+func _setup_body_part_references():
+	# Find feet for walking animation
+	left_foot = get_node_or_null("LeftFoot")
+	right_foot = get_node_or_null("RightFoot")
 
 func _physics_process(delta):
-	if not player:
-		return
-	
 	attack_timer = max(0, attack_timer - delta)
-	
+
 	# Find nearest enemy
 	current_target = _find_nearest_enemy()
-	
+
 	if current_target and global_position.distance_to(current_target.global_position) <= attack_range:
 		# Attack enemy
 		_attack_enemy()
 		velocity = Vector3.ZERO
 	else:
-		# Follow player
-		_follow_player()
-	
+		# Roam randomly across the map
+		if not target_position or global_position.distance_to(target_position) < 1.0:
+			target_position = global_position + Vector3(randf() * 20 - 10, 0, randf() * 20 - 10)
+
+		var direction_to_target = (target_position - global_position).normalized()
+		direction_to_target.y = 0
+		velocity.x = direction_to_target.x * speed
+		velocity.z = direction_to_target.z * speed
+
+	# Avoid overlapping with other allies
+	var allies = get_tree().get_nodes_in_group("allies")
+	for ally in allies:
+		if ally != self and is_instance_valid(ally):
+			var distance_to_ally = global_position.distance_to(ally.global_position)
+			if distance_to_ally < follow_distance:
+				var avoidance_direction = (global_position - ally.global_position).normalized()
+				velocity += avoidance_direction * speed * 0.5
+
 	# Apply gravity
 	if not is_on_floor():
 		velocity.y -= ProjectSettings.get_setting("physics/3d/default_gravity") * delta
-	
+
 	move_and_slide()
 
 func _follow_player():
 	var distance_to_player = global_position.distance_to(player.global_position)
-	
-	if distance_to_player > follow_distance:
+
+	if distance_to_player > follow_distance * 10:
+		# Move toward the player if too far
 		var direction = (player.global_position - global_position).normalized()
-		direction.y = 0  # Don't move vertically
+		direction.y = 0
 		velocity.x = direction.x * speed
 		velocity.z = direction.z * speed
-		
+
+		# Add slight randomness to movement
+		velocity.x += (randf() - 0.5) * speed * 0.2
+		velocity.z += (randf() - 0.5) * speed * 0.2
+
 		# Face movement direction
 		if direction.length() > 0.1:
 			look_at(global_position + direction, Vector3.UP)
 	else:
 		# Stop when close enough
-		velocity.x = 0
-		velocity.z = 0
+		velocity.x = (randf() - 0.5) * speed * 0.1
+		velocity.z = (randf() - 0.5) * speed * 0.1
 
 func _find_nearest_enemy() -> Node3D:
 	var enemies = get_tree().get_nodes_in_group("enemies")
@@ -153,13 +178,21 @@ func _play_attack_animation():
 	tween.tween_property(weapon_mesh, "rotation_degrees", Vector3(0, 0, -45), 0.1)
 	tween.tween_property(weapon_mesh, "rotation_degrees", Vector3.ZERO, 0.2)
 
-func take_damage(amount: int):
+func take_damage(amount: int, attacker: Node = null):
 	health -= amount
 	print("🤝 Ally took ", amount, " damage! Health: ", health)
-	
+
 	if health <= 0:
 		die()
+		if attacker:
+			print("💀 Ally killed by ", attacker.name)
 
 func die():
-	print("💀 Ally died!")
+	print("💀 Ally died! Emitting ally_removed signal.")
+	emit_signal("ally_removed")
 	queue_free()
+
+func _ready():
+	add_to_group("allies")
+	emit_signal("ally_added")
+	print("🤝 Ally added to group 'allies' and signal emitted.")

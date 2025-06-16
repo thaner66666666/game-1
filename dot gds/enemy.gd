@@ -228,7 +228,7 @@ func _handle_enemy_separation(delta):
 	if terrain and "map_size" in terrain:
 		map_size = terrain.map_size
 	for other in enemies:
-		if other == self or not is_instance_valid(other): continue
+		if other == self or not _is_valid_instance(other): continue
 		if "is_dead" in other and other.is_dead: continue
 		var distance = global_position.distance_to(other.global_position)
 		if distance < separation_distance and distance > 0.1:
@@ -269,6 +269,9 @@ func _update_cache(delta):
 func _is_player_valid() -> bool:
 	return player and is_instance_valid(player) and not ("is_dead" in player and player.is_dead)
 
+func _is_valid_instance(node):
+	return node and is_instance_valid(node)
+
 func _handle_ai(delta):
 	state_timer += delta
 	match current_state:
@@ -276,12 +279,15 @@ func _handle_ai(delta):
 			velocity = Vector3.ZERO
 			_add_wobble()
 			if cached_distance <= chase_range:
+				print("AI State: Transitioning to CHASE")
 				current_state = AIState.CHASE
 			elif state_timer >= 2.0:
+				print("AI State: Transitioning to PATROL")
 				current_state = AIState.PATROL
 				_set_patrol_target()
 		AIState.PATROL:
 			if cached_distance <= chase_range:
+				print("AI State: Transitioning to CHASE")
 				current_state = AIState.CHASE
 			else:
 				_move_to_target(patrol_target, speed * 0.5)
@@ -290,8 +296,10 @@ func _handle_ai(delta):
 					state_timer = 0.0
 		AIState.CHASE:
 			if cached_distance > chase_range * 1.5:
+				print("AI State: Transitioning to IDLE")
 				current_state = AIState.IDLE
 			elif cached_distance <= attack_range:
+				print("AI State: Transitioning to ATTACK")
 				current_state = AIState.ATTACK
 			else:
 				_move_toward_player()
@@ -300,6 +308,7 @@ func _handle_ai(delta):
 			velocity = Vector3.ZERO
 			_face_player()
 			if cached_distance > attack_range * 1.2:
+				print("AI State: Transitioning to CHASE")
 				current_state = AIState.CHASE
 			else:
 				_try_attack()

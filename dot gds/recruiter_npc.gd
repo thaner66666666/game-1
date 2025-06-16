@@ -7,11 +7,13 @@ extends StaticBody3D
 
 var player_in_range := false
 var interaction_text: Label3D
+var current_allies_count := 0
 
 func _ready():
 	add_to_group("npcs")
 	_setup_visual()
 	_setup_interaction_area()
+	_update_ally_counter()
 	print("👤 Recruiter NPC ready!")
 
 func _setup_visual():
@@ -90,7 +92,35 @@ func recruit_ally():
 		
 		# Position ally next to recruiter
 		new_ally.global_position = global_position + Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
-		
+
+		# Ensure visual setup
+		if new_ally.has_method("_create_visual"):
+			new_ally._create_visual()
+
+		new_ally.connect("ally_removed", Callable(self, "_on_ally_died"))
+		_update_ui_units()
 		print("👤 Recruited new ally! Total allies: ", current_allies.size() + 1)
 	else:
 		print("❌ No ally scene assigned!")
+
+func _on_ally_died():
+	_update_ui_units()
+	print("👤 An ally has died. Remaining allies: ", get_tree().get_nodes_in_group("allies").size())
+
+func _update_ui_units():
+	var current_allies = get_tree().get_nodes_in_group("allies").size()
+	print("👤 Updating UI with current allies: ", current_allies, " / ", max_allies)
+	var ui = get_tree().get_first_node_in_group("UI")
+	if ui:
+		if ui.has_method("_update_units"):
+			ui._update_units(current_allies)
+			print("✅ UI updated successfully!")
+		else:
+			print("❌ UI does not have method '_update_units'!")
+	else:
+		print("❌ UI node not found in group!")
+
+func _update_ally_counter():
+	if has_node("../UI/AllyCounter"):
+		var counter_label = get_node("../UI/AllyCounter")
+		counter_label.text = str(current_allies_count, " / ", max_allies)

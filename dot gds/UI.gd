@@ -3,6 +3,7 @@ extends Control
 
 var player: Node3D
 var spawner: Node3D = null
+var max_units := 3
 
 # UI Elements
 var health_label: Label
@@ -12,8 +13,11 @@ var dash_label: Label
 var powerup_label: Label
 var xp_bar: ProgressBar
 var xp_label: Label
+var unit_label: Label
 
 func _ready():
+	add_to_group("UI")
+	print("✅ UI node added to group 'UI'")
 	_setup_ui()
 	_find_references()
 	_find_spawner_with_retry()
@@ -27,6 +31,7 @@ func _setup_ui():
 	_create_dash_ui()
 	_create_powerup_ui()
 	_create_xp_ui()
+	_create_unit_ui()
 
 func _create_health_ui():
 	var panel = _create_panel(Vector2(20, 20), Vector2(180, 50), Color.RED)
@@ -72,6 +77,10 @@ func _create_xp_ui():
 	xp_label.add_theme_color_override("font_color", Color.WHITE)
 	panel.add_child(xp_label)
 
+func _create_unit_ui():
+	var panel = _create_panel(Vector2(20, 270), Vector2(200, 50), Color.GREEN)
+	unit_label = _create_label("🤝 Units: 0/3", panel)
+
 @warning_ignore("shadowed_variable_base_class")
 func _create_panel(pos: Vector2, size: Vector2, border_color: Color) -> Panel:
 	var panel = Panel.new()
@@ -108,15 +117,13 @@ func _find_references():
 	player = get_tree().get_first_node_in_group("player")
 	if player:
 		print("UI: Found player, connecting signals...")
-		if player.is_connected("xp_changed", _on_player_xp_changed):
-			player.disconnect("xp_changed", _on_player_xp_changed)
-		if player.is_connected("coin_collected", _on_player_coin_collected):
-			player.disconnect("coin_collected", _on_player_coin_collected)
-		player.xp_changed.connect(_on_player_xp_changed)
-		player.coin_collected.connect(_on_player_coin_collected)
-		print("UI: Connected player signals")
-		_update_coins()
-		_update_xp()
+		var allies = get_tree().get_nodes_in_group("allies")
+		for ally in allies:
+			if not ally.is_connected("ally_added", Callable(self, "_on_ally_added")):
+				ally.connect("ally_added", Callable(self, "_on_ally_added"))
+			if not ally.is_connected("ally_removed", Callable(self, "_on_ally_removed")):
+				ally.connect("ally_removed", Callable(self, "_on_ally_removed"))
+		print("UI: Connected ally signals")
 	else:
 		print("UI: Player not found!")
 		await get_tree().create_timer(1.0).timeout
@@ -214,3 +221,20 @@ func _update_xp():
 		xp_bar.max_value = xp_needed
 		xp_bar.value = current_xp
 		xp_label.text = "XP: %d/%d (Lv.%d)" % [current_xp, xp_needed, current_level]
+
+func _update_units(current_units: int):
+	if unit_label:
+		unit_label.text = "🤝 Units: %d/%d" % [current_units, max_units]
+		print("✅ Unit counter updated: ", current_units, " / ", max_units)
+	else:
+		print("❌ Unit label not found!")
+
+func _on_ally_added():
+	print("✅ Received ally_added signal.")
+	_update_units(get_tree().get_nodes_in_group("allies").size())
+	print("✅ Ally added, UI updated.")
+
+func _on_ally_removed():
+	print("✅ Received ally_removed signal.")
+	_update_units(get_tree().get_nodes_in_group("allies").size())
+	print("✅ Ally removed, UI updated.")
