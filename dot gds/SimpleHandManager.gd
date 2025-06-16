@@ -105,3 +105,11 @@ func _hide_all_weapons():
 			var node = attach_point.get_node_or_null(node_name)
 			if node:
 				node.visible = false
+
+
+# ...existing code...
+# Disabled staff hand logic for now
+# case int(WeaponResource.WeaponType.STAFF):
+# ...existing code...
+# elif weapon_type == int(WeaponResource.WeaponType.STAFF):
+# ...existing code...

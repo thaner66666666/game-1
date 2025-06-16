@@ -823,3 +823,9 @@ func get_character_seed_config(seed_value: int):
 func _create_arrow_system():
 	# We'll create arrows on-demand instead of a particle system
 	print("🏹 Simple arrow system ready!")
+
+
+# ...existing code...
+# Disabled staff logic for now
+# case int(WeaponResource.WeaponType.STAFF):
+# ...existing code...

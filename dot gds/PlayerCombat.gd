@@ -381,60 +381,40 @@ func _spawn_arrow_effect(_direction: Vector3):
 	# Simple rotation - avoid complex transform operations
 	arrow.look_at(start_pos + forward_direction, Vector3.UP)
 	arrow.rotate_object_local(Vector3(1, 0, 0), PI/2)
-	
 	# Animate it flying forward
 	var tween = arrow.create_tween()
 	var target_pos = start_pos + forward_direction * 10.0
 	tween.tween_property(arrow, "global_position", target_pos, 1.0)
-	
-	# Check for hits during flight
-	_check_arrow_hits(arrow, forward_direction, start_pos)
-	
-	# Clean up after animation
-	tween.tween_callback(arrow.queue_free)
-	
-	print("🏹 ARROW LAUNCHED!")
 
-func _check_arrow_hits(arrow: MeshInstance3D, direction: Vector3, start_pos: Vector3):
-	# Check for hits every 0.1 seconds during flight
+	# --- Per-frame collision check ---
 	var hit_timer = Timer.new()
-	hit_timer.wait_time = 0.1
+	hit_timer.wait_time = 0.05
 	hit_timer.one_shot = false
 	arrow.add_child(hit_timer)
-
 	hit_timer.timeout.connect(func():
-		_check_arrow_collision(arrow, direction, start_pos, hit_timer)
+		if not is_instance_valid(arrow):
+			hit_timer.queue_free()
+			return
+		var arrow_pos = arrow.global_position
+		var enemies = get_tree().get_nodes_in_group("enemies")
+		for enemy in enemies:
+			if not is_instance_valid(enemy) or ("is_dead" in enemy and enemy.is_dead):
+				continue
+			var distance = arrow_pos.distance_to(enemy.global_position)
+			if distance <= 0.8:
+				var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
+				var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
+				if enemy.has_method("take_damage"):
+					enemy.take_damage(dmg)
+				enemy_hit.emit(enemy, dmg, combo_index)
+				_spawn_impact_effect(enemy.global_position, current_weapon)
+				_play_impact_sound()
+				hit_timer.queue_free()
+				arrow.queue_free()
+				return
 	)
 	hit_timer.start()
 
-func _check_arrow_collision(arrow: MeshInstance3D, _direction: Vector3, _start_pos: Vector3, timer: Timer):
-	if not is_instance_valid(arrow):
-		timer.queue_free()
-		return
-
-	var arrow_pos = arrow.global_position
-	var enemies = get_tree().get_nodes_in_group("enemies")
-
-	for enemy in enemies:
-		if not is_instance_valid(enemy) or ("is_dead" in enemy and enemy.is_dead):
-			continue
-
-		var distance = arrow_pos.distance_to(enemy.global_position)
-		if distance <= 0.8:  # Slightly smaller hit radius for accuracy
-			# Arrow hit an enemy!
-			var current_weapon = WeaponManager.get_current_weapon()
-			var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
-
-			if enemy.has_method("take_damage"):
-				enemy.take_damage(dmg)
-
-			print("🏹 ARROW HIT ENEMY at distance: ", distance)
-			timer.queue_free()
-			arrow.queue_free()
-			return
-
-func get_forward_vector() -> Vector3:
-	return Vector3(0, 0, 1)  # Positive Z = forward
-
-func get_backward_vector() -> Vector3:
-	return Vector3(0, 0, -1)  # Negative Z = backward
+	# Clean up after animation
+	tween.tween_callback(arrow.queue_free)
+	print("🏹 ARROW LAUNCHED!")

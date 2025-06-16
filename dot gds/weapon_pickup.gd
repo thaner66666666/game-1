@@ -67,21 +67,21 @@ func _setup_enhanced_visual():
 	if mesh_instance:
 		mesh_instance.mesh = null
 		mesh_instance.material_override = null
-	
+
 	if not weapon_resource:
 		print("🗡️ _setup_enhanced_visual: weapon_resource is null, calling _create_default_sword_visual")
 		_create_default_sword_visual()
 		return
-	
+
 	# Clear any existing parts
 	_clear_weapon_parts()
-	
+
 	# Debug: Print the actual weapon_type value and enum mapping
 	print("🗡️ weapon_resource.weapon_type value: ", weapon_resource.weapon_type)
 	print("🗡️ WeaponType.SWORD: ", int(WeaponResource.WeaponType.SWORD))
 	print("🗡️ WeaponType.BOW: ", int(WeaponResource.WeaponType.BOW))
 	print("🗡️ WeaponType.STAFF: ", int(WeaponResource.WeaponType.STAFF))
-	
+
 	# Use integer values for matching
 	match int(weapon_resource.weapon_type):
 		int(WeaponResource.WeaponType.SWORD):
@@ -90,17 +90,21 @@ func _setup_enhanced_visual():
 		int(WeaponResource.WeaponType.BOW):
 			print("🗡️ _setup_enhanced_visual: Using simple bow visual")
 			_create_simple_bow_visual()
+		# int(WeaponResource.WeaponType.STAFF):
+		# 	print("🗡️ _setup_enhanced_visual: Creating enhanced staff visual")
+		# 	_create_enhanced_staff()
 		int(WeaponResource.WeaponType.STAFF):
-			print("🗡️ _setup_enhanced_visual: Creating enhanced staff visual")
-			_create_enhanced_staff()
+			print("🗡️ Staff pickup temporarily disabled!")
+			_create_default_sword_visual()
 		_:
 			print("🗡️ _setup_enhanced_visual: Unknown type, calling _create_default_sword_visual")
 			_create_default_sword_visual()
-	
+
 	# Create collision shape
 	var collision = SphereShape3D.new()
 	collision.radius = 0.8
 	collision_shape.shape = collision
+
 
 func _clear_weapon_parts():
 	"""Clear existing weapon parts"""
@@ -117,7 +121,6 @@ func _clear_weapon_parts():
 func _create_enhanced_sword():
 	"""Create a visually detailed sword pickup using a single imported mesh"""
 	_clear_weapon_parts()
-
 	# Create a MeshInstance3D for the broadsword
 	var sword_mesh_instance = MeshInstance3D.new()
 	var sword_mesh = load("res://3d Models/Sword/broadsword.obj")
@@ -126,7 +129,6 @@ func _create_enhanced_sword():
 	else:
 		print("❌ Failed to load broadsword.obj mesh!")
 		sword_mesh_instance.mesh = null
-
 	# Metallic, shiny, bluish tint material with glow
 	var sword_material = StandardMaterial3D.new()
 	sword_material.albedo_color = Color(0.85, 0.9, 1.0)
@@ -138,11 +140,9 @@ func _create_enhanced_sword():
 	sword_material.rim_enabled = true
 	sword_material.rim = 0.7
 	sword_mesh_instance.material_override = sword_material
-
 	# Position and scale for pickup (tweak as needed for your mesh)
 	sword_mesh_instance.position = Vector3(0, 0.5, 0)
 	sword_mesh_instance.scale = Vector3(0.7, 0.7, 0.7)
-
 	add_child(sword_mesh_instance)
 	weapon_parts.append(sword_mesh_instance)
 
@@ -150,7 +150,6 @@ func _create_enhanced_sword():
 func _create_simple_bow_visual():
 	"""Create a bow pickup using the imported bow mesh"""
 	_clear_weapon_parts()
-
 	# Create a MeshInstance3D for the bow
 	var bow_mesh_instance = MeshInstance3D.new()
 	var bow_mesh = load("res://3d Models/Bow/bow_01.obj")
@@ -159,7 +158,6 @@ func _create_simple_bow_visual():
 	else:
 		print("❌ Failed to load bow_01.obj mesh!")
 		bow_mesh_instance.mesh = null
-
 	# Optionally tweak material for glow, color, etc.
 	var bow_material = StandardMaterial3D.new()
 	bow_material.albedo_color = Color(0.7, 0.5, 0.3)
@@ -168,16 +166,16 @@ func _create_simple_bow_visual():
 	bow_material.emission_enabled = true
 	bow_material.emission = Color(0.3, 0.6, 0.2) * glow_intensity * 0.2
 	bow_mesh_instance.material_override = bow_material
-
 	# Raise the bow even higher above the ground
 	bow_mesh_instance.position = Vector3(0, 1.0, 0) # was 0.6
 	bow_mesh_instance.scale = Vector3(0.7, 0.7, 0.7)
-
 	add_child(bow_mesh_instance)
 	weapon_parts.append(bow_mesh_instance)
 
+
 func _create_enhanced_staff():
 	"""Create detailed staff pickup visual"""
+	_clear_weapon_parts()
 	# Main staff shaft
 	var shaft = MeshInstance3D.new()
 	var shaft_mesh = CylinderMesh.new()
@@ -185,15 +183,12 @@ func _create_enhanced_staff():
 	shaft_mesh.bottom_radius = 0.035
 	shaft_mesh.height = 1.0
 	shaft.mesh = shaft_mesh
-	
 	var shaft_material = StandardMaterial3D.new()
 	shaft_material.albedo_color = Color(0.4, 0.25, 0.1)
 	shaft_material.roughness = 0.8
 	shaft.material_override = shaft_material
-	
 	add_child(shaft)
 	weapon_parts.append(shaft)
-	
 	# Ornate top section
 	var ornate_top = MeshInstance3D.new()
 	var ornate_mesh = CylinderMesh.new()
@@ -202,7 +197,6 @@ func _create_enhanced_staff():
 	ornate_mesh.height = 0.15
 	ornate_top.mesh = ornate_mesh
 	ornate_top.position = Vector3(0, 0.4, 0)
-	
 	var ornate_material = StandardMaterial3D.new()
 	ornate_material.albedo_color = Color(0.8, 0.6, 0.2)
 	ornate_material.metallic = 0.9
@@ -210,10 +204,8 @@ func _create_enhanced_staff():
 	ornate_material.emission_enabled = true
 	ornate_material.emission = Color(0.6, 0.4, 0.1) * 0.5
 	ornate_top.material_override = ornate_material
-	
 	shaft.add_child(ornate_top)
 	weapon_parts.append(ornate_top)
-	
 	# Crystal orb at top
 	var orb = MeshInstance3D.new()
 	var orb_mesh = SphereMesh.new()
@@ -221,7 +213,6 @@ func _create_enhanced_staff():
 	orb_mesh.height = 0.15
 	orb.mesh = orb_mesh
 	orb.position = Vector3(0, 0.55, 0)
-	
 	var orb_material = StandardMaterial3D.new()
 	orb_material.albedo_color = Color(0.3, 0.5, 1.0, 0.8)
 	orb_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -230,12 +221,11 @@ func _create_enhanced_staff():
 	orb_material.rim_enabled = true
 	orb_material.rim = 0.8
 	orb.material_override = orb_material
-	
 	shaft.add_child(orb)
 	weapon_parts.append(orb)
-	
 	# Floating runes around the orb
 	_create_floating_runes(orb)
+
 
 func _create_floating_runes(parent: MeshInstance3D):
 	"""Create floating magical runes around staff orb"""
@@ -270,6 +260,7 @@ func _create_default_sword_visual():
 	"""Create a default sword visual if weapon_resource is null"""
 	_clear_weapon_parts()
 	_create_enhanced_sword()
+
 
 func _create_default_visual():
 	"""Create enhanced default pickup visual"""

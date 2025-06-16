@@ -150,3 +150,9 @@ func print_weapon_stats():
 			print("  - ", weapon.weapon_name, " (", weapon.attack_damage, " dmg)")
 	print("Found this run: ", weapons_found_this_run)
 	print("==========================")
+
+
+# ...existing code...
+# Disabled staff in weapon pool for now
+# _add_weapon_to_pool("res://Weapons/mage_staff.tres", "uncommon")
+# ...existing code...

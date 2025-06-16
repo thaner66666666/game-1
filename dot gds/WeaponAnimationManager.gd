@@ -34,3 +34,10 @@ func play_attack_animation(weapon: WeaponResource, attacker: Node3D):
 	else:
 		print("⚠️ No ", animation_name, " animation found, using punch")
 		anim_player.play("punch")
+
+
+# ...existing code...
+# Disabled staff animation handling for now
+# case WeaponResource.WeaponType.STAFF:
+#     animation_name = "staff_cast"
+# ...existing code...
