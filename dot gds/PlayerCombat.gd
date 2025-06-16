@@ -278,20 +278,21 @@ func _on_punch_animation_finished():
 func _damage_enemies_in_cone(combo_idx: int):
 	# Always get weapon from WeaponManager
 	var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
-	# For bow weapons, only spawn arrow - don't do instant damage
+	
+	# For bow weapons, ONLY spawn arrow - arrow handles its own damage
 	if current_weapon and current_weapon.weapon_type == WeaponResource.WeaponType.BOW:
-		# Use player's current facing direction, not mouse position
+		print("🏹 BOW ATTACK: Spawning arrow projectile...")
 		var player_forward = -player.transform.basis.z.normalized()
 		_spawn_arrow_effect(player_forward)
-		return  # Exit early - no instant damage for bows
+		return  # Arrow handles its own collision and damage
+	
+	# MELEE WEAPONS ONLY: Use cone-based instant damage
 	var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
 	var rng = current_weapon.attack_range if current_weapon else player.attack_range
 	var cone = current_weapon.attack_cone_angle if current_weapon else player.attack_cone_angle
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	var player_facing = player.get_facing_direction() if player.has_method("get_facing_direction") else -player.transform.basis.z
-	# Bow arrow effect
-	if current_weapon and current_weapon.weapon_type == WeaponResource.WeaponType.BOW:
-		_spawn_arrow_effect(player_facing)
+	
 	var hit_any = false
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
@@ -307,13 +308,11 @@ func _damage_enemies_in_cone(combo_idx: int):
 				if enemy.has_method("take_damage"):
 					enemy.take_damage(dmg)
 				enemy_hit.emit(enemy, dmg, combo_idx)
-				# --- Impact effect at enemy location ---
 				_spawn_impact_effect(enemy.global_position, current_weapon)
 				_play_impact_sound()
 				hit_any = true
-				# --- Weapon trail effect ---
 				_spawn_weapon_trail(current_weapon)
-	# Play whoosh if no enemy hit
+	# Play whoosh if no enemy hit (melee only)
 	if not hit_any:
 		if whoosh_sound:
 			whoosh_sound.play()
@@ -336,85 +335,239 @@ func _spawn_weapon_trail(weapon_param):
 			var trail = player.get_node(trail_name)
 			trail.restart()
 
+func _create_arrow_trail(arrow: MeshInstance3D):
+	"""Create a fading trail behind the flying arrow"""
+	var trail_segments = 8
+	var trail_timer = Timer.new()
+	trail_timer.wait_time = 0.05
+	trail_timer.one_shot = false
+	arrow.add_child(trail_timer)
+
+	var trail_parts = []
+
+	trail_timer.timeout.connect(func():
+		if not is_instance_valid(arrow) or not arrow.is_inside_tree():
+			trail_timer.queue_free()
+			return
+
+		# Create new trail segment
+		var trail_segment = MeshInstance3D.new()
+		var segment_mesh = CylinderMesh.new()
+		segment_mesh.top_radius = 0.01
+		segment_mesh.bottom_radius = 0.01
+		segment_mesh.height = 0.15
+		trail_segment.mesh = segment_mesh
+
+		# Fading trail material
+		var trail_material = StandardMaterial3D.new()
+		trail_material.albedo_color = Color(0.8, 0.6, 0.4, 0.6)
+		trail_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		trail_segment.material_override = trail_material
+
+		# Position at arrow's current location
+		if is_instance_valid(arrow) and arrow.is_inside_tree():
+			trail_segment.global_position = arrow.global_position
+			trail_segment.global_rotation = arrow.global_rotation
+			arrow.get_parent().add_child(trail_segment)
+			trail_parts.append(trail_segment)
+
+			# Fade out trail segment
+			var fade_tween = trail_segment.create_tween()
+			fade_tween.tween_property(trail_material, "albedo_color:a", 0.0, 0.4)
+			fade_tween.tween_callback(trail_segment.queue_free)
+
+			# Keep only recent trail segments
+			if trail_parts.size() > trail_segments:
+				var old_segment = trail_parts.pop_front()
+				if is_instance_valid(old_segment):
+					old_segment.queue_free()
+	)
+
+	trail_timer.start()
+
 func _spawn_arrow_effect(_direction: Vector3):
-	# Create a simple visual arrow
+	print("\ud83c\udff9 SPAWNING ARROW...")
+	
+	# Create arrow as MeshInstance3D (no physics collision)
 	var arrow = MeshInstance3D.new()
+	arrow.name = "Arrow"
 	
-	# Make it a bright yellow cylinder
-	var arrow_mesh = CylinderMesh.new()
-	arrow_mesh.top_radius = 0.02
-	arrow_mesh.bottom_radius = 0.02
-	arrow_mesh.height = 0.5
-	arrow.mesh = arrow_mesh
-	
-	# Bright yellow material
-	var arrow_material = StandardMaterial3D.new()
-	arrow_material.albedo_color = Color(1, 1, 0)
-	arrow_material.emission_enabled = true
-	arrow_material.emission = Color(1, 1, 0) * 2.0
-	arrow.material_override = arrow_material
-	
-	# ADD TO SCENE FIRST - this is crucial!
+	# Add to scene first
 	player.get_parent().add_child(arrow)
 	
-	# NOW safely get the hand/bow position
-	var start_pos: Vector3
+	# Create arrow shaft
+	var cylinder = CylinderMesh.new()
+	cylinder.top_radius = 0.02
+	cylinder.bottom_radius = 0.02
+	cylinder.height = 0.6
+	arrow.mesh = cylinder
+	
+	# Arrow material
+	var material = StandardMaterial3D.new()
+	material.albedo_color = Color(0.4, 0.25, 0.1)
+	material.roughness = 0.8
+	arrow.material_override = material
+	
+	# Arrow tip (pointy end)
+	var tip = MeshInstance3D.new()
+	var tip_mesh = CylinderMesh.new()
+	tip_mesh.top_radius = 0.005
+	tip_mesh.bottom_radius = 0.02
+	tip_mesh.height = 0.1
+	tip.mesh = tip_mesh
+	tip.position = Vector3(0, 0.35, 0)  # Front of arrow
+	
+	var tip_material = StandardMaterial3D.new()
+	tip_material.albedo_color = Color(0.7, 0.7, 0.8)
+	tip_material.metallic = 0.9
+	tip.material_override = tip_material
+	arrow.add_child(tip)
+	
+	# Fletching (back of arrow)
+	var fletching = MeshInstance3D.new()
+	var fletch_mesh = BoxMesh.new()
+	fletch_mesh.size = Vector3(0.08, 0.02, 0.1)
+	fletching.mesh = fletch_mesh
+	fletching.position = Vector3(0, -0.25, 0)  # Back of arrow
+	
+	var fletch_material = StandardMaterial3D.new()
+	fletch_material.albedo_color = Color(0.9, 0.8, 0.7)
+	fletch_material.roughness = 0.9
+	fletching.material_override = fletch_material
+	arrow.add_child(fletching)
+	
+	# Position arrow at hand/bow
+	var start_pos = player.global_position + Vector3(0, 0.5, 0)
 	var right_hand_anchor = player.get_node_or_null("RightHandAnchor")
-
 	if right_hand_anchor:
-		# Get the actual hand position
 		start_pos = right_hand_anchor.global_position
-		
-		# If bow is equipped, offset forward a bit to spawn from bow tip
-		var current_weapon = WeaponManager.get_current_weapon()
-		if current_weapon and current_weapon.weapon_type == WeaponResource.WeaponType.BOW:
-			var forward_offset = -player.transform.basis.z.normalized() * 0.3  # 0.3 units forward
-			start_pos += forward_offset
-	else:
-		# Fallback to player position with hand offset
-		start_pos = player.global_position + Vector3(0.44, -0.2, 0)
+	
 	arrow.global_position = start_pos
 	
-	# Use the player's forward direction
-	var forward_direction = -player.transform.basis.z.normalized()
+	# SIMPLE FIX: Make arrow look in travel direction with tip first
+	# The tip is at positive Y, so we want +Y to point toward the target
+	var target_point = start_pos + _direction * 10.0
+	arrow.look_at(target_point, Vector3.UP)
+	# Rotate 90 degrees around X so the tip (Y+) points forward instead of up
+	arrow.rotate_object_local(Vector3(1, 0, 0), -PI/2)
 	
-	# Simple rotation - avoid complex transform operations
-	arrow.look_at(start_pos + forward_direction, Vector3.UP)
-	arrow.rotate_object_local(Vector3(1, 0, 0), PI/2)
-	# Animate it flying forward
-	var tween = arrow.create_tween()
-	var target_pos = start_pos + forward_direction * 10.0
-	tween.tween_property(arrow, "global_position", target_pos, 1.0)
+	# Store movement data
+	arrow.set_meta("velocity", _direction * 15.0)
+	arrow.set_meta("stuck", false)
+	arrow.set_meta("stuck_to", null)
+	
+	# Set up movement and collision checking
+	var update_timer = Timer.new()
+	update_timer.wait_time = 0.02  # 50 FPS
+	update_timer.one_shot = false
+	update_timer.timeout.connect(_update_arrow.bind(arrow))
+	arrow.add_child(update_timer)
+	update_timer.start()
+	
+	# Set up auto-despawn
+	var despawn_timer = Timer.new()
+	despawn_timer.wait_time = 60.0  # 1 minute
+	despawn_timer.one_shot = true
+	despawn_timer.timeout.connect(_on_arrow_despawn.bind(arrow))
+	arrow.add_child(despawn_timer)
+	despawn_timer.start()
+	
+	print("\ud83c\udff9 Arrow launched in direction: ", _direction)
 
-	# --- Per-frame collision check ---
-	var hit_timer = Timer.new()
-	hit_timer.wait_time = 0.05
-	hit_timer.one_shot = false
-	arrow.add_child(hit_timer)
-	hit_timer.timeout.connect(func():
-		if not is_instance_valid(arrow):
-			hit_timer.queue_free()
+func _update_arrow(arrow: MeshInstance3D):
+	if not is_instance_valid(arrow):
+		return
+	
+	# If stuck, don't move independently (let parent handle movement)
+	if arrow.get_meta("stuck", false):
+		return
+	
+	var velocity = arrow.get_meta("velocity", Vector3.ZERO)
+	var delta = 0.02  # Timer interval
+	
+	# Apply gravity
+	velocity.y -= 9.8 * delta * 0.3  # Light gravity
+	arrow.set_meta("velocity", velocity)
+	
+	# Move arrow
+	var old_pos = arrow.global_position
+	var new_pos = old_pos + velocity * delta
+	arrow.global_position = new_pos
+	
+	# Check for collisions
+	_check_arrow_collisions(arrow, old_pos, new_pos)
+
+func _check_arrow_collisions(arrow: MeshInstance3D, old_pos: Vector3, new_pos: Vector3):
+	# Check enemy collisions
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		if not is_instance_valid(enemy) or ("is_dead" in enemy and enemy.is_dead):
+			continue
+		
+		var distance = new_pos.distance_to(enemy.global_position)
+		if distance <= 1.0:
+			print("\ud83c\udff9 Arrow hit enemy: ", enemy.name)
+			_stick_arrow_to_enemy(arrow, enemy)
 			return
-		var arrow_pos = arrow.global_position
-		var enemies = get_tree().get_nodes_in_group("enemies")
-		for enemy in enemies:
-			if not is_instance_valid(enemy) or ("is_dead" in enemy and enemy.is_dead):
-				continue
-			var distance = arrow_pos.distance_to(enemy.global_position)
-			if distance <= 0.8:
-				var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
-				var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
-				if enemy.has_method("take_damage"):
-					enemy.take_damage(dmg)
-				enemy_hit.emit(enemy, dmg, combo_index)
-				_spawn_impact_effect(enemy.global_position, current_weapon)
-				_play_impact_sound()
-				hit_timer.queue_free()
-				arrow.queue_free()
-				return
-	)
-	hit_timer.start()
+	
+	# Check wall collisions with raycast
+	var space_state = arrow.get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(old_pos, new_pos)
+	query.collision_mask = 1  # Only walls/static bodies
+	var result = space_state.intersect_ray(query)
+	
+	if result and result.collider:
+		print("\ud83c\udff9 Arrow hit wall: ", result.collider.name)
+		_stick_arrow_to_wall(arrow, result.position, result.collider)
 
-	# Clean up after animation
-	tween.tween_callback(arrow.queue_free)
-	print("🏹 ARROW LAUNCHED!")
+func _stick_arrow_to_enemy(arrow: MeshInstance3D, enemy: Node3D):
+	# Damage the enemy
+	var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
+	var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
+	
+	if enemy.has_method("take_damage"):
+		enemy.take_damage(dmg)
+	enemy_hit.emit(enemy, dmg, combo_index)
+	_spawn_impact_effect(enemy.global_position, current_weapon)
+	_play_impact_sound()
+	
+	# Position arrow at enemy surface (keep current orientation!)
+	var hit_direction = (enemy.global_position - arrow.global_position).normalized()
+	arrow.global_position = enemy.global_position - hit_direction * 0.5
+	
+	# REPARENT arrow to enemy so it moves with the enemy
+	var world_transform = arrow.global_transform
+	arrow.get_parent().remove_child(arrow)
+	enemy.add_child(arrow)
+	arrow.global_transform = world_transform  # Restore position AND orientation
+	
+	# Mark as stuck
+	arrow.set_meta("stuck", true)
+	arrow.set_meta("stuck_to", enemy)
+	
+	# Stop update timer
+	var update_timer = arrow.get_node_or_null("Timer")
+	if update_timer:
+		update_timer.queue_free()
+	
+	print("\ud83c\udff9 Arrow stuck to enemy and will move with it")
+
+func _stick_arrow_to_wall(arrow: MeshInstance3D, hit_position: Vector3, wall: Node):
+	# Position arrow at hit point (keep current orientation!)
+	arrow.global_position = hit_position
+	
+	# Mark as stuck
+	arrow.set_meta("stuck", true)
+	arrow.set_meta("stuck_to", wall)
+	
+	# Stop update timer
+	var update_timer = arrow.get_node_or_null("Timer")
+	if update_timer:
+		update_timer.queue_free()
+	
+	print("\ud83c\udff9 Arrow stuck in wall: ", wall.name)
+
+func _on_arrow_despawn(arrow: MeshInstance3D):
+	if is_instance_valid(arrow):
+		print("\ud83c\udff9 Arrow despawning after timeout")
+		arrow.queue_free()
