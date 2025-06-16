@@ -148,10 +148,10 @@ func _create_enhanced_sword():
 
 
 func _create_simple_bow_visual():
-	"""Create a bow pickup visual using the imported bow model only"""
+	"""Create a bow pickup using the imported bow mesh"""
 	_clear_weapon_parts()
 
-	# Load the imported bow mesh
+	# Create a MeshInstance3D for the bow
 	var bow_mesh_instance = MeshInstance3D.new()
 	var bow_mesh = load("res://3d Models/Bow/bow_01.obj")
 	if bow_mesh:
@@ -160,12 +160,20 @@ func _create_simple_bow_visual():
 		print("❌ Failed to load bow_01.obj mesh!")
 		bow_mesh_instance.mesh = null
 
-	# Raise the bow higher off the ground to avoid floor clipping
-	bow_mesh_instance.position = Vector3(0, 1.0, 0) # Increased Y from 0.5 to 1.0
+	# Optionally tweak material for glow, color, etc.
+	var bow_material = StandardMaterial3D.new()
+	bow_material.albedo_color = Color(0.7, 0.5, 0.3)
+	bow_material.metallic = 0.2
+	bow_material.roughness = 0.5
+	bow_material.emission_enabled = true
+	bow_material.emission = Color(0.3, 0.6, 0.2) * glow_intensity * 0.2
+	bow_mesh_instance.material_override = bow_material
+
+	# Raise the bow even higher above the ground
+	bow_mesh_instance.position = Vector3(0, 1.0, 0) # was 0.6
 	bow_mesh_instance.scale = Vector3(0.7, 0.7, 0.7)
 
 	add_child(bow_mesh_instance)
-	weapon_parts.clear() # Ensure only the imported bow is present
 	weapon_parts.append(bow_mesh_instance)
 
 func _create_enhanced_staff():
@@ -307,13 +315,13 @@ func _process(delta):
 	
 	# Animate all weapon parts together
 	var bob_offset = sin(time_alive * bob_speed) * bob_height
-	var base_height = 1.0 # Raise the base height for all parts
+	var base_y_offset = 1.0 # Raise all weapon parts higher above the ground
 	var rotation_y = rotation_speed * delta
 	
 	for part in weapon_parts:
 		if is_instance_valid(part) and part.get_parent() == self:  # Only animate top-level parts
 			part.rotation_degrees.y += rotation_y
-			part.position.y = base_height + bob_offset
+			part.position.y = base_y_offset + bob_offset
 	
 	# Enhanced glow pulsing for magical weapons
 	if weapon_resource and weapon_resource.weapon_type == WeaponResource.WeaponType.STAFF:

@@ -34,4 +34,3 @@ func play_attack_animation(weapon: WeaponResource, attacker: Node3D):
 	else:
 		print("⚠️ No ", animation_name, " animation found, using punch")
 		anim_player.play("punch")
-

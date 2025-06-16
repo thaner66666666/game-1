@@ -363,13 +363,10 @@ func _show_weapon_visual(weapon_resource):
 			else:
 				print("⚠️ SwordNode not found!")
 		int(WeaponResource.WeaponType.BOW):
-			# Only show the imported BowNode, do not create a procedural mesh
-			var bow_node = weapon_attach_point.get_node_or_null("BowNode")
-			if bow_node:
-				bow_node.visible = true
-				equipped_weapon_mesh = bow_node
-			else:
-				print("⚠️ BowNode not found!")
+			var mesh = _create_simple_bow_mesh()
+			if mesh:
+				weapon_attach_point.add_child(mesh)
+				equipped_weapon_mesh = mesh
 		int(WeaponResource.WeaponType.STAFF):
 			var mesh = _create_simple_staff_mesh()
 			if mesh:

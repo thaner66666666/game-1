@@ -5,8 +5,6 @@
 [node name="WeaponPickup" type="Area3D"]
 script = ExtResource("1_tqm4g")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 
 [connection signal="area_entered" from="." to="." method="_on_area_entered"]
