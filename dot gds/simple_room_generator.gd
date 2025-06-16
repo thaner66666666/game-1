@@ -197,6 +197,21 @@ func generate_starting_room():
 	else:
 		print("⚠️ weapon_pickup_scene not loaded, cannot spawn test sword or bow!")
 	
+	# SPAWN RECRUITER NPC IN ROOM ONE
+	var recruiter_npc_scene = load("res://Scenes/recruiter_npc.tscn")
+	if recruiter_npc_scene:
+		var recruiter_npc_instance = recruiter_npc_scene.instantiate()
+		add_child(recruiter_npc_instance)
+		# Position the NPC near the center of the starting room
+		recruiter_npc_instance.global_position = Vector3(
+			(starting_room.get_center().x - map_size.x / 2) * 2.0 - 2.5, # Offset slightly from center
+			0.5, # Y position (adjust as needed)
+			(starting_room.get_center().y - map_size.y / 2) * 2.0
+		)
+		print("👤 Recruiter NPC spawned in room one!")
+	else:
+		print("⚠️ Recruiter NPC scene not loaded, cannot spawn recruiter!")
+
 	print("🛡️ Starting room created with PROTECTED BOUNDARIES!")
 	terrain_generated.emit()
 
@@ -451,58 +466,18 @@ func _carve_small_square_protected(start_x: int, start_y: int, width: int, heigh
 	var center_x = int(start_x + (width - small_size) / 2.0)
 	var center_y = int(start_y + (height - small_size) / 2.0)
 	
-	for x in range(center_x, center_x + small_size):
-		for y in range(center_y, center_y + small_size):
-			if _is_valid_carve_position(x, y):
-				terrain_grid[x][y] = TileType.FLOOR
+	for current_x in range(center_x, center_x + small_size):
+		for current_y in range(center_y, center_y + small_size):
+			if _is_valid_carve_position(current_x, current_y):
+				terrain_grid[current_x][current_y] = TileType.FLOOR
 
 func _is_valid_carve_position(x: int, y: int) -> bool:
-	"""NEW: Check if position is valid for carving (never carve boundary walls!)"""
+	# Check if the carve position is inside the map and not in the boundary
 	if not _is_valid_pos(x, y):
 		return false
-	
-	# NEVER carve boundary positions
-	if _is_boundary_position(x, y):
+	if boundary_walls.has(str(x) + "," + str(y)):
 		return false
-	
 	return true
-
-func _remove_walls_by_grid_lookup():
-	"""NEW: Enhanced wall removal with BOUNDARY PROTECTION"""
-	var walls_removed = 0
-	var boundary_walls_protected = 0
-	var walls_to_remove = []
-	
-	# Check every grid position
-	for x in range(map_size.x):
-		for y in range(map_size.y):
-			if terrain_grid[x][y] == TileType.FLOOR or terrain_grid[x][y] == TileType.CORRIDOR:
-				var grid_key = str(x) + "," + str(y)
-				
-				if wall_lookup.has(grid_key):
-					var wall = wall_lookup[grid_key]
-					if is_instance_valid(wall):
-						# 🛡️ CRITICAL CHECK: Never remove boundary walls!
-						if boundary_walls.has(grid_key):
-							boundary_walls_protected += 1
-							print("🛡️ PROTECTED boundary wall at (", x, ",", y, ") from deletion!")
-						else:
-							walls_to_remove.append(wall)
-							walls_removed += 1
-	
-	# Remove non-boundary walls only
-	for wall in walls_to_remove:
-		var grid_x = wall.get_meta("grid_x", -1)
-		var grid_y = wall.get_meta("grid_y", -1)
-		if grid_x >= 0 and grid_y >= 0:
-			var grid_key = str(grid_x) + "," + str(grid_y)
-			wall_lookup.erase(grid_key)
-			# Don't remove from boundary_walls - keep that protection!
-		
-		generated_objects.erase(wall)
-		wall.queue_free()
-	
-	print("🛡️ Wall removal complete: ", walls_removed, " removed, ", boundary_walls_protected, " BOUNDARY WALLS PROTECTED!")
 
 func _find_new_room_position(existing_room: Rect2, room_size: Vector2) -> Rect2:
 	"""Improved: Try many possible positions around the last room, not just 4 directions"""
@@ -617,6 +592,28 @@ func create_connected_room():
 	_spawn_destructible_objects_in_room(new_room)  # NEW: Spawn destructibles
 	
 	return new_room
+
+func _remove_walls_by_grid_lookup():
+	"""Removes wall nodes from the scene if their grid position is now FLOOR or CORRIDOR (but never boundary walls)"""
+	var to_remove = []
+	for grid_key in wall_lookup.keys():
+		var wall = wall_lookup[grid_key]
+		if not is_instance_valid(wall):
+			continue
+		var parts = grid_key.split(",")
+		if parts.size() != 2:
+			continue
+		var x = int(parts[0])
+		var y = int(parts[1])
+		if boundary_walls.has(grid_key):
+			continue  # Never remove boundary walls
+		if terrain_grid[x][y] != TileType.WALL:
+			to_remove.append(grid_key)
+	for grid_key in to_remove:
+		var wall = wall_lookup[grid_key]
+		if is_instance_valid(wall):
+			wall.queue_free()
+		wall_lookup.erase(grid_key)
 
 func _create_simple_corridor_protected(room_a: Rect2, room_b: Rect2):
 	"""Create corridor with boundary protection"""
