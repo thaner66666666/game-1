@@ -58,12 +58,14 @@ func _apply_weapon_to_player() -> void:
 		print("💾 Player base stats cached.")
 
 	if current_weapon != null:
-		# ADD weapon stats to base stats instead of replacing
+		# ADD weapon bonuses to base stats (not replace)
 		p.set("attack_damage", base_stats.attack_damage + current_weapon.attack_damage)
 		p.set("attack_range", base_stats.attack_range + current_weapon.attack_range)
-		p.set("attack_cooldown", max(0.1, base_stats.attack_cooldown - (current_weapon.attack_cooldown * 0.1)))
+		# For attack speed: reduce cooldown by weapon bonus (negative = faster)
+		var new_cooldown = base_stats.attack_cooldown - current_weapon.attack_cooldown
+		p.set("attack_cooldown", max(0.05, new_cooldown))
 		p.set("attack_cone_angle", base_stats.attack_cone_angle + current_weapon.attack_cone_angle)
-		print("🗡️ Equipped: ", current_weapon.weapon_name, " (stats added to base)")
+		print("🗡️ Equipped: ", current_weapon.weapon_name, " (+", current_weapon.attack_damage, " dmg, +", current_weapon.attack_range, " range)")
 		emit_signal("weapon_equipped", current_weapon)
 	else:
 		# Restore base stats when unarmed

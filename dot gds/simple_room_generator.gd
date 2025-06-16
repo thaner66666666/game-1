@@ -197,6 +197,24 @@ func generate_starting_room():
 	else:
 		print("⚠️ weapon_pickup_scene not loaded, cannot spawn test sword or bow!")
 	
+	# SPAWN DEV RAPID FIRE BOW (center, different offset)
+	if weapon_pickup_scene:
+		var rapid_bow_resource = null
+		if typeof(WeaponPool) != TYPE_NIL:
+			rapid_bow_resource = WeaponPool.get_weapon_by_name("DEV Rapid Fire Bow")
+		if not rapid_bow_resource:
+			rapid_bow_resource = load("res://Weapons/rapid_fire_bow.tres")
+		if rapid_bow_resource:
+			var rapid_bow_pickup = weapon_pickup_scene.instantiate()
+			add_child(rapid_bow_pickup)
+			rapid_bow_pickup.global_position = Vector3(
+				(starting_room.get_center().x - map_size.x / 2) * 2.0 - 2.5,
+				0.5,
+				(starting_room.get_center().y - map_size.y / 2) * 2.0 + 2.0
+			)
+			rapid_bow_pickup.set_weapon_resource(rapid_bow_resource)
+			print("🏹💨 DEV Rapid Fire Bow spawned in room one!")
+	
 	print("🛡️ Starting room created with PROTECTED BOUNDARIES!")
 	terrain_generated.emit()
 

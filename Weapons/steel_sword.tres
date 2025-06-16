@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1_ya7oo")
 weapon_name = "Steel Sword"
-attack_damage = 35
-attack_range = 2.8
-attack_cooldown = 0.7
-attack_cone_angle = 110.0
+attack_damage = 25
+attack_range = 0.8
+attack_cooldown = 0.3
+attack_cone_angle = 20.0
 weapon_type = 1
 visual_scene_path = ""
