@@ -286,10 +286,10 @@ func _damage_enemies_in_cone(combo_idx: int):
 		_spawn_arrow_effect(player_forward)
 		return  # Arrow handles its own collision and damage
 	
-	# MELEE WEAPONS ONLY: Use cone-based instant damage
-	var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
-	var rng = current_weapon.attack_range if current_weapon else player.attack_range
-	var cone = current_weapon.attack_cone_angle if current_weapon else player.attack_cone_angle
+	# MELEE WEAPONS ONLY: Use cone-based instant damage  
+	var dmg = player.attack_damage  # Always use player's modified stats (includes weapon bonuses)
+	var rng = player.attack_range  # Use player's modified range
+	var cone = player.attack_cone_angle  # Use player's modified cone
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	var player_facing = player.get_facing_direction() if player.has_method("get_facing_direction") else -player.transform.basis.z
 	

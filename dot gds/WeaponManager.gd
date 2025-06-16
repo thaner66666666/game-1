@@ -61,9 +61,12 @@ func _apply_weapon_to_player() -> void:
 		# ADD weapon bonuses to base stats (not replace)
 		p.set("attack_damage", base_stats.attack_damage + current_weapon.attack_damage)
 		p.set("attack_range", base_stats.attack_range + current_weapon.attack_range)
-		# For attack speed: reduce cooldown by weapon bonus (negative = faster)
-		var new_cooldown = base_stats.attack_cooldown - current_weapon.attack_cooldown
-		p.set("attack_cooldown", max(0.05, new_cooldown))
+		# For weapons with very low cooldown (rapid fire), use weapon's cooldown directly
+		if current_weapon.attack_cooldown < base_stats.attack_cooldown:
+			p.set("attack_cooldown", current_weapon.attack_cooldown)
+		else:
+			var new_cooldown = base_stats.attack_cooldown - current_weapon.attack_cooldown
+			p.set("attack_cooldown", max(0.05, new_cooldown))
 		p.set("attack_cone_angle", base_stats.attack_cone_angle + current_weapon.attack_cone_angle)
 		print("🗡️ Equipped: ", current_weapon.weapon_name, " (+", current_weapon.attack_damage, " dmg, +", current_weapon.attack_range, " range)")
 		emit_signal("weapon_equipped", current_weapon)
