@@ -526,13 +526,13 @@ func _check_arrow_collisions(arrow: MeshInstance3D, old_pos: Vector3, new_pos: V
 
 func _stick_arrow_to_enemy(arrow: MeshInstance3D, enemy: Node3D):
 	# Damage the enemy
-	var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
-	var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
+	# Use player's modified stats (base + weapon bonuses)
+	var dmg = player.attack_damage  # Use player's modified stats (base + weapon bonuses)
 	
 	if enemy.has_method("take_damage"):
 		enemy.take_damage(dmg)
 	enemy_hit.emit(enemy, dmg, combo_index)
-	_spawn_impact_effect(enemy.global_position, current_weapon)
+	_spawn_impact_effect(enemy.global_position, WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null)
 	_play_impact_sound()
 	
 	# Position arrow at enemy surface (keep current orientation!)

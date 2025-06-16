@@ -471,6 +471,9 @@ func _add_currency(amount: int):
 	coin_collected.emit(currency)
 
 func _pickup_health_potion(area: Area3D):
+	if current_health >= max_health:
+		# Don't pick up if at full health
+		return
 	heal(heal_amount_from_potion)
 	if is_instance_valid(area):
 		area.queue_free()
