@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3 uid="uid://7k0lvwcjahh4"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pbo4a"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_srtx8"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_rqkyj"]
+
+[node name="RecruiterNpc" type="StaticBody3D"]
+
+[node name="Area3D" type="Area3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
+shape = SubResource("BoxShape3D_pbo4a")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_srtx8")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.50831, 0)
+mesh = SubResource("SphereMesh_rqkyj")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.30278, 0)
+modulate = Color(0.054902, 1, 0, 1)
+text = "Press E to Recruit Footman"

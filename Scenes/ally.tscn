@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://dot gds/ally.gd" id="1_ally"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ally"]
+
+[node name="Ally" type="CharacterBody3D"]
+script = ExtResource("1_ally")
+collision_layer = 8
+collision_mask = 3
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+# Mesh will be set by CharacterAppearanceManager
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_ally")
+
+[node name="Area3D" type="Area3D" parent="."]
+# Used for attack detection
+
+[node name="WeaponAttachPoint" type="Node3D" parent="."]
+# Weapon visuals attach here
