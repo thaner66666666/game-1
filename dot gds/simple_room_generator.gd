@@ -505,30 +505,43 @@ func _remove_walls_by_grid_lookup():
 	print("🛡️ Wall removal complete: ", walls_removed, " removed, ", boundary_walls_protected, " BOUNDARY WALLS PROTECTED!")
 
 func _find_new_room_position(existing_room: Rect2, room_size: Vector2) -> Rect2:
-	"""NEW: Enhanced room positioning with strict boundary respect"""
+	"""Improved: Try many possible positions around the last room, not just 4 directions"""
 	var distance = 4  # Distance between rooms
-	
-	# Calculate safe boundaries (well inside the protected zone)
 	var min_pos = boundary_thickness + safe_zone_margin
 	var max_pos_x = map_size.x - boundary_thickness - safe_zone_margin - room_size.x
 	var max_pos_y = map_size.y - boundary_thickness - safe_zone_margin - room_size.y
-	
+
 	print("🛡️ Safe room placement zone: (", min_pos, ",", min_pos, ") to (", max_pos_x, ",", max_pos_y, ")")
-	
-	# Try positions: right, down, left, up
-	var positions = [
-		Vector2(existing_room.position.x + existing_room.size.x + distance, existing_room.position.y),
-		Vector2(existing_room.position.x, existing_room.position.y + existing_room.size.y + distance),
-		Vector2(existing_room.position.x - room_size.x - distance, existing_room.position.y),
-		Vector2(existing_room.position.x, existing_room.position.y - room_size.y - distance)
+
+	# Try many offsets around the last room (cardinals, diagonals, and larger steps)
+	var offsets = [
+		Vector2(existing_room.size.x + distance, 0),
+		Vector2(0, existing_room.size.y + distance),
+		Vector2(-room_size.x - distance, 0),
+		Vector2(0, -room_size.y - distance),
+		Vector2(existing_room.size.x + distance, existing_room.size.y + distance),
+		Vector2(-room_size.x - distance, existing_room.size.y + distance),
+		Vector2(existing_room.size.x + distance, -room_size.y - distance),
+		Vector2(-room_size.x - distance, -room_size.y - distance),
 	]
-	
-	for pos in positions:
+
+	# Try all offsets from the last room's position
+	for offset in offsets:
+		var pos = existing_room.position + offset
 		var test_room = Rect2(pos, room_size)
 		if _is_room_position_safe(test_room, min_pos, max_pos_x, max_pos_y):
 			print("🛡️ Found safe room position: ", test_room)
 			return test_room
-	
+
+	# As a fallback, try a grid search in the safe area
+	for x in range(int(min_pos), int(max_pos_x), 2):
+		for y in range(int(min_pos), int(max_pos_y), 2):
+			var pos = Vector2(x, y)
+			var test_room = Rect2(pos, room_size)
+			if _is_room_position_safe(test_room, min_pos, max_pos_x, max_pos_y):
+				print("🛡️ Fallback found safe room position: ", test_room)
+				return test_room
+
 	print("🛡️ No safe room position found - all would be too close to boundary!")
 	return Rect2()  # Failed
 

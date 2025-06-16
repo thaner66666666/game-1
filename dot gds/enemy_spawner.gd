@@ -269,3 +269,39 @@ func force_start_waves():
 	"""Debug: Force start wave system"""
 	if current_wave == 0:
 		start_wave_system()
+
+# === DEBUG: Kill all enemies one by one ===
+var debug_kill_timer: Timer
+var debug_kill_active: bool = false
+
+func _input(event):
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F10:
+		if not debug_kill_active:
+			print("[DEBUG] F10 pressed: Starting kill-all-enemies sequence.")
+			debug_kill_active = true
+			if not debug_kill_timer:
+				debug_kill_timer = Timer.new()
+				debug_kill_timer.wait_time = 0.5
+				debug_kill_timer.one_shot = false
+				debug_kill_timer.timeout.connect(_on_debug_kill_timer_timeout)
+				add_child(debug_kill_timer)
+			debug_kill_timer.start()
+		else:
+			print("[DEBUG] F10 pressed: Already running.")
+
+func _on_debug_kill_timer_timeout():
+	if enemies_alive.size() > 0:
+		var enemy = enemies_alive[0]
+		if is_instance_valid(enemy):
+			if enemy.has_method("die"):
+				enemy.die()
+			elif enemy.has_signal("enemy_died"):
+				enemy.enemy_died.emit()
+			else:
+				enemy.queue_free()
+		else:
+			enemies_alive.remove_at(0)
+	else:
+		print("[DEBUG] All enemies killed by debug tool.")
+		debug_kill_timer.stop()
+		debug_kill_active = false
