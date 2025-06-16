@@ -235,6 +235,7 @@ func _setup_player():
 	_setup_hand_references()
 	_setup_weapon_attach_point()
 	_connect_weapon_manager_signals()
+	_create_arrow_particles()
 
 func _configure_collision():
 	collision_layer = 1
@@ -818,3 +819,20 @@ func randomize_character():
 
 func get_character_seed_config(seed_value: int):
 	return CharacterGenerator.generate_character_with_seed(seed_value)
+
+func _create_arrow_particles():
+	var arrow_particles = CPUParticles3D.new()
+	arrow_particles.name = "ArrowParticles"
+	arrow_particles.emitting = false
+	arrow_particles.amount = 1
+	arrow_particles.lifetime = 1.0
+	arrow_particles.direction = Vector3(0, 0, -1)
+	arrow_particles.initial_velocity_min = 15.0
+	arrow_particles.initial_velocity_max = 15.0
+	arrow_particles.scale_amount_min = 0.1
+	arrow_particles.scale_amount_max = 0.1
+	# Add a visible process material
+	var mat = ParticleProcessMaterial.new()
+	mat.color = Color(1, 1, 0) # Yellow for visibility
+	arrow_particles.process_material = mat
+	add_child(arrow_particles)

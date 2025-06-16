@@ -283,6 +283,9 @@ func _damage_enemies_in_cone(combo_idx: int):
 	var cone = current_weapon.attack_cone_angle if current_weapon else player.attack_cone_angle
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	var player_facing = player.get_facing_direction() if player.has_method("get_facing_direction") else -player.transform.basis.z
+	# Bow arrow effect
+	if current_weapon and current_weapon.weapon_type == WeaponResource.WeaponType.BOW:
+		_spawn_arrow_effect(player_facing)
 	var hit_any = false
 	for enemy in enemies:
 		if not is_instance_valid(enemy):
@@ -326,6 +329,15 @@ func _spawn_weapon_trail(weapon_param):
 		if player.has_node(trail_name):
 			var trail = player.get_node(trail_name)
 			trail.restart()
+
+func _spawn_arrow_effect(direction: Vector3):
+	var arrow_particles = player.get_node_or_null("ArrowParticles")
+	if arrow_particles:
+		arrow_particles.global_position = player.global_position + Vector3(0, 1.0, 0)
+		arrow_particles.direction = direction
+		arrow_particles.emitting = true
+		arrow_particles.restart()
+		print("🏹 Arrow fired!")
 
 # Helper function for consistent animation directions
 func get_forward_vector() -> Vector3:
