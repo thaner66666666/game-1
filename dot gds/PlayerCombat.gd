@@ -278,6 +278,12 @@ func _on_punch_animation_finished():
 func _damage_enemies_in_cone(combo_idx: int):
 	# Always get weapon from WeaponManager
 	var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
+	# For bow weapons, only spawn arrow - don't do instant damage
+	if current_weapon and current_weapon.weapon_type == WeaponResource.WeaponType.BOW:
+		# Use player's current facing direction, not mouse position
+		var player_forward = -player.transform.basis.z.normalized()
+		_spawn_arrow_effect(player_forward)
+		return  # Exit early - no instant damage for bows
 	var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
 	var rng = current_weapon.attack_range if current_weapon else player.attack_range
 	var cone = current_weapon.attack_cone_angle if current_weapon else player.attack_cone_angle
@@ -330,16 +336,103 @@ func _spawn_weapon_trail(weapon_param):
 			var trail = player.get_node(trail_name)
 			trail.restart()
 
-func _spawn_arrow_effect(direction: Vector3):
-	var arrow_particles = player.get_node_or_null("ArrowParticles")
-	if arrow_particles:
-		arrow_particles.global_position = player.global_position + Vector3(0, 1.0, 0)
-		arrow_particles.direction = direction
-		arrow_particles.emitting = true
-		arrow_particles.restart()
-		print("🏹 Arrow fired!")
+func _spawn_arrow_effect(_direction: Vector3):
+	# Create a simple visual arrow
+	var arrow = MeshInstance3D.new()
+	
+	# Make it a bright yellow cylinder
+	var arrow_mesh = CylinderMesh.new()
+	arrow_mesh.top_radius = 0.02
+	arrow_mesh.bottom_radius = 0.02
+	arrow_mesh.height = 0.5
+	arrow.mesh = arrow_mesh
+	
+	# Bright yellow material
+	var arrow_material = StandardMaterial3D.new()
+	arrow_material.albedo_color = Color(1, 1, 0)
+	arrow_material.emission_enabled = true
+	arrow_material.emission = Color(1, 1, 0) * 2.0
+	arrow.material_override = arrow_material
+	
+	# ADD TO SCENE FIRST - this is crucial!
+	player.get_parent().add_child(arrow)
+	
+	# NOW safely get the hand/bow position
+	var start_pos: Vector3
+	var right_hand_anchor = player.get_node_or_null("RightHandAnchor")
 
-# Helper function for consistent animation directions
+	if right_hand_anchor:
+		# Get the actual hand position
+		start_pos = right_hand_anchor.global_position
+		
+		# If bow is equipped, offset forward a bit to spawn from bow tip
+		var current_weapon = WeaponManager.get_current_weapon()
+		if current_weapon and current_weapon.weapon_type == WeaponResource.WeaponType.BOW:
+			var forward_offset = -player.transform.basis.z.normalized() * 0.3  # 0.3 units forward
+			start_pos += forward_offset
+	else:
+		# Fallback to player position with hand offset
+		start_pos = player.global_position + Vector3(0.44, -0.2, 0)
+	arrow.global_position = start_pos
+	
+	# Use the player's forward direction
+	var forward_direction = -player.transform.basis.z.normalized()
+	
+	# Simple rotation - avoid complex transform operations
+	arrow.look_at(start_pos + forward_direction, Vector3.UP)
+	arrow.rotate_object_local(Vector3(1, 0, 0), PI/2)
+	
+	# Animate it flying forward
+	var tween = arrow.create_tween()
+	var target_pos = start_pos + forward_direction * 10.0
+	tween.tween_property(arrow, "global_position", target_pos, 1.0)
+	
+	# Check for hits during flight
+	_check_arrow_hits(arrow, forward_direction, start_pos)
+	
+	# Clean up after animation
+	tween.tween_callback(arrow.queue_free)
+	
+	print("🏹 ARROW LAUNCHED!")
+
+func _check_arrow_hits(arrow: MeshInstance3D, direction: Vector3, start_pos: Vector3):
+	# Check for hits every 0.1 seconds during flight
+	var hit_timer = Timer.new()
+	hit_timer.wait_time = 0.1
+	hit_timer.one_shot = false
+	arrow.add_child(hit_timer)
+
+	hit_timer.timeout.connect(func():
+		_check_arrow_collision(arrow, direction, start_pos, hit_timer)
+	)
+	hit_timer.start()
+
+func _check_arrow_collision(arrow: MeshInstance3D, _direction: Vector3, _start_pos: Vector3, timer: Timer):
+	if not is_instance_valid(arrow):
+		timer.queue_free()
+		return
+
+	var arrow_pos = arrow.global_position
+	var enemies = get_tree().get_nodes_in_group("enemies")
+
+	for enemy in enemies:
+		if not is_instance_valid(enemy) or ("is_dead" in enemy and enemy.is_dead):
+			continue
+
+		var distance = arrow_pos.distance_to(enemy.global_position)
+		if distance <= 0.8:  # Slightly smaller hit radius for accuracy
+			# Arrow hit an enemy!
+			var current_weapon = WeaponManager.get_current_weapon()
+			var dmg = current_weapon.attack_damage if current_weapon else player.attack_damage
+
+			if enemy.has_method("take_damage"):
+				enemy.take_damage(dmg)
+
+			print("🏹 ARROW HIT ENEMY at distance: ", distance)
+			timer.queue_free()
+			arrow.queue_free()
+			return
+
 func get_forward_vector() -> Vector3:
 	return Vector3(0, 0, 1)  # Positive Z = forward
 
