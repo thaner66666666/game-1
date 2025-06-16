@@ -238,13 +238,8 @@ func ensure_weapon_nodes():
 func _hide_all_weapons():
 	var attach_point = get_parent()
 	if attach_point:
-		# Hide all weapon nodes
-		var weapon_nodes = ["SwordNode", "BowNode", "StaffNode"]
-		for node_name in weapon_nodes:
+		var names = ["SwordNode", "BowNode", "StaffNode"]
+		for node_name in names:
 			var node = attach_point.get_node_or_null(node_name)
 			if node:
 				node.visible = false
-		# Also hide any MeshInstance3D children that might be placeholders
-		for child in attach_point.get_children():
-			if child is MeshInstance3D and child.name.begins_with("Mesh"):
-				child.visible = false
