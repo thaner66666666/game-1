@@ -212,7 +212,7 @@ func _destroy():
 	is_being_destroyed = true
 	print("💥 Destroying ", name, "!")
 
-	# 🔥 IMMEDIATE COLLISION DISABLE - This fixes your issue!
+	# 🚫 IMMEDIATE COLLISION DISABLE - This fixes your issue!
 	collision_layer = 0  # Remove from all collision layers
 	collision_mask = 0   # Stop colliding with anything
 
@@ -220,6 +220,11 @@ func _destroy():
 	for child in get_children():
 		if child is CollisionShape3D:
 			child.disabled = true
+
+	# Instantly hide all children except debris (if any)
+	for child in get_children():
+		if child is MeshInstance3D:
+			child.visible = false
 
 	_create_breaking_effect()
 	_drop_loot()

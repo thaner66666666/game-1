@@ -363,10 +363,14 @@ func _show_weapon_visual(weapon_resource):
 			else:
 				print("⚠️ SwordNode not found!")
 		int(WeaponResource.WeaponType.BOW):
-			var mesh = _create_simple_bow_mesh()
-			if mesh:
-				weapon_attach_point.add_child(mesh)
-				equipped_weapon_mesh = mesh
+			# Only show the imported BowNode, do not create a procedural mesh
+			var bow_node = weapon_attach_point.get_node_or_null("BowNode")
+			if bow_node:
+				bow_node.visible = true
+				equipped_weapon_mesh = bow_node
+			else:
+				print("⚠️ BowNode not found!")
+				# Don't create any fallback mesh - just use imported model
 		int(WeaponResource.WeaponType.STAFF):
 			var mesh = _create_simple_staff_mesh()
 			if mesh:
@@ -383,9 +387,25 @@ func _hide_weapon_visual():
 	# Hide the SwordNode if it exists
 	if sword_node:
 		sword_node.visible = false
-	# Remove any dynamically created weapon meshes
-	if equipped_weapon_mesh and is_instance_valid(equipped_weapon_mesh) and equipped_weapon_mesh != sword_node:
+	
+	# Hide the BowNode if it exists (don't delete it!)
+	var bow_node = weapon_attach_point.get_node_or_null("BowNode")
+	if bow_node:
+		bow_node.visible = false
+	
+	# Hide the StaffNode if it exists
+	var staff_node = weapon_attach_point.get_node_or_null("StaffNode")
+	if staff_node:
+		staff_node.visible = false
+	
+	# Only remove dynamically created meshes (not imported scene nodes)
+	if (equipped_weapon_mesh and 
+		is_instance_valid(equipped_weapon_mesh) and 
+		equipped_weapon_mesh != sword_node and 
+		equipped_weapon_mesh != bow_node and 
+		equipped_weapon_mesh != staff_node):
 		equipped_weapon_mesh.queue_free()
+	
 	equipped_weapon_mesh = null
 
 func _create_simple_sword_mesh() -> MeshInstance3D:
@@ -401,19 +421,19 @@ func _create_simple_sword_mesh() -> MeshInstance3D:
 	sword.material_override = mat
 	return sword
 
-func _create_simple_bow_mesh() -> MeshInstance3D:
-	var bow = MeshInstance3D.new()
-	var bow_mesh = CylinderMesh.new()
-	bow_mesh.top_radius = 0.03
-	bow_mesh.bottom_radius = 0.03
-	bow_mesh.height = 0.7
-	bow.mesh = bow_mesh
-	bow.rotation_degrees = Vector3(0, 0, 90)
-	bow.position = Vector3(0, 0.35, 0)
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.5, 0.3, 0.1)
-	bow.material_override = mat
-	return bow
+# func _create_simple_bow_mesh() -> MeshInstance3D:
+# 	var bow = MeshInstance3D.new()
+# 	var bow_mesh = CylinderMesh.new()
+# 	bow_mesh.top_radius = 0.03
+# 	bow_mesh.bottom_radius = 0.03
+# 	bow_mesh.height = 0.7
+# 	bow.mesh = bow_mesh
+# 	bow.rotation_degrees = Vector3(0, 0, 90)
+# 	bow.position = Vector3(0, 0.35, 0)
+# 	var mat = StandardMaterial3D.new()
+# 	mat.albedo_color = Color(0.5, 0.3, 0.1)
+# 	bow.material_override = mat
+# 	return bow
 
 func _create_simple_staff_mesh() -> MeshInstance3D:
 	var staff = MeshInstance3D.new()
