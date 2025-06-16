@@ -39,7 +39,7 @@ func _load_all_weapons():
 	_add_weapon_to_pool("res://Weapons/enchanted_blade.tres", "rare")
 	
 	# Add legendary weapons as you create them:
-	_add_weapon_to_pool("res://Weapons/rapid_fire_bow.tres", "legendary")
+	# _add_weapon_to_pool("res://Weapons/excalibur.tres", "legendary")
 	
 	print("✅ WeaponPool: Loaded weapons - Common: ", weapon_pools["common"].size(),
 		  ", Uncommon: ", weapon_pools["uncommon"].size(),
@@ -150,3 +150,9 @@ func print_weapon_stats():
 			print("  - ", weapon.weapon_name, " (", weapon.attack_damage, " dmg)")
 	print("Found this run: ", weapons_found_this_run)
 	print("==========================")
+
+
+# ...existing code...
+# Disabled staff in weapon pool for now
+# _add_weapon_to_pool("res://Weapons/mage_staff.tres", "uncommon")
+# ...existing code...

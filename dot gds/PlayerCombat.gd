@@ -114,10 +114,11 @@ func can_attack() -> bool:
 
 func _attack_cooldown_ready() -> bool:
 	var now = Time.get_ticks_msec() / 1000.0
-	# Timer is stopped when ready, running when on cooldown
+	# Always get current cooldown from player (updated by WeaponManager)
+	var current_cooldown = player.attack_cooldown if "attack_cooldown" in player else 1.0
 	if attack_timer == null:
 		return true
-	return (now - last_attack_time) >= attack_cooldown or attack_timer.is_stopped()
+	return (now - last_attack_time) >= current_cooldown or attack_timer.is_stopped()
 
 func handle_attack_input():
 	if Input.is_action_just_pressed("attack") or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -149,6 +150,9 @@ func _start_attack_sequence():
 	attack_timer.stop()
 	attack_timer.wait_time = 0.12
 	attack_timer.start()
+	# Use current player cooldown (includes weapon modifications)
+	var current_cooldown = player.attack_cooldown if "attack_cooldown" in player else 1.0
+	attack_timer.wait_time = current_cooldown
 
 func _on_attack_timer_timeout():
 	if state != CombatState.ATTACKING:
