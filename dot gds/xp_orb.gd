@@ -27,7 +27,8 @@ var orb_material: StandardMaterial3D
 var inner_core: MeshInstance3D
 
 func _ready():
-	# print("💙 XP Orb: Creating simple glowing sphere...")
+	print("💙 XP Orb: Creating simple glowing sphere...")
+	
 	add_to_group("xp_orb")
 	set_meta("xp_value", xp_value)
 	
@@ -155,7 +156,7 @@ func _check_vacuum_effect(delta):
 	# Start vacuum effect
 	if distance_to_player <= pickup_range and not is_vacuuming:
 		is_vacuuming = true
-		# print("💙 XP Orb: Starting vacuum toward player!")
+		print("💙 XP Orb: Starting vacuum toward player!")
 	
 	# Move toward player
 	if is_vacuuming:
@@ -180,7 +181,7 @@ func _collect_orb():
 		return
 	
 	is_being_collected = true
-	# print("💙 XP Orb: Collected! Giving ", xp_value, " XP!")
+	print("💙 XP Orb: Collected! Giving ", xp_value, " XP!")
 	
 	_create_collection_effect()
 	
@@ -211,7 +212,7 @@ func _create_collection_effect():
 
 func _create_pickup_delay_effect(delay_time: float):
 	"""Create visual effect during pickup delay"""
-	# print("💙 XP Orb: Creating pickup delay effect for ", delay_time, " seconds")
+	print("💙 XP Orb: Creating pickup delay effect for ", delay_time, " seconds")
 	
 	if orb_material:
 		# Very gentle pulse during delay

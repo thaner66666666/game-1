@@ -1,25 +1,32 @@
 # ally.gd - Complete rewrite with combat animations
 extends CharacterBody3D
 
-# === STATS AND CONFIGURATION ===
-@export var speed := 3.5
-@export var follow_distance := 4.0
-@export var attack_range := 2.5
+# === ORGANIZED EXPORTS ===
+@export_category("Combat Stats")
+@export var max_health := 80
 @export var attack_damage := 20
 @export var attack_cooldown := 1.2
-@export var max_health := 80
-@export var current_health := 80
-@export var path_offset := Vector3.ZERO
+@export var attack_range := 2.5
 
-# === AI BEHAVIOR SETTINGS ===
+@export_category("Movement")
+@export var speed := 3.5
+@export var follow_distance := 4.0
+@export var separation_distance := 1.5
+
+@export_category("AI Behavior")
 @export var detection_range := 8.0
 @export var orbit_radius := 2.5
 @export var orbit_speed := 0.8
-@export var separation_distance := 1.5
 
-# === REFERENCES ===
-var player: CharacterBody3D
-var current_target: Node3D = null
+@export_category("Visual Offset")
+@export var path_offset := Vector3.ZERO
+
+# === CACHED REFERENCES ===
+var cached_player: CharacterBody3D
+var cached_enemies: Array[Node3D] = []
+var cached_allies: Array[Node3D] = []
+var cache_timer := 0.0
+var cache_update_interval := 0.5  # Update cache every 0.5 seconds
 
 # === STATE MANAGEMENT ===
 enum AllyState { FOLLOWING, ATTACKING, MOVING_TO_TARGET, DEAD }
@@ -45,11 +52,14 @@ var last_facing_direction := Vector3.FORWARD
 signal ally_died
 signal ally_spawned
 
-var _physics_frame_counter := 0
+# Removed unused variable _physics_frame_counter
 var _ai_state_debug_counter := 0
 
 @export var invuln_time := 0.5
 var _last_hit_time := -100.0
+
+# Add current_health as a regular variable for health tracking
+var current_health: int
 
 func _ready():
 	# print("🤝 Ally: Starting complete initialization...")
@@ -103,13 +113,13 @@ func _initialize_systems():
 
 func _find_player():
 	"""Find and cache player reference"""
-	player = get_tree().get_first_node_in_group("player")
-	if not player:
+	cached_player = get_tree().get_first_node_in_group("player")
+	if not cached_player:
 		print("❌ Ally: Player not found!")
 		return
 	
 	# Set initial target position near player
-	target_position = player.global_position + Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
+	target_position = cached_player.global_position + Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
 	# print("✅ Ally: Found player and set initial position")
 
 func _create_visual_character():
@@ -182,7 +192,7 @@ func _create_attack_animation():
 	animation.length = 0.4
 
 	# Calculate punch direction based on facing
-	var punch_dir = -transform.basis.z.normalized()  # Use local transform for correct forward
+	var punch_dir = -global_transform.basis.z.normalized()  # Forward direction
 	var start_pos = Vector3(0.0, 0.0, 0.0)
 	var punch_pos = punch_dir * 0.6 + Vector3(0, 0.05, 0)  # Forward punch
 	var end_pos = start_pos
@@ -220,7 +230,17 @@ func _create_fallback_punch():
 	# Store original position
 	var original_pos = right_hand.position
 	# Calculate punch direction based on facing
-	var punch_dir = -transform.basis.z.normalized()  # Use local transform for correct forward
+	var punch_dir = -global_transform.basis.z.normalized()
+	# Convert punch direction to local space of the ally
+	var world_dir = (target.global_position - global_position)
+	world_dir.y = 0
+	if world_dir.length() > 0.1:
+		world_dir = world_dir.normalized()
+	# Convert world direction to local space of the ally
+	punch_dir = global_transform.basis.inverse() * world_dir
+	if punch_dir.length() > 0.1:
+		punch_dir = punch_dir.normalized()
+
 	# Create manual punch animation with Tween
 	var tween = create_tween()
 	tween.set_parallel(true)
@@ -237,48 +257,145 @@ func _setup_combat_system():
 	# print("✅ Ally: Combat system ready")
 
 func _physics_process(delta):
-	"""Main update loop"""
-	if current_health <= 0:
+	"""Optimized physics process - separated concerns"""
+	if current_state == AllyState.DEAD:
 		return
-
-	attack_timer = max(0, attack_timer - delta)
-
-	_update_ai_state()
-	_handle_movement(delta)
-	_handle_ally_separation(delta)
-	_handle_combat(delta)
-
-	# Apply gravity
-	if not is_on_floor():
-		velocity.y -= ProjectSettings.get_setting("physics/3d/default_gravity") * delta
-
+	# Update caches periodically, not every frame
+	cache_timer += delta
+	if cache_timer >= cache_update_interval:
+		_cache_important_nodes()
+	# Update timers
+	if attack_timer > 0:
+		attack_timer -= delta
+	# Core AI update (lighter logic)
+	_update_ai_light(delta)
+	# Apply movement
 	move_and_slide()
+	# Update animations based on movement
+	_update_movement_animation()
 
-	# Prompt 4: Call activation check every 60 frames
-	_physics_frame_counter += 1
-	_ai_state_debug_counter += 1
-	if _physics_frame_counter >= 60:
-		_ensure_ally_is_active()
-		_physics_frame_counter = 0
+func _cache_important_nodes():
+	"""Cache node references to avoid tree searches every frame"""
+	cache_timer = 0.0
+	# Cache player
+	if not cached_player or not is_instance_valid(cached_player):
+		cached_player = get_tree().get_first_node_in_group("player")
+	# Cache enemies (remove invalid ones, ensure Node3D type)
+	cached_enemies = []
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy is Node3D and is_instance_valid(enemy) and not (("is_dead" in enemy and enemy.is_dead)):
+			cached_enemies.append(enemy)
+	# Cache allies (ensure Node3D type)
+	cached_allies = []
+	for ally in get_tree().get_nodes_in_group("allies"):
+		if ally is Node3D and is_instance_valid(ally):
+			cached_allies.append(ally)
 
-func _ensure_ally_is_active():
-	"""Check if ally is stuck and reactivate if needed"""
-	var now = Time.get_ticks_msec() / 1000.0
-	if velocity.length() < 0.05 and now - _last_move_time > 3.0:
-		print("🛑 Ally: Detected inactivity >3s, reactivating AI.")
+func _update_ai_light(delta: float):
+	"""Lightweight AI update for physics process"""
+	if not cached_player:
+		return
+	match current_state:
+		AllyState.FOLLOWING:
+			_handle_following_light(delta)
+		AllyState.ATTACKING:
+			_handle_attacking_light(delta)
+		AllyState.MOVING_TO_TARGET:
+			_handle_moving_light(delta)
+
+func _handle_following_light(delta: float):
+	"""Simplified following logic"""
+	var player_distance = global_position.distance_to(cached_player.global_position)
+	if player_distance > follow_distance:
+		var direction = (cached_player.global_position - global_position).normalized()
+		velocity.x = direction.x * speed
+		velocity.z = direction.z * speed
+	else:
+		velocity.x = move_toward(velocity.x, 0, speed * 2 * delta)
+		velocity.z = move_toward(velocity.z, 0, speed * 2 * delta)
+	# Check for enemies nearby (use cached list)
+	var target = _find_nearest_enemy_cached()
+	if target:
+		current_state = AllyState.ATTACKING
+
+func _handle_attacking_light(_delta: float):
+	"""Simplified attacking logic"""
+	var target = _find_nearest_enemy_cached()
+	if target and global_position.distance_to(target.global_position) <= attack_range:
+		# Attack if in range
+		if attack_timer <= 0 and not is_attacking:
+			_start_attack()
+	else:
 		current_state = AllyState.FOLLOWING
-		orbit_angle = randf() * TAU
-		if player:
-			target_position = player.global_position + Vector3(cos(orbit_angle) * orbit_radius, 0, sin(orbit_angle) * orbit_radius)
-		print("🔄 Ally reactivated: state set to FOLLOWING, orbit_angle reset, target_position updated.")
+
+func _handle_moving_light(delta: float):
+	"""Move toward target enemy (lightweight)"""
+	var target = _find_nearest_enemy_cached()
+	if target:
+		var direction = (target.global_position - global_position)
+		direction.y = 0
+		if direction.length() > attack_range:
+			direction = direction.normalized()
+			velocity.x = direction.x * speed * 1.2
+			velocity.z = direction.z * speed * 1.2
+			_face_direction(direction)
+		else:
+			velocity.x = move_toward(velocity.x, 0, speed * 2 * delta)
+			velocity.z = move_toward(velocity.z, 0, speed * 2 * delta)
+	else:
+		current_state = AllyState.FOLLOWING
+
+func _find_nearest_enemy_cached() -> Node3D:
+	"""Use cached enemies for better performance"""
+	var nearest_enemy: Node3D = null
+	var nearest_distance := detection_range
+	for enemy in cached_enemies:
+		if not is_instance_valid(enemy) or ("is_dead" in enemy and enemy.is_dead):
+			continue
+		var distance = global_position.distance_squared_to(enemy.global_position)
+		if distance < nearest_distance * nearest_distance:
+			nearest_distance = sqrt(distance)
+			nearest_enemy = enemy
+	return nearest_enemy
+
+func _update_movement_animation():
+	"""Handle movement-based animations"""
+	var is_moving = velocity.length() > 0.1
+	if animation_player and animation_player.has_animation("walk"):
+		if is_moving and not is_attacking:
+			if animation_player.current_animation != "walk":
+				animation_player.play("walk")
+		else:
+			if animation_player.current_animation == "walk":
+				animation_player.play("idle")
+	# Face movement direction
+	if is_moving:
+		var direction = Vector3(velocity.x, 0, velocity.z).normalized()
+		_face_direction(direction)
+
+func _apply_separation_force() -> Vector3:
+	"""Keep allies from clustering together"""
+	var separation_force = Vector3.ZERO
+	var nearby_count = 0
+	for ally in cached_allies:
+		if ally == self or not is_instance_valid(ally):
+			continue
+		var distance = global_position.distance_to(ally.global_position)
+		if distance < separation_distance and distance > 0:
+			var away_direction = (global_position - ally.global_position).normalized()
+			separation_force += away_direction / distance  # Stronger when closer
+			nearby_count += 1
+	if nearby_count > 0:
+		separation_force = separation_force.normalized() * speed * 0.5
+	return separation_force
 
 func _update_ai_state():
 	"""Update AI state based on conditions"""
 	# Prompt 2: Add player null check and debug
-	if player == null:
+	if cached_player == null:
 		print("⚠️ Ally: Player reference lost, attempting to reacquire...")
-		player = get_tree().get_first_node_in_group("player")
-		if player == null:
+		cached_player = get_tree().get_first_node_in_group("player")
+		if cached_player == null:
 			print("❌ Ally: Player still not found, cannot update AI state.")
 			current_state = AllyState.FOLLOWING
 			return
@@ -288,22 +405,22 @@ func _update_ai_state():
 		print("⚠️ Ally: orbit_angle invalid, regenerating.")
 		orbit_angle = randf() * TAU
 
-	# Fix: Always update current_target before state logic
-	current_target = _find_nearest_enemy()
+	# Always update target before state logic
+	var target = _find_nearest_enemy_cached()
 
 	var prev_state = current_state
 
 	if is_attacking:
 		current_state = AllyState.ATTACKING
-	elif current_target and global_position.distance_to(current_target.global_position) <= attack_range:
+	elif target and global_position.distance_to(target.global_position) <= attack_range:
 		current_state = AllyState.ATTACKING
-	elif current_target and global_position.distance_to(current_target.global_position) <= detection_range:
+	elif target and global_position.distance_to(target.global_position) <= detection_range:
 		current_state = AllyState.MOVING_TO_TARGET
 	else:
 		current_state = AllyState.FOLLOWING
 
 	# Failsafe: if no enemies, always FOLLOWING
-	if current_target == null:
+	if target == null:
 		current_state = AllyState.FOLLOWING
 
 	if prev_state != current_state:
@@ -330,10 +447,10 @@ func _handle_movement(delta):
 func _follow_player(delta):
 	"""Intelligent player following with orbiting behavior"""
 	# Prompt 3: Player null check and orbit_angle validation
-	if player == null:
+	if cached_player == null:
 		print("⚠️ Ally: Player reference lost in _follow_player, trying to reacquire...")
-		player = get_tree().get_first_node_in_group("player")
-		if player == null:
+		cached_player = get_tree().get_first_node_in_group("player")
+		if cached_player == null:
 			print("❌ Ally: Player still not found, cannot follow.")
 			return
 
@@ -357,7 +474,7 @@ func _follow_player(delta):
 	if orbit_angle > TAU:
 		orbit_angle -= TAU
 
-	var orbit_pos = player.global_position + Vector3(
+	var orbit_pos = cached_player.global_position + Vector3(
 		cos(orbit_angle) * orbit_radius,
 		0,
 		sin(orbit_angle) * orbit_radius
@@ -387,11 +504,12 @@ func _follow_player(delta):
 
 func _move_to_target(delta):
 	"""Move toward current enemy target"""
-	if not current_target:
+	var target = _find_nearest_enemy_cached()
+	if not target:
 		_follow_player(delta)
 		return
 	
-	var direction = (current_target.global_position - global_position)
+	var direction = (target.global_position - global_position)
 	direction.y = 0
 	
 	var distance = direction.length()
@@ -411,18 +529,20 @@ func _combat_movement(_delta):
 	velocity.z = lerp(velocity.z, 0.0, 0.2)
 	
 	# Face the enemy
-	if current_target:
-		var direction = (current_target.global_position - global_position)
+	var target = _find_nearest_enemy_cached()
+	if target:
+		var direction = (target.global_position - global_position)
 		direction.y = 0
 		if direction.length() > 0.1:
 			_face_direction(direction.normalized())
 
 func _handle_combat(_delta):
 	"""Handle combat logic"""
-	if not current_target or attack_timer > 0 or is_attacking:
+	var target = _find_nearest_enemy_cached()
+	if not target or attack_timer > 0 or is_attacking:
 		return
 	
-	var distance = global_position.distance_to(current_target.global_position)
+	var distance = global_position.distance_to(target.global_position)
 	if distance <= attack_range:
 		_start_attack()
 
@@ -448,29 +568,24 @@ func _start_attack():
 	# Deal damage after slight delay
 	get_tree().create_timer(0.2).timeout.connect(_deal_damage)
 
-	var _target_name = "unknown"
-	if current_target and "name" in current_target:
-		_target_name = str(current_target.name)
-	# print("🗡️ Ally: Starting attack on ", target_name, " | State: ", AllyState.keys()[current_state])
-
 func _deal_damage():
-	"""Deal damage to current target"""
+	var target = _find_nearest_enemy_cached()
 	if current_state != AllyState.ATTACKING:
 		return
-	if not current_target or not is_instance_valid(current_target):
+	if not target or not is_instance_valid(target):
 		return
 
 	# Check if still in range
-	var distance = global_position.distance_to(current_target.global_position)
+	var distance = global_position.distance_to(target.global_position)
 	if distance > attack_range * 1.2:
 		return
 
-	if current_target.has_method("take_damage"):
-		current_target.take_damage(attack_damage)
+	if target.has_method("take_damage"):
+		target.take_damage(attack_damage)
 
 	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
 	if damage_system:
-		damage_system.show_damage(attack_damage, current_target, "normal")
+		damage_system.show_damage(attack_damage, target, "normal")
 
 func _on_attack_animation_finished(anim_name: StringName):
 	"""Called when attack animation finishes"""
@@ -576,9 +691,10 @@ func die():
 
 func get_ally_stats() -> Dictionary:
 	"""Get current ally statistics"""
+	var target = _find_nearest_enemy_cached()
 	var target_name = "None"
-	if current_target and "name" in current_target:
-		target_name = str(current_target.name)
+	if target and "name" in target:
+		target_name = str(target.name)
 	return {
 		"health": current_health,
 		"max_health": max_health,

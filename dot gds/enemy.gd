@@ -140,15 +140,14 @@ func _physics_process(delta):
 	move_and_slide()
 	_prevent_wall_clipping()
 
-	# --- PLAYER/ALLY COLLISION DAMAGE/ KNOCKBACK ---
-	if not is_dead and not is_jumping and not is_being_knocked_back:
-		var nearest_target = _find_nearest_target()
-		if nearest_target and is_instance_valid(nearest_target):
-			var target_dist = global_position.distance_to(nearest_target.global_position)
-			if target_dist <= 1.2:
-				if nearest_target.has_method("take_damage"):
-					nearest_target.take_damage(attack_damage, self)
-					print("🗡️ Enemy attacked: ", nearest_target.name if "name" in nearest_target else "target")
+	# --- PLAYER COLLISION DAMAGE/ KNOCKBACK ---
+	if _is_player_valid() and not is_dead and not is_jumping and not is_being_knocked_back:
+		var player_dist = global_position.distance_to(player.global_position)
+		if player_dist <= 1.2:
+			# Only apply if close enough (touching)
+			if player.has_method("take_damage"):
+				player.take_damage(attack_damage, self)
+				# Knockback: handled by player.take_damage (calls movement_component.apply_knockback_from_enemy)
 
 
 func _prevent_wall_clipping():
@@ -275,9 +274,6 @@ func _is_valid_instance(node):
 
 func _handle_ai(delta):
 	state_timer += delta
-	var nearest_target = _find_nearest_target()
-	if nearest_target:
-		cached_player_pos = nearest_target.global_position
 	match current_state:
 		AIState.IDLE:
 			velocity = Vector3.ZERO
@@ -394,10 +390,9 @@ func _complete_jump_attack():
 	is_jumping = false
 	jump_timer = 0.0
 	global_position = Vector3(jump_target_pos.x, jump_start_pos.y, jump_target_pos.z)
-	var nearest_target = _find_nearest_target()
-	if nearest_target and is_instance_valid(nearest_target) and global_position.distance_to(nearest_target.global_position) <= attack_range * 1.5:
-		if nearest_target.has_method("take_damage"):
-			nearest_target.take_damage(attack_damage, self)
+	if _is_player_valid() and global_position.distance_to(player.global_position) <= attack_range * 1.5:
+		if player.has_method("take_damage"):
+			player.take_damage(attack_damage, self)
 	current_state = AIState.IDLE
 
 func _apply_gravity(delta):
@@ -447,28 +442,3 @@ func _drop_weapon():
 
 
 @export var enabled := true
-
-func _find_nearest_target() -> Node3D:
-	"""Find nearest player or ally to attack"""
-	var targets = []
-	
-	# Add player
-	if _is_player_valid():
-		targets.append({"node": player, "distance": global_position.distance_to(player.global_position)})
-	
-	# Add allies
-	var allies = get_tree().get_nodes_in_group("allies")
-	for ally in allies:
-		if not is_instance_valid(ally):
-			continue
-		if "current_health" in ally and ally.current_health <= 0:
-			continue
-		var dist = global_position.distance_to(ally.global_position)
-		targets.append({"node": ally, "distance": dist})
-	
-	# Find closest target
-	if targets.is_empty():
-		return null
-	
-	targets.sort_custom(func(a, b): return a.distance < b.distance)
-	return targets[0].node
