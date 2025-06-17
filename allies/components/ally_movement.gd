@@ -38,6 +38,21 @@ func orbit_around_player(player: Node3D, delta: float):
 	if orbit_angle > TAU:
 		orbit_angle -= TAU
 	
+	# --- Avoidance buffer: adjust orbit_angle if allies are too close ---
+	var avoidance_radius = 2.0
+	var angle_adjust = 0.0
+	var allies = get_tree().get_nodes_in_group("allies")
+	for other_ally in allies:
+		if other_ally == ally_ref or not is_instance_valid(other_ally):
+			continue
+		var dist = ally_ref.global_position.distance_to(other_ally.global_position)
+		if dist < avoidance_radius:
+			# Try to find clear space by nudging angle
+			if angle_adjust == 0.0:
+				angle_adjust = 0.5 if randi() % 2 == 0 else -0.5
+	if angle_adjust != 0.0:
+		orbit_angle += angle_adjust
+	
 	# Calculate orbit position
 	var orbit_offset = Vector3(
 		cos(orbit_angle) * orbit_radius,
@@ -63,8 +78,9 @@ func apply_separation(delta: float):
 		if distance < separation_distance and distance > 0:
 			var away_dir = (ally_ref.global_position - other_ally.global_position).normalized()
 			away_dir.y = 0
-			var force_strength = (separation_distance - distance) / separation_distance
-			separation_force += away_dir * force_strength * 2.0
+			# Exponential falloff for stronger repulsion
+			var force_strength = pow((separation_distance - distance) / separation_distance, 2) * 3.0
+			separation_force += away_dir * force_strength
 	
 	# Apply separation to velocity
 	ally_ref.velocity.x += separation_force.x * speed * delta

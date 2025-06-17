@@ -39,6 +39,9 @@ func _setup_components():
 	ai_component.setup(self)
 	health_component.ally_died.connect(_on_ally_died)
 	_create_character_appearance()
+	# Configure collision layers for separation
+	collision_layer = 8
+	collision_mask = 3 | 8
 
 func _create_character_appearance():
 	# Generate random character appearance
