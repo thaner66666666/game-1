@@ -1,29 +1,24 @@
-[gd_scene load_steps=9 format=3 uid="uid://allytscn"]
+[gd_scene load_steps=2 format=3 uid="uid://sdrleb6nfb4n"]
+
+[ext_resource type="Script" uid="uid://dhnpo3b877ia2" path="res://allies/ally.gd" id="1_lx0ct"]
 
 [node name="Ally" type="CharacterBody3D"]
 collision_layer = 8
 collision_mask = 3
+script = ExtResource("1_lx0ct")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-shape = CapsuleShape3D { radius = 0.5, height = 2.0 }
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-mesh = CapsuleMesh { radius = 0.5, height = 2.0 }
 
 [node name="LeftHandAnchor" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.44, -0.2, 0)
 
 [node name="RightHandAnchor" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.44, -0.2, 0)
 
-[node name="HealthComponent" type="Node" parent="."]
-script = ExtResource("res://game/allies/components/ally_health.gd")
+[node name="HealthComponent" type="Node3D" parent="."]
 
-[node name="MovementComponent" type="Node" parent="."]
-script = ExtResource("res://game/allies/components/ally_movement.gd")
+[node name="MovementComponent" type="Node3D" parent="."]
 
-[node name="CombatComponent" type="Node" parent="."]
-script = ExtResource("res://game/allies/components/ally_combat.gd")
+[node name="CombatComponent" type="Node3D" parent="."]
 
-[node name="AIComponent" type="Node" parent="."]
-script = ExtResource("res://game/allies/components/ally_ai.gd")
+[node name="AIComponent" type="Node3D" parent="."]

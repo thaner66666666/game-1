@@ -13,7 +13,7 @@ var attack_timer := 0.0
 var is_attacking := false
 
 func setup(ally, damage: int, detect_range: float):
-    ally_ref = ally
+    ally_ref = ally  # Fix: should be ally, not damage
     attack_damage = damage
     detection_range = detect_range
 

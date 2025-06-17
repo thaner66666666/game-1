@@ -23,46 +23,54 @@ class_name Ally
 var player_ref: CharacterBody3D
 
 func _ready():
-    add_to_group("allies")
-    _setup_components()
-    _find_player()
+	add_to_group("allies")
+	_setup_components()
+	_find_player()
 
 func _setup_components():
-    # Initialize each component with needed references
-    health_component.setup(self, max_health)
-    movement_component.setup(self, speed)
-    combat_component.setup(self, attack_damage, detection_range)
-    ai_component.setup(self)
+	# Initialize each component with needed references
+	health_component.setup(self, max_health)
+	movement_component.setup(self, speed)
+	combat_component.setup(self, attack_damage, detection_range)
+	ai_component.setup(self)
+	health_component.ally_died.connect(_on_ally_died)
+	_create_character_appearance()
+
+func _create_character_appearance():
+	# Generate random character appearance
+	var config = CharacterGenerator.generate_random_character_config()
+	config["skin_tone"] = Color(0.7, 0.8, 1.0)  # Blue tint for allies
+	CharacterAppearanceManager.create_player_appearance(self, config)
 
 func _find_player():
-    player_ref = get_tree().get_first_node_in_group("player")
-    if player_ref:
-        ai_component.set_player_target(player_ref)
+	player_ref = get_tree().get_first_node_in_group("player")
+	if player_ref:
+		ai_component.set_player_target(player_ref)
 
 func _physics_process(delta):
-    # Let AI component handle movement decisions
-    # Movement component will set velocity
-    # Apply separation
-    movement_component.apply_separation(delta)
-    
-    # Apply gravity
-    if not is_on_floor():
-        velocity.y -= 9.8 * delta
-    else:
-        velocity.y = 0
-    
-    # Move the character
-    move_and_slide()
+	# Let AI component handle movement decisions
+	# Movement component will set velocity
+	# Apply separation
+	movement_component.apply_separation(delta)
+	
+	# Apply gravity
+	if not is_on_floor():
+		velocity.y -= 9.8 * delta
+	else:
+		velocity.y = 0
+	
+	# Move the character
+	move_and_slide()
 
 func take_damage(amount: int, attacker: Node = null):
-    health_component.take_damage(amount, attacker)
+	health_component.take_damage(amount, attacker)
 
 func _on_ally_died():
-    print("💀 Ally died!")
-    # Disable collision and hide
-    collision_layer = 0
-    collision_mask = 0
-    mesh_instance.visible = false
-    
-    # Clean up after delay
-    get_tree().create_timer(1.0).timeout.connect(queue_free)
+	print("💀 Ally died!")
+	# Disable collision and hide
+	collision_layer = 0
+	collision_mask = 0
+	mesh_instance.visible = false
+	
+	# Clean up after delay
+	get_tree().create_timer(1.0).timeout.connect(queue_free)

@@ -1,7 +1,7 @@
 # recruiter_npc.gd - Simple NPC that spawns allies
 extends StaticBody3D
 
-@export var ally_scene: PackedScene = preload("res://Scenes/ally.tscn")
+@export var ally_scene: PackedScene = preload("res://allies/ally.tscn")
 @export var recruitment_cost := 0  # Could add coin cost later
 @export var max_allies := 3
 
