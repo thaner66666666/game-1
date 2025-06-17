@@ -11,6 +11,8 @@ var attack_cooldown := 1.2
 var detection_range: float
 var attack_timer := 0.0
 var is_attacking := false
+# Added for safe delayed damage
+var pending_damage_target: Node3D = null
 
 func setup(ally, damage: int, detect_range: float):
 	ally_ref = ally  # Fix: should be ally, not damage
@@ -57,8 +59,15 @@ func attack_target(target: Node3D):
 	# Play attack animation
 	_play_attack_animation(target)
 	
-	# Deal damage after short delay
-	get_tree().create_timer(0.2).timeout.connect(_deal_damage.bind(target))
+	# Deal damage after short delay (Godot 4.1 best practice)
+	pending_damage_target = target
+	get_tree().create_timer(0.2).timeout.connect(_execute_pending_damage, CONNECT_ONE_SHOT)
+
+# New function for safe delayed damage
+func _execute_pending_damage():
+	if pending_damage_target and is_instance_valid(pending_damage_target):
+		_deal_damage(pending_damage_target)
+	pending_damage_target = null
 
 func _play_attack_animation(target: Node3D):
 	# Simple punch animation using right hand
