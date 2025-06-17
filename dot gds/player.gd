@@ -125,17 +125,8 @@ var right_foot: MeshInstance3D
 @onready var combat_component: PlayerCombat = $CombatComponent
 @onready var sword_node: MeshInstance3D = $WeaponAttachPoint/SwordNode
 @onready var health_component = $HealthComponent
-@onready var progression_component: PlayerProgression = $ProgressionComponent
-
-# Weapon system variables
-var weapon_attach_point: Node3D = null
-var equipped_weapon_mesh: MeshInstance3D = null
-
-# Base stats for weapon system
-var base_attack_damage := 10
-var base_attack_range := 2.0
-var base_attack_cooldown := 1.0
-var base_attack_cone_angle := 90.0
+@onready var progression_component = $ProgressionComponent
+@onready var inventory_component: PlayerInventory = $InventoryComponent
 
 # Player state
 var is_dead := false
@@ -174,8 +165,6 @@ const MOVEMENT_THRESHOLD := 0.1
 
 # Signals
 signal dash_charges_changed(current_charges: int, max_charges: int)
-signal coin_collected(amount: int)
-signal xp_changed(xp: int, xp_to_next: int, level: int)
 
 # --- Eye Blinking System ---
 var blink_timer := 0.0
@@ -203,8 +192,11 @@ func _ready():
 	health_component.health_depleted.connect(_on_health_depleted)
 	# Progression system setup
 	progression_component.setup(self)
-	progression_component.coin_collected.connect(_on_coin_collected)
-	progression_component.xp_changed.connect(_on_xp_changed)
+	# Inventory system setup
+	inventory_component.setup(self)
+	inventory_component.weapon_equipped.connect(_on_weapon_equipped)
+	inventory_component.weapon_unequipped.connect(_on_weapon_unequipped)
+	# Removed duplicate signal connections for coin_collected and xp_changed
 	# Pass animation settings to movement_component if supported
 	if movement_component and movement_component.has_method("set_animation_settings"):
 		movement_component.set_animation_settings({
@@ -238,8 +230,8 @@ func _setup_player():
 	_create_visual()
 	_setup_attack_system()
 	_setup_hand_references()
-	_setup_weapon_attach_point()
-	_connect_weapon_manager_signals()
+	# _setup_weapon_attach_point() # --- Removed old weapon management functions ---
+	# _connect_weapon_manager_signals() # --- Removed old weapon management functions ---
 	_create_arrow_system()
 
 func _configure_collision():
@@ -291,152 +283,15 @@ func _setup_hand_references():
 		print("❌ RightFoot not found!")
 
 
-func _setup_weapon_attach_point():
-	# --- WEAPON ATTACH POINT (parent to right hand if possible) ---
-	var right_hand = get_node_or_null("RightHand")
-	if right_hand:
-		# Remove existing WeaponAttachPoint from previous parent if needed
-		var wap = right_hand.get_node_or_null("WeaponAttachPoint")
-		if not wap:
-			weapon_attach_point = Node3D.new()
-			weapon_attach_point.name = "WeaponAttachPoint"
-			right_hand.add_child(weapon_attach_point)
-			print("✅ Created WeaponAttachPoint as child of RightHand")
-		else:
-			weapon_attach_point = wap
-			print("✅ Found existing WeaponAttachPoint under RightHand")
-		
-		# FIXED: Better positioning and rotation for sword orientation
-		weapon_attach_point.position = Vector3(0.0, 0.1, 0.0)  # Slightly up from hand center
-		weapon_attach_point.rotation_degrees = Vector3(0, 0, -90)  # Rotate so sword points up instead of sideways
-	else:
-		# Fallback: add to player root
-		weapon_attach_point = get_node_or_null("WeaponAttachPoint")
-		if not weapon_attach_point:
-			weapon_attach_point = Node3D.new()
-			weapon_attach_point.name = "WeaponAttachPoint"
-			add_child(weapon_attach_point)
-			print("⚠️ Created WeaponAttachPoint at player root (RightHand missing)")
-		else:
-			print("✅ Found existing WeaponAttachPoint at player root")
-		weapon_attach_point.position = Vector3(0.44, -0.2, 0)
-		weapon_attach_point.rotation_degrees = Vector3(0, 0, -90)  # Same rotation fix
-
-func _connect_weapon_manager_signals():
-	if WeaponManager:
-		if not WeaponManager.weapon_equipped.is_connected(_on_weapon_equipped):
-			WeaponManager.weapon_equipped.connect(_on_weapon_equipped)
-		if not WeaponManager.weapon_unequipped.is_connected(_on_weapon_unequipped):
-			WeaponManager.weapon_unequipped.connect(_on_weapon_unequipped)
-		print("✅ Connected to WeaponManager signals")
-	
-	# Show weapon if already equipped at start
-	if WeaponManager and WeaponManager.is_weapon_equipped():
-		_on_weapon_equipped(WeaponManager.get_current_weapon())
-
-func _on_weapon_equipped(weapon_resource):
-	_show_weapon_visual(weapon_resource)
-
-func _on_weapon_unequipped():
-	_hide_weapon_visual()
-
-func _show_weapon_visual(weapon_resource):
-	_hide_weapon_visual()
-	if not weapon_resource or not weapon_attach_point:
-		return
-	# Only show/hide the existing SwordNode for swords
-	match int(weapon_resource.weapon_type):
-		int(WeaponResource.WeaponType.SWORD):
-			if sword_node:
-				sword_node.visible = true
-				equipped_weapon_mesh = sword_node
-			else:
-				print("⚠️ SwordNode not found!")
-		int(WeaponResource.WeaponType.BOW):
-			# Only show the imported BowNode, do not create a procedural mesh
-			var bow_node = weapon_attach_point.get_node_or_null("BowNode")
-			if bow_node:
-				bow_node.visible = true
-				equipped_weapon_mesh = bow_node
-			else:
-				print("⚠️ BowNode not found!")
-				# Don't create any fallback mesh - just use imported model
-		int(WeaponResource.WeaponType.STAFF):
-			var mesh = _create_simple_staff_mesh()
-			if mesh:
-				weapon_attach_point.add_child(mesh)
-				equipped_weapon_mesh = mesh
-		_:
-			if sword_node:
-				sword_node.visible = true
-				equipped_weapon_mesh = sword_node
-			else:
-				print("⚠️ SwordNode not found!")
-
-func _hide_weapon_visual():
-	# Hide the SwordNode if it exists
-	if sword_node:
-		sword_node.visible = false
-	
-	# Hide the BowNode if it exists (don't delete it!)
-	var bow_node = weapon_attach_point.get_node_or_null("BowNode")
-	if bow_node:
-		bow_node.visible = false
-	
-	# Hide the StaffNode if it exists
-	var staff_node = weapon_attach_point.get_node_or_null("StaffNode")
-	if staff_node:
-		staff_node.visible = false
-	
-	# Only remove dynamically created meshes (not imported scene nodes)
-	if (equipped_weapon_mesh and 
-		is_instance_valid(equipped_weapon_mesh) and 
-		equipped_weapon_mesh != sword_node and 
-		equipped_weapon_mesh != bow_node and 
-		equipped_weapon_mesh != staff_node):
-		equipped_weapon_mesh.queue_free()
-	
-	equipped_weapon_mesh = null
-
-func _create_simple_sword_mesh() -> MeshInstance3D:
-	var sword = MeshInstance3D.new()
-	var blade = BoxMesh.new()
-	blade.size = Vector3(0.08, 0.7, 0.12)
-	sword.mesh = blade
-	sword.position = Vector3(0, 0.35, 0)
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.8, 0.8, 1.0)
-	mat.metallic = 0.8
-	mat.roughness = 0.2
-	sword.material_override = mat
-	return sword
-
-# func _create_simple_bow_mesh() -> MeshInstance3D:
-# 	var bow = MeshInstance3D.new()
-# 	var bow_mesh = CylinderMesh.new()
-# 	bow_mesh.top_radius = 0.03
-# 	bow_mesh.bottom_radius = 0.03
-# 	bow_mesh.height = 0.7
-# 	bow.mesh = bow_mesh
-# 	bow.rotation_degrees = Vector3(0, 0, 90)
-# 	bow.position = Vector3(0, 0.35, 0)
-# 	var mat = StandardMaterial3D.new()
-# 	mat.albedo_color = Color(0.5, 0.3, 0.1)
-# 	bow.material_override = mat
-# 	return bow
-
-func _create_simple_staff_mesh() -> MeshInstance3D:
-	var staff = MeshInstance3D.new()
-	var staff_mesh = CylinderMesh.new()
-	staff_mesh.top_radius = 0.025
-	staff_mesh.bottom_radius = 0.035
-	staff_mesh.height = 0.9
-	staff.mesh = staff_mesh
-	staff.position = Vector3(0, 0.45, 0)
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.4, 0.25, 0.1)
-	staff.material_override = mat
-	return staff
+# --- Removed old weapon management functions ---
+# func _setup_weapon_attach_point():
+# func _connect_weapon_manager_signals():
+# func _on_weapon_equipped(weapon_resource):
+# func _on_weapon_unequipped():
+# func _show_weapon_visual(weapon_resource):
+# func _hide_weapon_visual():
+# func _create_simple_sword_mesh() -> MeshInstance3D:
+# func _create_simple_staff_mesh() -> MeshInstance3D:
 
 # Coin/XP pickup system
 func _on_area_pickup_entered(area: Area3D):
@@ -450,7 +305,7 @@ func _on_area_pickup_entered(area: Area3D):
 func _pickup_coin(area: Area3D):
 	var coin_value = area.get_meta("coin_value") if area.has_meta("coin_value") else 10
 	progression_component.add_currency(coin_value)
-	coin_collected.emit(coin_value)
+	# coin_collected.emit(coin_value)  # Now handled by PlayerProgression
 	if is_instance_valid(area):
 		area.queue_free()
 
@@ -481,12 +336,6 @@ func _on_player_died():
 func _on_health_depleted():
 	# Handle logic when health reaches zero (game over, respawn, etc.)
 	pass
-
-func _on_coin_collected(amount: int):
-	coin_collected.emit(amount)  # Re-emit for UI
-
-func _on_xp_changed(xp_val: int, xp_to_next_val: int, level_val: int):
-	xp_changed.emit(xp_val, xp_to_next_val, level_val)  # Re-emit for UI
 
 # Animation signal handlers for movement component
 func _on_hand_animation_update(left_pos: Vector3, right_pos: Vector3, left_rot: Vector3, right_rot: Vector3) -> void:
@@ -699,7 +548,24 @@ func get_max_health() -> int:
 		return health_component.get_max_health()
 	return 0
 
-func get_health_percentage() -> float:
-	if health_component:
-		return health_component.get_health_percentage()
-	return 0.0
+# --- Progression System API ---
+func get_currency() -> int:
+	return progression_component.get_currency()
+
+func get_xp() -> int:
+	return progression_component.get_xp()
+
+func get_level() -> int:
+	return progression_component.level
+
+func get_xp_to_next_level() -> int:
+	return progression_component.xp_to_next_level
+
+# --- Inventory System Component Handlers ---
+func _on_weapon_equipped(_weapon_resource: WeaponResource):
+	# Handle weapon equipped logic if needed
+	pass
+
+func _on_weapon_unequipped():
+	# Handle weapon unequipped logic if needed  
+	pass

@@ -216,8 +216,8 @@ func _update_dash():
 func _update_xp():
 	if player and xp_bar and xp_label:
 		var current_xp = player.get_xp() if player.has_method("get_xp") else 0
-		var xp_needed = player.xp_to_next_level if "xp_to_next_level" in player else 100
-		var current_level = player.level if "level" in player else 1
+		var xp_needed = player.get_xp_to_next_level() if player.has_method("get_xp_to_next_level") else 100
+		var current_level = player.get_level() if player.has_method("get_level") else 1
 		xp_bar.max_value = xp_needed
 		xp_bar.value = current_xp
 		xp_label.text = "XP: %d/%d (Lv.%d)" % [current_xp, xp_needed, current_level]
