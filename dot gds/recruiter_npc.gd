@@ -97,7 +97,8 @@ func recruit_ally():
 		if new_ally.has_method("_create_visual"):
 			new_ally._create_visual()
 
-		new_ally.connect("ally_removed", Callable(self, "_on_ally_died"))
+		# Fix: connect to correct signal
+		new_ally.ally_died.connect(_on_ally_died)
 		_update_ui_units()
 		print("👤 Recruited new ally! Total allies: ", current_allies.size() + 1)
 	else:

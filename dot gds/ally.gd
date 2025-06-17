@@ -62,6 +62,11 @@ func _initialize_systems():
 	"""Initialize all ally systems in proper order"""
 	_find_player()
 	_create_visual_character()
+	
+	# Wait an extra frame to ensure hands are fully created
+	await get_tree().process_frame
+	await get_tree().process_frame
+	
 	_setup_animation_system()
 	_setup_combat_system()
 	
@@ -88,6 +93,19 @@ func _create_visual_character():
 		mesh_instance.name = "MeshInstance3D"
 		add_child(mesh_instance)
 	
+	# Create hand anchor nodes like the player has
+	var left_hand_anchor = Node3D.new()
+	left_hand_anchor.name = "LeftHandAnchor"
+	left_hand_anchor.position = Vector3(-0.44, -0.2, 0)
+	add_child(left_hand_anchor)
+
+	var right_hand_anchor = Node3D.new()
+	right_hand_anchor.name = "RightHandAnchor"
+	right_hand_anchor.position = Vector3(0.44, -0.2, 0)
+	add_child(right_hand_anchor)
+
+	print("✅ Ally: Created hand anchor nodes")
+	
 	# Generate random character with ally-specific coloring
 	var config = CharacterGenerator.generate_random_character_config()
 	config["skin_tone"] = Color(0.7, 0.8, 1.0)  # Slightly blue-tinted for allies
@@ -95,9 +113,16 @@ func _create_visual_character():
 	# Apply appearance
 	CharacterAppearanceManager.create_player_appearance(self, config)
 	
-	# Store hand references for weapon system
+	# Store hand references for weapon system - with debug
+	await get_tree().process_frame  # Wait one frame for hands to be created
 	left_hand = get_node_or_null("LeftHandAnchor/LeftHand")
 	right_hand = get_node_or_null("RightHandAnchor/RightHand")
+	
+	print("🤝 Ally hand check - Left: ", left_hand != null, " Right: ", right_hand != null)
+	if left_hand:
+		print("🤝 Left hand path: ", left_hand.get_path())
+	if right_hand:
+		print("🤝 Right hand path: ", right_hand.get_path())
 	
 	print("✅ Ally: Character appearance created")
 
@@ -114,19 +139,28 @@ func _setup_animation_system():
 
 func _create_attack_animation():
 	"""Create a simple punch attack animation"""
-	if not animation_player or not left_hand or not right_hand:
+	if not animation_player:
+		print("❌ Ally: No animation player for attack animation")
+		return
+	
+	# Refresh hand reference in case it wasn't set yet
+	if not right_hand:
+		right_hand = get_node_or_null("RightHandAnchor/RightHand")
+	
+	if not right_hand:
+		print("❌ Ally: No right hand found for attack animation")
 		return
 	
 	var animation = Animation.new()
 	animation.length = 0.4
 	
-	# Create punch track
+	# Create punch track - use right hand like player does
 	var punch_track = animation.add_track(Animation.TYPE_POSITION_3D)
-	animation.track_set_path(punch_track, NodePath("LeftHandAnchor/LeftHand"))
+	animation.track_set_path(punch_track, NodePath("RightHandAnchor/RightHand"))
 	
-	# Punch positions
+	# Punch positions (forward punch like player)
 	var start_pos = Vector3(0.0, 0.0, 0.0)
-	var punch_pos = Vector3(0.5, 0.0, 0.0)
+	var punch_pos = Vector3(0.0, 0.05, 0.6)  # Forward punch like player
 	var end_pos = start_pos
 	
 	animation.track_insert_key(punch_track, 0.0, start_pos)
@@ -139,7 +173,33 @@ func _create_attack_animation():
 	animation_player.add_animation_library("default", library)
 	
 	# Connect animation finished signal
-	animation_player.animation_finished.connect(_on_attack_animation_finished)
+	if not animation_player.animation_finished.is_connected(_on_attack_animation_finished):
+		animation_player.animation_finished.connect(_on_attack_animation_finished)
+	
+	print("✅ Ally: Attack animation created successfully")
+
+func _create_fallback_punch():
+	"""Create a simple punch effect without animation player"""
+	# Refresh hand reference in case it wasn't set yet
+	if not right_hand:
+		right_hand = get_node_or_null("RightHandAnchor/RightHand")
+	
+	if not right_hand:
+		print("❌ Ally: No right hand for fallback punch")
+		return
+	
+	print("🥊 Ally: Using fallback punch animation")
+	# Store original position
+	var original_pos = right_hand.position
+	# Create manual punch animation with Tween
+	var tween = create_tween()
+	tween.set_parallel(true)
+	# Punch forward
+	tween.tween_property(right_hand, "position", original_pos + Vector3(0, 0.05, 0.6), 0.2)
+	# Return to original position
+	tween.tween_property(right_hand, "position", original_pos, 0.2).set_delay(0.2)
+	# Mark attack as finished after animation
+	tween.tween_callback(func(): is_attacking = false).set_delay(0.4)
 
 func _setup_combat_system():
 	"""Setup combat detection and damage systems"""
@@ -276,9 +336,18 @@ func _start_attack():
 	is_attacking = true
 	attack_timer = attack_cooldown
 	
-	# Play attack animation
+	# Debug attack system
+	print("🥊 Ally starting attack - Animation player exists: ", animation_player != null)
+	if animation_player:
+		print("🥊 Has attack animation: ", animation_player.has_animation("attack"))
+		print("🥊 Animation libraries: ", animation_player.get_animation_library_list())
+	
+	# Play attack animation or fallback
 	if animation_player and animation_player.has_animation("attack"):
 		animation_player.play("attack")
+	else:
+		print("🥊 Ally: Animation not available, using fallback")
+		_create_fallback_punch()
 	
 	# Deal damage after slight delay
 	get_tree().create_timer(0.2).timeout.connect(_deal_damage)
@@ -318,7 +387,8 @@ func _face_direction(direction: Vector3):
 	if direction.length() < 0.1:
 		return
 	
-	var target_rotation = atan2(direction.x, direction.z)
+	# Fix: Face the enemy (not backwards)
+	var target_rotation = atan2(-direction.x, -direction.z)
 	rotation.y = lerp_angle(rotation.y, target_rotation, 0.1)
 	last_facing_direction = direction
 
