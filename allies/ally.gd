@@ -21,6 +21,13 @@ signal ally_died
 @onready var left_hand_anchor := $LeftHandAnchor
 @onready var right_hand_anchor := $RightHandAnchor
 
+# Foot animation references - no strict typing to avoid crashes
+var left_foot
+var right_foot
+var left_foot_original_pos: Vector3
+var right_foot_original_pos: Vector3
+var animation_time: float = 0.0
+
 var player_ref: CharacterBody3D
 
 func _ready():
@@ -32,7 +39,8 @@ func _ready():
 	if health_component:
 		health_component.health_depleted.connect(_on_health_depleted)
 
-func _setup_components():
+# Use 'await' instead of 'yield' for Godot 4.x compatibility
+func _setup_components() -> void:
 	# Initialize each component with needed references
 	health_component.setup(self, max_health)
 	movement_component.setup(self, speed)
@@ -40,6 +48,8 @@ func _setup_components():
 	ai_component.setup(self)
 	health_component.ally_died.connect(_on_ally_died)
 	_create_character_appearance()
+	# Setup foot references after character appearance is created
+	await _setup_foot_references()
 	# Make hands visible by default
 	_ensure_hands_visible()
 	# Configure collision layers for separation
@@ -51,6 +61,43 @@ func _create_character_appearance():
 	var config = CharacterGenerator.generate_random_character_config()
 	config["skin_tone"] = Color(0.7, 0.8, 1.0)  # Blue tint for allies
 	CharacterAppearanceManager.create_player_appearance(self, config)
+	
+func _setup_foot_references() -> void:
+	# Wait multiple frames to ensure nodes are fully created
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	print("🦶 Debugging foot search for ally...")
+	print("🔍 Ally children: ", get_children().map(func(child): return child.name))
+
+	# Look for feet by name (they might have numbers appended like LeftFoot2, RightFoot2)
+	left_foot = get_node_or_null("LeftFoot")
+	right_foot = get_node_or_null("RightFoot")
+	
+	# If not found, look for numbered versions
+	if not left_foot:
+		for child in get_children():
+			if child is MeshInstance3D and child.name.begins_with("LeftFoot"):
+				left_foot = child
+				break
+	
+	if not right_foot:
+		for child in get_children():
+			if child is MeshInstance3D and child.name.begins_with("RightFoot"):
+				right_foot = child
+				break
+
+	if left_foot and right_foot:
+		left_foot_original_pos = left_foot.position
+		right_foot_original_pos = right_foot.position
+		print("✅ Found ally feet! LeftFoot: ", left_foot.name, " at ", left_foot.position)
+		print("✅ Found ally feet! RightFoot: ", right_foot.name, " at ", right_foot.position)
+	else:
+		print("❌ Could not find both feet")
+		if left_foot:
+			print("   - Found LeftFoot: ", left_foot.name)
+		if right_foot:
+			print("   - Found RightFoot: ", right_foot.name)
 
 func _find_player():
 	player_ref = get_tree().get_first_node_in_group("player")
@@ -63,6 +110,26 @@ func _physics_process(delta):
 		velocity.y -= ProjectSettings.get_setting("physics/3d/default_gravity") * delta
 	# Apply movement
 	move_and_slide()
+	# Animate feet based on movement (with safety checks)
+	animation_time += delta
+	if left_foot and right_foot and left_foot is MeshInstance3D and right_foot is MeshInstance3D:
+		CharacterAppearanceManager.animate_feet_walk(
+			left_foot, right_foot, 
+			left_foot_original_pos, right_foot_original_pos,
+			animation_time, velocity, delta
+		)
+	elif animation_time > 1.0:  # Only try to find feet after 1 second
+		# Try to find feet again if they weren't found initially
+		if not left_foot:
+			left_foot = get_node_or_null("LeftFoot")
+			if left_foot and left_foot is MeshInstance3D:
+				left_foot_original_pos = left_foot.position
+				print("🦶 Found LeftFoot late!")
+		if not right_foot:
+			right_foot = get_node_or_null("RightFoot")
+			if right_foot and right_foot is MeshInstance3D:
+				right_foot_original_pos = right_foot.position
+				print("🦶 Found RightFoot late!")
 
 func take_damage(amount: int, attacker: Node = null):
 	health_component.take_damage(amount, attacker)
