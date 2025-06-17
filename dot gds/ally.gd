@@ -1,177 +1,329 @@
-# ally.gd - Simple ally that follows player and attacks enemies
+# ally.gd - Complete rewrite with combat animations
 extends CharacterBody3D
 
-# Basic stats
-@export var speed := 4.0
-@export var follow_distance := 3.0
+# === STATS AND CONFIGURATION ===
+@export var speed := 3.5
+@export var follow_distance := 4.0
 @export var attack_range := 2.5
-@export var attack_damage := 15
-@export var attack_cooldown := 1.5
-@export var health := 100
-@export var max_health := 100
+@export var attack_damage := 20
+@export var attack_cooldown := 1.2
+@export var max_health := 80
+@export var current_health := 80
 
-# References
+# === AI BEHAVIOR SETTINGS ===
+@export var detection_range := 8.0
+@export var orbit_radius := 2.5
+@export var orbit_speed := 0.8
+@export var separation_distance := 1.5
 
-# Target position for roaming
-var roaming_target_position: Vector3 = Vector3.ZERO
-
-# Target position for roaming
-var target_position: Vector3 = Vector3(0, 0, 0)
+# === REFERENCES ===
 var player: CharacterBody3D
 var current_target: Node3D = null
+
+# === STATE MANAGEMENT ===
+enum AllyState { FOLLOWING, ATTACKING, MOVING_TO_TARGET, DEAD }
+var current_state := AllyState.FOLLOWING
 var attack_timer := 0.0
+var orbit_angle := 0.0
+var target_position := Vector3.ZERO
 
-# Visual components
+# === VISUAL COMPONENTS ===
 var mesh_instance: MeshInstance3D
-var weapon_mesh: MeshInstance3D
-
-# Visual component references (for animations)
-var left_foot: MeshInstance3D
-var right_foot: MeshInstance3D
 var left_hand: MeshInstance3D
 var right_hand: MeshInstance3D
 
-signal ally_added
-signal ally_removed
+# === ANIMATION SYSTEM ===
+var animation_player: AnimationPlayer
+var is_attacking := false
+var last_facing_direction := Vector3.FORWARD
+
+# === SIGNALS ===
+signal ally_died
+signal ally_spawned
+
+func _ready():
+	print("🤝 Ally: Starting complete initialization...")
+	add_to_group("allies")
+	
+	# Setup physics
+	collision_layer = 8  # Ally layer
+	collision_mask = 1 | 2  # World + Enemies
+	
+	# Initialize health
+	current_health = max_health
+	
+	# Setup unique orbit offset for this ally
+	orbit_angle = randf() * TAU
+	
+	# Initialize systems
+	call_deferred("_initialize_systems")
+
+func _initialize_systems():
+	"""Initialize all ally systems in proper order"""
+	_find_player()
+	_create_visual_character()
+	_setup_animation_system()
+	_setup_combat_system()
+	
+	print("✅ Ally: Fully initialized with all systems!")
+	emit_signal("ally_spawned")
 
 func _find_player():
+	"""Find and cache player reference"""
 	player = get_tree().get_first_node_in_group("player")
 	if not player:
 		print("❌ Ally: Player not found!")
-
-func _create_visual():
-	# Use CharacterAppearanceManager to create random appearance
-	print("🎨 Creating procedural ally appearance...")
+		return
 	
-	# Get the MeshInstance3D node from the scene
+	# Set initial target position near player
+	target_position = player.global_position + Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
+	print("✅ Ally: Found player and set initial position")
+
+func _create_visual_character():
+	"""Create ally appearance using CharacterAppearanceManager"""
+	# Ensure we have a MeshInstance3D
 	mesh_instance = get_node_or_null("MeshInstance3D")
 	if not mesh_instance:
-		# Create it if it doesn't exist
 		mesh_instance = MeshInstance3D.new()
 		mesh_instance.name = "MeshInstance3D"
 		add_child(mesh_instance)
-
-	# Ensure the MeshInstance3D has a valid mesh
-	if not mesh_instance.mesh:
-		mesh_instance.mesh = SphereMesh.new()  # Default to a sphere mesh
-
-	# Ensure the MeshInstance3D has a valid material
-	if not mesh_instance.material_override:
-		var material = StandardMaterial3D.new()
-		material.albedo_color = Color(0.4, 0.6, 1.0)  # Bluish tint for allies
-		mesh_instance.material_override = material
 	
-	# Generate random character appearance
+	# Generate random character with ally-specific coloring
 	var config = CharacterGenerator.generate_random_character_config()
+	config["skin_tone"] = Color(0.7, 0.8, 1.0)  # Slightly blue-tinted for allies
 	
-	# Apply blue-tinted skin for allies
-	config["skin_tone"] = Color(0.4, 0.6, 1.0)  # Bluish tint
-	
-	# Apply the generated appearance using CharacterAppearanceManager
+	# Apply appearance
 	CharacterAppearanceManager.create_player_appearance(self, config)
+	
+	# Store hand references for weapon system
+	left_hand = get_node_or_null("LeftHandAnchor/LeftHand")
+	right_hand = get_node_or_null("RightHandAnchor/RightHand")
+	
+	print("✅ Ally: Character appearance created")
 
-func _setup_body_part_references():
-	# Find feet for walking animation
-	left_foot = get_node_or_null("LeftFoot")
-	right_foot = get_node_or_null("RightFoot")
+func _setup_animation_system():
+	"""Setup animation player for combat animations"""
+	animation_player = AnimationPlayer.new()
+	animation_player.name = "AllyAnimationPlayer"
+	add_child(animation_player)
+	
+	# Create attack animation
+	_create_attack_animation()
+	
+	print("✅ Ally: Animation system ready")
+
+func _create_attack_animation():
+	"""Create a simple punch attack animation"""
+	if not animation_player or not left_hand or not right_hand:
+		return
+	
+	var animation = Animation.new()
+	animation.length = 0.4
+	
+	# Create punch track
+	var punch_track = animation.add_track(Animation.TYPE_POSITION_3D)
+	animation.track_set_path(punch_track, NodePath("LeftHandAnchor/LeftHand"))
+	
+	# Punch positions
+	var start_pos = Vector3(0.0, 0.0, 0.0)
+	var punch_pos = Vector3(0.5, 0.0, 0.0)
+	var end_pos = start_pos
+	
+	animation.track_insert_key(punch_track, 0.0, start_pos)
+	animation.track_insert_key(punch_track, 0.2, punch_pos)
+	animation.track_insert_key(punch_track, 0.4, end_pos)
+	
+	# Add animation to library
+	var library = AnimationLibrary.new()
+	library.add_animation("attack", animation)
+	animation_player.add_animation_library("default", library)
+	
+	# Connect animation finished signal
+	animation_player.animation_finished.connect(_on_attack_animation_finished)
+
+func _setup_combat_system():
+	"""Setup combat detection and damage systems"""
+	# We'll use the existing enemy detection from _find_nearest_enemy()
+	print("✅ Ally: Combat system ready")
 
 func _physics_process(delta):
+	"""Main update loop"""
+	if current_health <= 0:
+		return
+	
 	attack_timer = max(0, attack_timer - delta)
-
-	# Find nearest enemy
-	current_target = _find_nearest_enemy()
-
-	if current_target and global_position.distance_to(current_target.global_position) <= attack_range:
-		# Attack enemy
-		_attack_enemy()
-		velocity = Vector3.ZERO
-	else:
-		# --- Enhanced Patrolling/Orbiting Logic ---
-		if player:
-			var orbit_radius = follow_distance * 1.5 + randf() * 1.5
-			var orbit_speed = 1.0 + randf() * 0.5
-			# Orbit angle based on time and unique offset per ally
-			var orbit_offset = int(get_instance_id()) % 360
-			var angle = (Time.get_ticks_msec() * 0.0005 * orbit_speed + orbit_offset) % (PI * 2)
-			var orbit_pos = player.global_position + Vector3(cos(angle), 0, sin(angle)) * orbit_radius
-			# Smoothly pick a new target position near the orbit
-			if not target_position or global_position.distance_to(target_position) < 0.5 or randf() < 0.01:
-				target_position = orbit_pos + Vector3(randf() - 0.5, 0, randf() - 0.5)
-			var direction_to_target = (target_position - global_position).normalized()
-			direction_to_target.y = 0
-			# Wall avoidance: steer if about to hit a wall
-			var avoid_wall = false
-			var steer_angle = 0.0
-			var test_distance = 1.0
-			if test_move(transform, direction_to_target * test_distance):
-				avoid_wall = true
-				# Try left
-				var left = direction_to_target.rotated(Vector3.UP, 0.5)
-				if not test_move(transform, left * test_distance):
-					direction_to_target = left
-					steer_angle = 0.5
-				else:
-					# Try right
-					var right = direction_to_target.rotated(Vector3.UP, -0.5)
-					if not test_move(transform, right * test_distance):
-						direction_to_target = right
-						steer_angle = -0.5
-					else:
-						# If both blocked, stop
-						direction_to_target = Vector3.ZERO
-			# Smooth velocity for natural movement
-			velocity.x = lerp(velocity.x, direction_to_target.x * speed, 0.1)
-			velocity.z = lerp(velocity.z, direction_to_target.z * speed, 0.1)
-			# Face movement direction
-			if direction_to_target.length() > 0.1:
-				look_at(global_position + direction_to_target, Vector3.UP)
-		else:
-			# Fallback: random roaming
-			if not target_position or global_position.distance_to(target_position) < 1.0:
-				target_position = global_position + Vector3(randf() * 20 - 10, 0, randf() * 20 - 10)
-			var direction_to_target = (target_position - global_position).normalized()
-			direction_to_target.y = 0
-			velocity.x = lerp(velocity.x, direction_to_target.x * speed, 0.1)
-			velocity.z = lerp(velocity.z, direction_to_target.z * speed, 0.1)
-
-	# Improved avoidance with other allies
-	var allies = get_tree().get_nodes_in_group("allies")
-	for ally in allies:
-		if ally != self and is_instance_valid(ally):
-			var distance_to_ally = global_position.distance_to(ally.global_position)
-			if distance_to_ally < follow_distance:
-				var avoidance_direction = (global_position - ally.global_position).normalized()
-				velocity += avoidance_direction * speed * 0.3 * (1.0 - distance_to_ally / follow_distance)
-
+	
+	_update_ai_state()
+	_handle_movement(delta)
+	_handle_combat(delta)
+	
 	# Apply gravity
 	if not is_on_floor():
 		velocity.y -= ProjectSettings.get_setting("physics/3d/default_gravity") * delta
-
+	
 	move_and_slide()
 
-func _follow_player():
-	var distance_to_player = global_position.distance_to(player.global_position)
+func _update_ai_state():
+	"""Update AI state based on conditions"""
+	if is_attacking:
+		current_state = AllyState.ATTACKING
+		return
+	
+	# Find nearest enemy
+	current_target = _find_nearest_enemy()
+	
+	if current_target and global_position.distance_to(current_target.global_position) <= attack_range:
+		current_state = AllyState.ATTACKING
+	elif current_target and global_position.distance_to(current_target.global_position) <= detection_range:
+		current_state = AllyState.MOVING_TO_TARGET
+	else:
+		current_state = AllyState.FOLLOWING
 
-	if distance_to_player > follow_distance * 10:
-		# Move toward the player if too far
-		var direction = (player.global_position - global_position).normalized()
-		direction.y = 0
+func _handle_movement(delta):
+	"""Handle movement based on current state"""
+	match current_state:
+		AllyState.FOLLOWING:
+			_follow_player(delta)
+		AllyState.MOVING_TO_TARGET:
+			_move_to_target(delta)
+		AllyState.ATTACKING:
+			_combat_movement(delta)
+
+func _follow_player(delta):
+	"""Intelligent player following with orbiting behavior"""
+	if not player:
+		return
+	
+	# Calculate orbit position around player
+	orbit_angle += orbit_speed * delta
+	if orbit_angle > TAU:
+		orbit_angle -= TAU
+	
+	var orbit_pos = player.global_position + Vector3(
+		cos(orbit_angle) * orbit_radius,
+		0,
+		sin(orbit_angle) * orbit_radius
+	)
+	
+	# Add some randomness to make movement more natural
+	orbit_pos += Vector3(
+		sin(Time.get_ticks_msec() * 0.001) * 0.5,
+		0,
+		cos(Time.get_ticks_msec() * 0.0007) * 0.5
+	)
+	
+	# Move toward orbit position
+	var direction = (orbit_pos - global_position)
+	direction.y = 0
+	
+	if direction.length() > 1.0:
+		direction = direction.normalized()
 		velocity.x = direction.x * speed
 		velocity.z = direction.z * speed
-
-		# Add slight randomness to movement
-		velocity.x += (randf() - 0.5) * speed * 0.2
-		velocity.z += (randf() - 0.5) * speed * 0.2
-
+		
 		# Face movement direction
-		if direction.length() > 0.1:
-			look_at(global_position + direction, Vector3.UP)
+		_face_direction(direction)
 	else:
-		# Stop when close enough
-		velocity.x = (randf() - 0.5) * speed * 0.1
-		velocity.z = (randf() - 0.5) * speed * 0.1
+		velocity.x = lerp(velocity.x, 0.0, 0.1)
+		velocity.z = lerp(velocity.z, 0.0, 0.1)
+
+func _move_to_target(delta):
+	"""Move toward current enemy target"""
+	if not current_target:
+		_follow_player(delta)
+		return
+	
+	var direction = (current_target.global_position - global_position)
+	direction.y = 0
+	
+	var distance = direction.length()
+	if distance > attack_range:
+		direction = direction.normalized()
+		velocity.x = direction.x * speed * 1.2  # Move faster when attacking
+		velocity.z = direction.z * speed * 1.2
+		
+		_face_direction(direction)
+	else:
+		velocity.x = lerp(velocity.x, 0.0, 0.3)
+		velocity.z = lerp(velocity.z, 0.0, 0.3)
+
+func _combat_movement(_delta):
+	"""Movement during combat (minimal)"""
+	velocity.x = lerp(velocity.x, 0.0, 0.2)
+	velocity.z = lerp(velocity.z, 0.0, 0.2)
+	
+	# Face the enemy
+	if current_target:
+		var direction = (current_target.global_position - global_position)
+		direction.y = 0
+		if direction.length() > 0.1:
+			_face_direction(direction.normalized())
+
+func _handle_combat(_delta):
+	"""Handle combat logic"""
+	if not current_target or attack_timer > 0 or is_attacking:
+		return
+	
+	var distance = global_position.distance_to(current_target.global_position)
+	if distance <= attack_range:
+		_start_attack()
+
+func _start_attack():
+	"""Begin attack sequence"""
+	if is_attacking or attack_timer > 0:
+		return
+	
+	is_attacking = true
+	attack_timer = attack_cooldown
+	
+	# Play attack animation
+	if animation_player and animation_player.has_animation("attack"):
+		animation_player.play("attack")
+	
+	# Deal damage after slight delay
+	get_tree().create_timer(0.2).timeout.connect(_deal_damage)
+	
+	var target_name = "unknown"
+	if current_target and "name" in current_target:
+		target_name = str(current_target.name)
+	print("🗡️ Ally: Starting attack on ", target_name)
+
+func _deal_damage():
+	"""Deal damage to current target"""
+	if not current_target or not is_instance_valid(current_target):
+		return
+	
+	# Check if still in range
+	var distance = global_position.distance_to(current_target.global_position)
+	if distance > attack_range * 1.2:
+		return
+	
+	# Deal damage
+	if current_target.has_method("take_damage"):
+		current_target.take_damage(attack_damage)
+		print("🗡️ Ally dealt ", attack_damage, " damage to ", current_target.name)
+	
+	# Show damage numbers
+	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
+	if damage_system:
+		damage_system.show_damage(attack_damage, current_target, "normal")
+
+func _on_attack_animation_finished(anim_name: StringName):
+	"""Called when attack animation finishes"""
+	if anim_name == "attack":
+		is_attacking = false
+
+func _face_direction(direction: Vector3):
+	"""Face a specific direction smoothly"""
+	if direction.length() < 0.1:
+		return
+	
+	var target_rotation = atan2(direction.x, direction.z)
+	rotation.y = lerp_angle(rotation.y, target_rotation, 0.1)
+	last_facing_direction = direction
 
 func _find_nearest_enemy() -> Node3D:
+	"""Find the nearest enemy within detection range"""
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	var nearest_enemy: Node3D = null
 	var nearest_distance := 999.0
@@ -183,55 +335,63 @@ func _find_nearest_enemy() -> Node3D:
 			continue
 		
 		var distance = global_position.distance_to(enemy.global_position)
-		if distance < nearest_distance and distance <= attack_range * 2:
+		if distance < nearest_distance and distance <= detection_range:
 			nearest_distance = distance
 			nearest_enemy = enemy
 	
 	return nearest_enemy
 
-func _attack_enemy():
-	if attack_timer > 0 or not current_target:
+func take_damage(amount: int, _attacker: Node = null):
+	"""Handle taking damage"""
+	if current_health <= 0:
 		return
 	
-	# Face the enemy
-	var direction = (current_target.global_position - global_position)
-	direction.y = 0
-	if direction.length() > 0.1:
-		look_at(global_position + direction, Vector3.UP)
+	current_health -= amount
+	print("🤝 Ally took ", amount, " damage! Health: ", current_health, "/", max_health)
 	
-	# Attack
-	if current_target.has_method("take_damage"):
-		current_target.take_damage(attack_damage)
-		print("🗡️ Ally attacked enemy for ", attack_damage, " damage!")
+	# Show damage numbers
+	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
+	if damage_system:
+		damage_system.show_damage(amount, self, "normal")
 	
-	# Play attack animation (simple weapon swing)
-	_play_attack_animation()
+	# Flash red briefly
+	if mesh_instance and mesh_instance.material_override:
+		var original_color = mesh_instance.material_override.albedo_color
+		mesh_instance.material_override.albedo_color = Color.RED
+		get_tree().create_timer(0.1).timeout.connect(
+			func(): 
+				if is_instance_valid(mesh_instance) and mesh_instance.material_override:
+					mesh_instance.material_override.albedo_color = original_color
+		)
 	
-	attack_timer = attack_cooldown
-
-func _play_attack_animation():
-	if not weapon_mesh:
-		return
-	
-	var tween = create_tween()
-	tween.tween_property(weapon_mesh, "rotation_degrees", Vector3(0, 0, -45), 0.1)
-	tween.tween_property(weapon_mesh, "rotation_degrees", Vector3.ZERO, 0.2)
-
-func take_damage(amount: int, attacker: Node = null):
-	health -= amount
-	print("🤝 Ally took ", amount, " damage! Health: ", health)
-
-	if health <= 0:
+	if current_health <= 0:
 		die()
-		if attacker:
-			print("💀 Ally killed by ", attacker.name)
 
 func die():
-	print("💀 Ally died! Emitting ally_removed signal.")
-	emit_signal("ally_removed")
+	"""Handle ally death"""
+	print("💀 Ally died!")
+	current_state = AllyState.DEAD
+	
+	# Emit death signal
+	emit_signal("ally_died")
+	
+	# Create death effect
+	if mesh_instance:
+		var tween = create_tween()
+		tween.tween_property(mesh_instance, "scale", Vector3.ZERO, 0.5)
+		await tween.finished
+	
 	queue_free()
 
-func _ready():
-	add_to_group("allies")
-	emit_signal("ally_added")
-	print("🤝 Ally added to group 'allies' and signal emitted.")
+func get_ally_stats() -> Dictionary:
+	"""Get current ally statistics"""
+	var target_name = "None"
+	if current_target and "name" in current_target:
+		target_name = str(current_target.name)
+	return {
+		"health": current_health,
+		"max_health": max_health,
+		"attack_damage": attack_damage,
+		"state": AllyState.keys()[current_state],
+		"target": target_name
+	}
