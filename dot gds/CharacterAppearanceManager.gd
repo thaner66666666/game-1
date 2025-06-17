@@ -28,15 +28,18 @@ static var EYE_SIZE: float = 0.07  # was 0.09, now slightly smaller
 static var HAND_SIZE: float = 0.08
 static var FOOT_SIZE: Vector3 = Vector3(0.15, 0.06, 0.25)
 
-static func _init_materials():
-	if SKIN_MATERIAL == null:
-		SKIN_MATERIAL = StandardMaterial3D.new()
+static func _init_materials(skin_tone = null):
+	# Always create a new SKIN_MATERIAL to avoid conflicts
+	SKIN_MATERIAL = StandardMaterial3D.new()
+	if typeof(skin_tone) == TYPE_COLOR:
+		SKIN_MATERIAL.albedo_color = skin_tone
+	else:
 		SKIN_MATERIAL.albedo_color = SKIN_COLOR
-		SKIN_MATERIAL.metallic = 0.0
-		SKIN_MATERIAL.roughness = 0.7
-		SKIN_MATERIAL.clearcoat = 0.1
-		SKIN_MATERIAL.rim = 0.3
-		SKIN_MATERIAL.rim_tint = 0.5
+	SKIN_MATERIAL.metallic = 0.0
+	SKIN_MATERIAL.roughness = 0.7
+	SKIN_MATERIAL.clearcoat = 0.1
+	SKIN_MATERIAL.rim = 0.3
+	SKIN_MATERIAL.rim_tint = 0.5
 	if EYE_MATERIAL == null:
 		EYE_MATERIAL = StandardMaterial3D.new()
 		EYE_MATERIAL.albedo_color = EYE_COLOR
@@ -47,21 +50,31 @@ static func create_player_appearance(character: CharacterBody3D, config := {}):
 	"""Create Rayman-style character with modular features based on config"""
 	print("🎨 Creating Rayman-style character...")
 
-	_init_materials()
+	# --- Skin material fix: create unique material per character ---
+	var skin_material = SKIN_MATERIAL.duplicate() if SKIN_MATERIAL else StandardMaterial3D.new()
+	if config.has("skin_tone"):
+		skin_material.albedo_color = config["skin_tone"]
+	else:
+		skin_material.albedo_color = SKIN_COLOR
+	# (Copy other material properties if needed)
+
+	# Debug print for skin_tone
+	if config.has("skin_tone"):
+		print("[DEBUG] Received skin_tone in config:", config["skin_tone"])
+	else:
+		print("[DEBUG] No skin_tone in config!")
+
+	_init_materials(config.get("skin_tone", null))
 	_clear_existing_appearance(character)
 
-	# Update skin material if custom skin tone provided
-	if config.has("skin_tone"):
-		var custom_skin = SKIN_MATERIAL.duplicate()
-		custom_skin.albedo_color = config["skin_tone"]
-		SKIN_MATERIAL = custom_skin
+	# --- Use local skin_material instead of static SKIN_MATERIAL ---
 
 	# Enhanced body creation with config
 	var body_type = config.get("body_type", "capsule")
 	var body_height = config.get("body_height", BODY_HEIGHT)
 	var body_radius = config.get("body_radius", BODY_RADIUS)
 	var main_mesh = character.get_node("MeshInstance3D")
-	_create_simple_body(main_mesh, body_type, body_height, body_radius)
+	_create_simple_body(main_mesh, body_type, body_height, body_radius, skin_material)
 
 	# EYES - pass body_radius to eyes (from config, not from eyes_cfg)
 	var eyes_cfg = config.get("eyes", {})
@@ -77,11 +90,11 @@ static func create_player_appearance(character: CharacterBody3D, config := {}):
 
 	# HANDS
 	var hands_cfg = config.get("hands", {})
-	_create_hands(character, hands_cfg)
+	_create_hands(character, hands_cfg, skin_material)
 
 	# FEET
 	var feet_cfg = config.get("feet", {})
-	_create_feet(character, feet_cfg)
+	_create_feet(character, feet_cfg, skin_material)
 
 	print("✅ Rayman-style character created!")
 	return main_mesh
@@ -113,7 +126,7 @@ static func _clear_existing_appearance(character: CharacterBody3D):
 		if part:
 			part.queue_free()
 
-static func _create_simple_body(mesh_instance: MeshInstance3D, body_type: String, height: float, radius: float):
+static func _create_simple_body(mesh_instance: MeshInstance3D, body_type: String, height: float, radius: float, skin_material: StandardMaterial3D):
 	"""Capsule or rounded box body"""
 	if body_type == "box":
 		var box = BoxMesh.new()
@@ -126,9 +139,9 @@ static func _create_simple_body(mesh_instance: MeshInstance3D, body_type: String
 		capsule_mesh.height = height
 		mesh_instance.mesh = capsule_mesh
 		mesh_instance.position = Vector3(0, 0, 0)
-	mesh_instance.material_override = SKIN_MATERIAL
+	mesh_instance.material_override = skin_material
 
-static func _create_hands(character: CharacterBody3D, cfg := {}):
+static func _create_hands(character: CharacterBody3D, cfg := {}, skin_material: StandardMaterial3D = null):
 	"""Create hands that follow the anchor nodes"""
 	var _shape = cfg.get("shape", "fist")
 	var size = cfg.get("size", HAND_SIZE)
@@ -139,7 +152,7 @@ static func _create_hands(character: CharacterBody3D, cfg := {}):
 	
 	if not right_anchor or not left_anchor:
 		print("⚠️ Hand anchor nodes not found - falling back to old system")
-		_create_hands_old_way(character, cfg)
+		_create_hands_old_way(character, cfg, skin_material)
 		return
 	
 	# Create hands as children of anchors
@@ -155,20 +168,19 @@ static func _create_hands(character: CharacterBody3D, cfg := {}):
 		# Position relative to anchor (anchor handles the animation)
 		hand.position = Vector3.ZERO  # At anchor position
 		hand.rotation_degrees = Vector3(0, 0, 90)
-		hand.material_override = SKIN_MATERIAL
+		hand.material_override = skin_material if skin_material else SKIN_MATERIAL
 		
 		# Add hand as child of anchor
 		anchor.add_child(hand)
 		print("✅ Created ", hand.name, " at anchor")
 
 # Keep the old function as backup
-static func _create_hands_old_way(character: CharacterBody3D, cfg := {}):
+static func _create_hands_old_way(character: CharacterBody3D, cfg := {}, skin_material: StandardMaterial3D = null):
 	"""Original hand creation code (backup)"""
 	var _shape = cfg.get("shape", "fist")
 	var size = cfg.get("size", HAND_SIZE)
 	var _dist = cfg.get("distance", 0.44)
 	var _height = cfg.get("height", -0.20)
-	
 	for i in [-1, 1]:
 		var hand = MeshInstance3D.new()
 		hand.name = "LeftHand" if i < 0 else "RightHand"
@@ -178,10 +190,10 @@ static func _create_hands_old_way(character: CharacterBody3D, cfg := {}):
 		# FIXED: Right hand = negative X, Left hand = positive X
 		hand.position = Vector3(i * -_dist, _height, 0)  # Note the negative
 		hand.rotation_degrees = Vector3(0, 0, 90)
-		hand.material_override = SKIN_MATERIAL
+		hand.material_override = skin_material if skin_material else SKIN_MATERIAL
 		character.add_child(hand)
 
-static func _create_feet(character: CharacterBody3D, cfg := {}):
+static func _create_feet(character: CharacterBody3D, cfg := {}, skin_material: StandardMaterial3D = null):
 	"""Floating feet with shape and position options.
 	All foot shapes use BoxMesh for safety and appropriateness."""
 	var shape = cfg.get("shape", "bare")
@@ -217,14 +229,9 @@ static func _create_feet(character: CharacterBody3D, cfg := {}):
 				foot.scale = scale_vec
 		foot.mesh = mesh
 		foot.position = Vector3(i * dist, height, 0)
-		foot.material_override = SKIN_MATERIAL
-		
-		# Add to character
+		foot.material_override = skin_material if skin_material else SKIN_MATERIAL
 		character.add_child(foot)
-		
-		# Force the name after adding (Godot sometimes auto-renames)
 		foot.name = foot_name
-		
 		print("✅ Created foot: ", foot.name, " at position: ", foot.position, " actual name: ", foot.name)
 		
 static func get_eye_z_position(body_radius: float) -> float:
@@ -238,11 +245,24 @@ static func get_eye_z_position(body_radius: float) -> float:
 	var t = clamp((body_radius - min_radius) / (max_radius - min_radius), 0, 1)
 	return lerp(min_z, max_z, t)
 
+static func _clear_existing_eyes(character: CharacterBody3D):
+	"""Remove existing LeftEye and RightEye nodes from the character's mesh instance."""
+	var mesh_instance = character.get_node_or_null("MeshInstance3D")
+	if not mesh_instance:
+		return
+	for eye_name in ["LeftEye", "RightEye"]:
+		var eye_node = mesh_instance.get_node_or_null(eye_name)
+		if eye_node:
+			eye_node.queue_free()
+
 static func _create_eyes(_character: CharacterBody3D, cfg := {}, mesh_instance: MeshInstance3D = null, body_radius: float = BODY_RADIUS):
 	"""Create expressive floating eyes with pupils, using body_radius for Z offset"""
 	if not mesh_instance:
 		print("⚠️ No mesh_instance provided, eyes might not animate properly")
 		return
+
+	# Remove existing eyes before creating new ones
+	_clear_existing_eyes(_character)
 
 	var eye_color = cfg.get("color", Color.WHITE)
 	var eye_size = cfg.get("size", EYE_SIZE)

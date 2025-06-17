@@ -224,11 +224,11 @@ func _ready():
 	# Initialize blinking system
 	_reset_blink_timer()
 
-	# Apply random skin tone to player
+	# Apply random skin tone to player (character appearance)
 	var config = CharacterGenerator.generate_random_character_config()
 	CharacterAppearanceManager.create_player_appearance(self, config)
 	print("🎨 Player skin tone: ", config["skin_tone"])
-
+	# Removed duplicate/overwriting character creation calls
 
 func _setup_player():
 	add_to_group("player")
@@ -257,7 +257,7 @@ func _create_visual():
 	else:
 		mesh_instance = existing_mesh
 		print("🎨 Using existing MeshInstance3D node")
-	mesh_instance = CharacterAppearanceManager.create_random_character(self)
+	# Only create MeshInstance3D if it doesn't exist; do not call CharacterAppearanceManager or create_random_character here
 	print("✅ Player visual created successfully!")
 
 func _initialize_base_stats():
@@ -659,7 +659,14 @@ func get_player_stats() -> Dictionary:
 
 # --- Animation signal handlers ---
 func _on_hand_animation_update(_left_pos: Vector3, _right_pos: Vector3, _left_rot: Vector3, _right_rot: Vector3) -> void:
-	pass
+	var left_hand = get_node_or_null("LeftHand")
+	if left_hand:
+		left_hand.position = _left_pos
+		left_hand.rotation_degrees = _left_rot
+	var right_hand = get_node_or_null("RightHand")
+	if right_hand:
+		right_hand.position = _right_pos
+		right_hand.rotation_degrees = _right_rot
 
 func _on_foot_animation_update(left_pos: Vector3, right_pos: Vector3) -> void:
 	if left_foot:
