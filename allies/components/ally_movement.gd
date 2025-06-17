@@ -14,9 +14,9 @@ var orbit_angle: float
 var body_origin: Vector3
 var current_body_sway: Vector3 = Vector3.ZERO
 var target_body_sway: Vector3 = Vector3.ZERO
-var body_sway_strength: float = 0.08
-var body_lean_strength: float = 0.15
-var interpolation_speed: float = 8.0
+var body_sway_strength: float = 0.03  # Very subtle sway
+var body_lean_strength: float = 0.07  # Very subtle leaning
+var interpolation_speed: float = 8.0  # Smoother animation transitions
 var walk_cycle_time: float = 0.0
 var personality_offset: float = 0.0
 var body_node
@@ -74,11 +74,12 @@ func _update_ally_body_animation(delta: float, velocity: Vector3):
 	if not body_node:
 		return
 	if velocity.length() > 0.1:
-		walk_cycle_time += delta * 4.0
-		var vel_scale = clamp(velocity.length() / 3.5, 0.3, 1.5)
-		var vertical_bob = sin(walk_cycle_time * 2.0 + personality_offset) * body_sway_strength * 0.5 * vel_scale
-		var horizontal_sway = sin(walk_cycle_time + personality_offset) * body_sway_strength * 0.3 * vel_scale
-		target_body_sway = Vector3(horizontal_sway, vertical_bob, 0)
+		walk_cycle_time += delta * 5.0
+		var vel_scale = clamp(velocity.length() / 3.5, 0.3, 1.0)
+		var vertical_bob = sin(walk_cycle_time * 2.0 + personality_offset) * 0.07 * vel_scale  # Very subtle bobbing
+		var horizontal_sway = sin(walk_cycle_time + personality_offset) * 0.02 * vel_scale  # Very subtle sway
+		var wiggle = sin(walk_cycle_time * 2.0 + personality_offset) * 0.02 * vel_scale  # Minimal wiggle
+		target_body_sway = Vector3(horizontal_sway, vertical_bob, wiggle)
 		current_body_sway = lerp(current_body_sway, target_body_sway, interpolation_speed * delta)
 		body_node.position = body_origin + current_body_sway
 		#print("[AllyBodyAnim] vel:", velocity.length(), "sway:", current_body_sway)

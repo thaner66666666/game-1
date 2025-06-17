@@ -167,22 +167,13 @@ func _physics_process(delta):
 			if right_foot and right_foot is MeshInstance3D:
 				right_foot_original_pos = right_foot.position
 				print("🦶 Found RightFoot late!")
-	# Simple body waddle animation with debug prints
-	if body_node:
-		print("[BodyAnim] body_node found: ", body_node.name)
-	print("[BodyAnim] velocity.length(): ", velocity.length())
+	# Very subtle sway and bob (no idle reset)
 	if body_node and velocity.length() > 0.1:
 		body_waddle_time += delta * 5.0
-		var sway = sin(body_waddle_time) * 0.15
-		var bob = sin(body_waddle_time * 2.0) * 0.08
-		print("[BodyAnim] sway: ", sway, ", bob: ", bob)
-		body_node.position = body_original_pos + Vector3(sway, bob, 0)
-		print("[BodyAnim] body_node.position: ", body_node.position)
-	else:
-		body_waddle_time = 0.0
-		if body_node:
-			body_node.position = body_original_pos
-			print("[BodyAnim] Reset body_node.position: ", body_node.position)
+		var sway = sin(body_waddle_time) * 0.025  # Very subtle left-right movement
+		var bob = sin(body_waddle_time * 2.0) * 0.06  # Very subtle up-down bobbing
+		var forward_lean = sin(body_waddle_time * 0.5) * 0.01  # Minimal lean
+		body_node.position = body_original_pos + Vector3(sway, bob, forward_lean)
 
 func take_damage(amount: int, attacker: Node = null):
 	health_component.take_damage(amount, attacker)
