@@ -26,6 +26,7 @@ var player_ref: CharacterBody3D
 func _ready():
 	add_to_group("allies")
 	_setup_components()
+	_ensure_hands_visible()
 	_find_player()
 	# Connect health component death signal
 	if health_component:
@@ -39,6 +40,8 @@ func _setup_components():
 	ai_component.setup(self)
 	health_component.ally_died.connect(_on_ally_died)
 	_create_character_appearance()
+	# Make hands visible by default
+	_ensure_hands_visible()
 	# Configure collision layers for separation
 	collision_layer = 8
 	collision_mask = 3 | 8
@@ -76,3 +79,21 @@ func _on_ally_died():
 	
 	# Clean up after delay
 	get_tree().create_timer(1.0).timeout.connect(queue_free)
+
+# Helper to ensure hands are always visible
+func _ensure_hands_visible():
+	# Make sure ally hands are visible
+	var left_hand = left_hand_anchor.get_node_or_null("LeftHand")
+	var right_hand = right_hand_anchor.get_node_or_null("RightHand")
+	
+	if left_hand:
+		left_hand.visible = true
+		print("👋 Made LeftHand visible for ally")
+	else:
+		print("⚠️ LeftHand not found for ally")
+	
+	if right_hand:
+		right_hand.visible = true
+		print("👋 Made RightHand visible for ally")
+	else:
+		print("⚠️ RightHand not found for ally")

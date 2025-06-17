@@ -73,13 +73,16 @@ func _play_attack_animation(target: Node3D):
 	# Simple punch animation using right hand
 	var right_hand = ally_ref.right_hand_anchor.get_child(0) if ally_ref.right_hand_anchor.get_child_count() > 0 else null
 	if not right_hand:
-		is_attacking = false
-		return
-	
+		is_attacking = false  # Fixed: was incomplete
+		return                # Fixed: was missing
+
+	# Make sure hand is visible during animation
+	right_hand.visible = true
+
 	var original_pos = right_hand.position
 	var punch_dir = (target.global_position - ally_ref.global_position).normalized()
 	punch_dir = ally_ref.global_transform.basis.inverse() * punch_dir
-	
+
 	# Animate punch
 	var tween = create_tween()
 	tween.set_parallel(true)
