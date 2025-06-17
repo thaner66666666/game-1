@@ -25,18 +25,17 @@ var time_alive: float = 0.0
 var weapon_parts: Array[MeshInstance3D] = []
 
 func _ready():
-	print("🗡️ Weapon Pickup Ready - weapon_resource: ", weapon_resource)
+	# print("🗡️ Weapon Pickup Ready - weapon_resource: ", weapon_resource)
 	if weapon_resource:
-		print("🗡️ Weapon name: ", weapon_resource.weapon_name)
-		print("🗡️ Weapon type: ", weapon_resource.weapon_type)
+		pass
+		# print("🗡️ Weapon name: ", weapon_resource.weapon_name)
+		# print("🗡️ Weapon type: ", weapon_resource.weapon_type)
 	else:
 		print("❌ No weapon_resource assigned!")
-	# Print scene node structure and mesh_instance existence
-	print("🗡️ Node children: ", get_children())
-	print("🗡️ mesh_instance exists: ", mesh_instance != null)
-	print("🗡️ mesh_instance path: ", str(mesh_instance.get_path()) if mesh_instance else "None")
-	
-	print("🗡️ Enhanced Weapon Pickup: Setting up...")
+	# print("🗡️ Node children: ", get_children())
+	# print("🗡️ mesh_instance exists: ", mesh_instance != null)
+	# print("🗡️ mesh_instance path: ", str(mesh_instance.get_path()) if mesh_instance else "None")
+	# print("🗡️ Enhanced Weapon Pickup: Setting up...")
 	add_to_group("weapon_pickup")
 	collision_layer = 4
 	collision_mask = 1
@@ -52,16 +51,16 @@ func _ready():
 	call_deferred("_deferred_setup_visual")
 
 func _deferred_setup_visual():
-	print("🗡️ _deferred_setup_visual called")
+	# print("🗡️ _deferred_setup_visual called")
 	if weapon_resource:
-		print("🗡️ _deferred_setup_visual: weapon_resource present, calling _setup_enhanced_visual")
+		# print("🗡️ _deferred_setup_visual: weapon_resource present, calling _setup_enhanced_visual")
 		_setup_enhanced_visual()
 	else:
-		print("🗡️ _deferred_setup_visual: weapon_resource is null, calling _create_default_sword_visual")
+		# print("🗡️ _deferred_setup_visual: weapon_resource is null, calling _create_default_sword_visual")
 		_create_default_sword_visual()
 
 func _setup_enhanced_visual():
-	print("🗡️ _setup_enhanced_visual called")
+	# print("🗡️ _setup_enhanced_visual called")
 	"""Create enhanced weapon pickup visual"""
 	# FIRST: Clear the original mesh to get rid of the white ball
 	if mesh_instance:
@@ -69,7 +68,7 @@ func _setup_enhanced_visual():
 		mesh_instance.material_override = null
 
 	if not weapon_resource:
-		print("🗡️ _setup_enhanced_visual: weapon_resource is null, calling _create_default_sword_visual")
+		# print("🗡️ _setup_enhanced_visual: weapon_resource is null, calling _create_default_sword_visual")
 		_create_default_sword_visual()
 		return
 
@@ -77,27 +76,27 @@ func _setup_enhanced_visual():
 	_clear_weapon_parts()
 
 	# Debug: Print the actual weapon_type value and enum mapping
-	print("🗡️ weapon_resource.weapon_type value: ", weapon_resource.weapon_type)
-	print("🗡️ WeaponType.SWORD: ", int(WeaponResource.WeaponType.SWORD))
-	print("🗡️ WeaponType.BOW: ", int(WeaponResource.WeaponType.BOW))
-	print("🗡️ WeaponType.STAFF: ", int(WeaponResource.WeaponType.STAFF))
+	# print("🗡️ weapon_resource.weapon_type value: ", weapon_resource.weapon_type)
+	# print("🗡️ WeaponType.SWORD: ", int(WeaponResource.WeaponType.SWORD))
+	# print("🗡️ WeaponType.BOW: ", int(WeaponResource.WeaponType.BOW))
+	# print("🗡️ WeaponType.STAFF: ", int(WeaponResource.WeaponType.STAFF))
 
 	# Use integer values for matching
 	match int(weapon_resource.weapon_type):
 		int(WeaponResource.WeaponType.SWORD):
-			print("🗡️ _setup_enhanced_visual: Creating enhanced sword visual")
+			# print("🗡️ _setup_enhanced_visual: Creating enhanced sword visual")
 			_create_enhanced_sword()
 		int(WeaponResource.WeaponType.BOW):
-			print("🗡️ _setup_enhanced_visual: Using simple bow visual")
+			# print("🗡️ _setup_enhanced_visual: Using simple bow visual")
 			_create_simple_bow_visual()
 		# int(WeaponResource.WeaponType.STAFF):
 		# 	print("🗡️ _setup_enhanced_visual: Creating enhanced staff visual")
 		# 	_create_enhanced_staff()
 		int(WeaponResource.WeaponType.STAFF):
-			print("🗡️ Staff pickup temporarily disabled!")
+			# print("🗡️ Staff pickup temporarily disabled!")
 			_create_default_sword_visual()
 		_:
-			print("🗡️ _setup_enhanced_visual: Unknown type, calling _create_default_sword_visual")
+			# print("🗡️ _setup_enhanced_visual: Unknown type, calling _create_default_sword_visual")
 			_create_default_sword_visual()
 
 	# Create collision shape
@@ -293,7 +292,6 @@ func _create_default_sword_visual():
 
 
 func _create_default_visual():
-	"""Create enhanced default pickup visual"""
 	if not mesh_instance:
 		print("❌ mesh_instance is null, cannot create default visual")
 		return
@@ -429,13 +427,13 @@ func _swap_weapons():
 		queue_free()
 
 func set_weapon_resource(new_resource: WeaponResource):
-	print("🗡️ set_weapon_resource called with: ", new_resource)
+	# print("🗡️ set_weapon_resource called with: ", new_resource)
 	weapon_resource = new_resource
 	if weapon_resource and "weapon_name" in weapon_resource:
 		set_meta("weapon_name", weapon_resource.weapon_name)
 	# Always setup visual when resource is set, using deferred call for consistency
 	if is_inside_tree():
-		print("🗡️ Setting up visuals for weapon_resource: ", weapon_resource)
+		# print("🗡️ Setting up visuals for weapon_resource: ", weapon_resource)
 		call_deferred("_deferred_setup_visual")
 		if player_in_range:
 			_update_interaction_text()

@@ -9,6 +9,7 @@ extends CharacterBody3D
 @export var attack_cooldown := 1.2
 @export var max_health := 80
 @export var current_health := 80
+@export var path_offset := Vector3.ZERO
 
 # === AI BEHAVIOR SETTINGS ===
 @export var detection_range := 8.0
@@ -47,8 +48,11 @@ signal ally_spawned
 var _physics_frame_counter := 0
 var _ai_state_debug_counter := 0
 
+@export var invuln_time := 0.5
+var _last_hit_time := -100.0
+
 func _ready():
-	print("🤝 Ally: Starting complete initialization...")
+	# print("🤝 Ally: Starting complete initialization...")
 	add_to_group("allies")
 	emit_signal("ally_spawned")
 	
@@ -66,6 +70,13 @@ func _ready():
 	_last_move_time = Time.get_ticks_msec() / 1000.0
 	_last_position = global_position
 	
+	# Give each ally a unique path offset
+	path_offset = Vector3(
+		randf_range(-1.0, 1.0),
+		0,
+		randf_range(-1.0, 1.0)
+	).normalized() * randf_range(0.5, 1.5)
+	
 	# Initialize systems
 	call_deferred("_initialize_systems")
 
@@ -81,14 +92,14 @@ func _initialize_systems():
 	_setup_animation_system()
 	_setup_combat_system()
 	
-	print("✅ Ally: Fully initialized with all systems!")
+	# print("✅ Ally: Fully initialized with all systems!")
 
 	# Copilot Prompt 1: Fix AI State Initialization
 	current_state = AllyState.FOLLOWING
 	orbit_angle = randf() * TAU
 	await get_tree().process_frame
 	_update_ai_state()
-	print("🤖 Ally AI initialized - State:", AllyState.keys()[current_state], "Player ref:", player)
+	# print("🤖 Ally AI initialized - State:", AllyState.keys()[current_state], "Player ref:", player)
 
 func _find_player():
 	"""Find and cache player reference"""
@@ -99,7 +110,7 @@ func _find_player():
 	
 	# Set initial target position near player
 	target_position = player.global_position + Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
-	print("✅ Ally: Found player and set initial position")
+	# print("✅ Ally: Found player and set initial position")
 
 func _create_visual_character():
 	"""Create ally appearance using CharacterAppearanceManager"""
@@ -121,7 +132,7 @@ func _create_visual_character():
 	right_hand_anchor.position = Vector3(0.44, -0.2, 0)
 	add_child(right_hand_anchor)
 
-	print("✅ Ally: Created hand anchor nodes")
+	# print("✅ Ally: Created hand anchor nodes")
 	
 	# Generate random character with ally-specific coloring
 	var config = CharacterGenerator.generate_random_character_config()
@@ -135,13 +146,13 @@ func _create_visual_character():
 	left_hand = get_node_or_null("LeftHandAnchor/LeftHand")
 	right_hand = get_node_or_null("RightHandAnchor/RightHand")
 	
-	print("🤝 Ally hand check - Left: ", left_hand != null, " Right: ", right_hand != null)
-	if left_hand:
-		print("🤝 Left hand path: ", left_hand.get_path())
-	if right_hand:
-		print("🤝 Right hand path: ", right_hand.get_path())
+	# print("🤝 Ally hand check - Left: ", left_hand != null, " Right: ", right_hand != null)
+	# if left_hand:
+	# 	print("🤝 Left hand path: ", left_hand.get_path())
+	# if right_hand:
+	# 	print("🤝 Right hand path: ", right_hand.get_path())
 	
-	print("✅ Ally: Character appearance created")
+	# print("✅ Ally: Character appearance created")
 
 func _setup_animation_system():
 	"""Setup animation player for combat animations"""
@@ -152,10 +163,9 @@ func _setup_animation_system():
 	# Create attack animation
 	_create_attack_animation()
 	
-	print("✅ Ally: Animation system ready")
+	# print("✅ Ally: Animation system ready")
 
 func _create_attack_animation():
-	"""Create a simple punch attack animation"""
 	if not animation_player:
 		print("❌ Ally: No animation player for attack animation")
 		return
@@ -172,7 +182,7 @@ func _create_attack_animation():
 	animation.length = 0.4
 
 	# Calculate punch direction based on facing
-	var punch_dir = -global_transform.basis.z.normalized()  # Forward direction
+	var punch_dir = -transform.basis.z.normalized()  # Use local transform for correct forward
 	var start_pos = Vector3(0.0, 0.0, 0.0)
 	var punch_pos = punch_dir * 0.6 + Vector3(0, 0.05, 0)  # Forward punch
 	var end_pos = start_pos
@@ -194,7 +204,7 @@ func _create_attack_animation():
 	if not animation_player.animation_finished.is_connected(_on_attack_animation_finished):
 		animation_player.animation_finished.connect(_on_attack_animation_finished)
 
-	print("✅ Ally: Attack animation created successfully")
+	# print("✅ Ally: Attack animation created successfully")
 
 func _create_fallback_punch():
 	"""Create a simple punch effect without animation player"""
@@ -206,11 +216,11 @@ func _create_fallback_punch():
 		print("❌ Ally: No right hand for fallback punch")
 		return
 
-	print("🥊 Ally: Using fallback punch animation")
+	# print("🥊 Ally: Using fallback punch animation")
 	# Store original position
 	var original_pos = right_hand.position
 	# Calculate punch direction based on facing
-	var punch_dir = -global_transform.basis.z.normalized()
+	var punch_dir = -transform.basis.z.normalized()  # Use local transform for correct forward
 	# Create manual punch animation with Tween
 	var tween = create_tween()
 	tween.set_parallel(true)
@@ -224,7 +234,7 @@ func _create_fallback_punch():
 func _setup_combat_system():
 	"""Setup combat detection and damage systems"""
 	# We'll use the existing enemy detection from _find_nearest_enemy()
-	print("✅ Ally: Combat system ready")
+	# print("✅ Ally: Combat system ready")
 
 func _physics_process(delta):
 	"""Main update loop"""
@@ -235,6 +245,7 @@ func _physics_process(delta):
 
 	_update_ai_state()
 	_handle_movement(delta)
+	_handle_ally_separation(delta)
 	_handle_combat(delta)
 
 	# Apply gravity
@@ -297,13 +308,14 @@ func _update_ai_state():
 
 	if prev_state != current_state:
 		if _ai_state_debug_counter >= 60:
-			print("🔄 Ally AI state changed from ", AllyState.keys()[prev_state], " to ", AllyState.keys()[current_state])
+			# print("🔄 Ally AI state changed from ", AllyState.keys()[prev_state], " to ", AllyState.keys()[current_state])
 			_ai_state_debug_counter = 0
 	elif _ai_state_debug_counter >= 60:
-		print("🔁 Ally AI state remains: ", AllyState.keys()[current_state])
+		# print("🔁 Ally AI state remains: ", AllyState.keys()[current_state])
 		_ai_state_debug_counter = 0
 	else:
-		print("🔁 Ally AI state remains: ", AllyState.keys()[current_state])
+		# print("🔁 Ally AI state remains: ", AllyState.keys()[current_state])
+		pass
 
 func _handle_movement(delta):
 	"""Handle movement based on current state"""
@@ -349,7 +361,7 @@ func _follow_player(delta):
 		cos(orbit_angle) * orbit_radius,
 		0,
 		sin(orbit_angle) * orbit_radius
-	)
+	) + path_offset  # Add unique offset per ally
 
 	# Add some randomness to make movement more natural
 	orbit_pos += Vector3(
@@ -366,7 +378,7 @@ func _follow_player(delta):
 		direction = direction.normalized()
 		velocity.x = direction.x * speed
 		velocity.z = direction.z * speed
-		print("🚶 Ally moving: velocity set to (", velocity.x, ", ", velocity.z, ")")
+		# print("🚶 Ally moving: velocity set to (", velocity.x, ", ", velocity.z, ")")
 		# Face movement direction
 		_face_direction(direction)
 	else:
@@ -419,56 +431,43 @@ func _start_attack():
 	if is_attacking or attack_timer > 0:
 		return
 
+	# Failsafe: Ensure animation_player and right_hand are set
+	if not animation_player:
+		animation_player = get_node_or_null("AllyAnimationPlayer")
+	if not right_hand:
+		right_hand = get_node_or_null("RightHandAnchor/RightHand")
+
 	is_attacking = true
 	attack_timer = attack_cooldown
 
-	# Debug attack system
-	print("🥊 Ally starting attack - Animation player exists: ", animation_player != null)
-	if animation_player:
-		print("🥊 Has attack animation: ", animation_player.has_animation("attack"))
-		print("🥊 Animation libraries: ", animation_player.get_animation_library_list())
-
-	# Play attack animation or fallback
 	if animation_player and animation_player.has_animation("attack"):
-		print("🎬 Ally: Playing attack animation!")
 		animation_player.play("attack")
 	else:
-		print("🥊 Ally: Animation not available, using fallback")
 		_create_fallback_punch()
 
 	# Deal damage after slight delay
 	get_tree().create_timer(0.2).timeout.connect(_deal_damage)
 
-	var target_name = "unknown"
+	var _target_name = "unknown"
 	if current_target and "name" in current_target:
-		target_name = str(current_target.name)
-	print("🗡️ Ally: Starting attack on ", target_name, " | State: ", AllyState.keys()[current_state])
+		_target_name = str(current_target.name)
+	# print("🗡️ Ally: Starting attack on ", target_name, " | State: ", AllyState.keys()[current_state])
 
 func _deal_damage():
 	"""Deal damage to current target"""
-	print("🗡️ _deal_damage called | State: ", AllyState.keys()[current_state], " | Target: ", current_target)
 	if current_state != AllyState.ATTACKING:
-		print("❌ Not in ATTACKING state, skipping damage.")
 		return
 	if not current_target or not is_instance_valid(current_target):
-		print("❌ No valid target for damage.")
 		return
 
 	# Check if still in range
 	var distance = global_position.distance_to(current_target.global_position)
 	if distance > attack_range * 1.2:
-		print("❌ Target out of range for damage.")
 		return
 
-	# Deal damage
 	if current_target.has_method("take_damage"):
-		print("🗡️ Calling take_damage on target: ", current_target)
 		current_target.take_damage(attack_damage)
-		print("🗡️ Ally dealt ", attack_damage, " damage to ", current_target.name)
-	else:
-		print("❌ Target has no take_damage method!")
 
-	# Show damage numbers
 	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
 	if damage_system:
 		damage_system.show_damage(attack_damage, current_target, "normal")
@@ -507,31 +506,57 @@ func _find_nearest_enemy() -> Node3D:
 	
 	return nearest_enemy
 
-func take_damage(amount: int, _attacker: Node = null):
-	"""Handle taking damage"""
-	if current_health <= 0:
+func take_damage(amount: int, attacker: Node = null):
+	"""Handle taking damage, I-frames, and knockback"""
+	var now = Time.get_ticks_msec() / 1000.0
+	if current_health <= 0 or now - _last_hit_time < invuln_time:
 		return
-	
+	_last_hit_time = now
+
 	current_health -= amount
 	print("🤝 Ally took ", amount, " damage! Health: ", current_health, "/", max_health)
-	
+
 	# Show damage numbers
 	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
-	if damage_system:
+	if damage_system and damage_system.has_method("show_damage"):
 		damage_system.show_damage(amount, self, "normal")
-	
-	# Flash red briefly
-	if mesh_instance and mesh_instance.material_override:
-		var original_color = mesh_instance.material_override.albedo_color
-		mesh_instance.material_override.albedo_color = Color.RED
-		get_tree().create_timer(0.1).timeout.connect(
-			func(): 
-				if is_instance_valid(mesh_instance) and mesh_instance.material_override:
-					mesh_instance.material_override.albedo_color = original_color
-		)
-	
+
+	# Knockback
+	if attacker and attacker.has_method("global_position"):
+		var knockback_dir = (global_position - attacker.global_position)
+		knockback_dir.y = 0
+		if knockback_dir.length() > 0.1:
+			knockback_dir = knockback_dir.normalized()
+			velocity.x = knockback_dir.x * 10.0
+			velocity.z = knockback_dir.z * 10.0
+
+	# Check for death
 	if current_health <= 0:
-		die()
+		_handle_death()
+
+func _handle_death():
+	"""Handle ally death"""
+	if current_state == AllyState.DEAD:
+		return
+		
+	current_state = AllyState.DEAD
+	current_health = 0
+	
+	print("💀 Ally has died!")
+	emit_signal("ally_died")
+	
+	# Disable physics and AI
+	# set_physics_process(false)  # Removed to prevent allies from freezing if not actually dead
+	collision_layer = 0
+	collision_mask = 0
+	
+	# Death animation (if available) or simple fade
+	if mesh_instance:
+		var tween = create_tween()
+		tween.tween_property(mesh_instance, "modulate:a", 0.0, 1.0)
+		tween.tween_callback(queue_free).set_delay(1.0)
+	else:
+		queue_free()
 
 func die():
 	"""Handle ally death"""
@@ -561,3 +586,24 @@ func get_ally_stats() -> Dictionary:
 		"state": AllyState.keys()[current_state],
 		"target": target_name
 	}
+
+
+func _handle_ally_separation(delta):
+	"""Prevent allies from clipping into each other"""
+	var allies = get_tree().get_nodes_in_group("allies")
+	var separation_force = Vector3.ZERO
+	
+	for ally in allies:
+		if ally == self or not is_instance_valid(ally):
+			continue
+		
+		var distance = global_position.distance_to(ally.global_position)
+		if distance < separation_distance and distance > 0:
+			var separation_vector = (global_position - ally.global_position).normalized()
+			separation_vector.y = 0  # Keep on ground
+			var force_strength = (separation_distance - distance) / separation_distance
+			separation_force += separation_vector * force_strength * 2.0
+	
+	# Apply separation to velocity
+	velocity.x += separation_force.x * speed * delta
+	velocity.z += separation_force.z * speed * delta
