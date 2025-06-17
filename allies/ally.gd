@@ -1,5 +1,6 @@
 extends CharacterBody3D
 class_name Ally
+signal ally_died
 
 # Main ally controller that coordinates all components
 # Export stats for easy tweaking in editor
@@ -26,6 +27,9 @@ func _ready():
 	add_to_group("allies")
 	_setup_components()
 	_find_player()
+	# Connect health component death signal
+	if health_component:
+		health_component.health_depleted.connect(_on_health_depleted)
 
 func _setup_components():
 	# Initialize each component with needed references
@@ -48,22 +52,17 @@ func _find_player():
 		ai_component.set_player_target(player_ref)
 
 func _physics_process(delta):
-	# Let AI component handle movement decisions
-	# Movement component will set velocity
-	# Apply separation
-	movement_component.apply_separation(delta)
-	
-	# Apply gravity
+	# Add gravity
 	if not is_on_floor():
-		velocity.y -= 9.8 * delta
-	else:
-		velocity.y = 0
-	
-	# Move the character
+		velocity.y -= ProjectSettings.get_setting("physics/3d/default_gravity") * delta
+	# Apply movement
 	move_and_slide()
 
 func take_damage(amount: int, attacker: Node = null):
 	health_component.take_damage(amount, attacker)
+
+func _on_health_depleted():
+	ally_died.emit()
 
 func _on_ally_died():
 	print("💀 Ally died!")

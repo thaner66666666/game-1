@@ -3,6 +3,7 @@ class_name AllyHealth
 
 signal health_changed(current: int, maximum: int)
 signal ally_died
+signal health_depleted
 
 var ally_ref
 var current_health: int
@@ -39,6 +40,7 @@ func take_damage(amount: int, attacker: Node = null):
 	
 	if current_health <= 0:
 		ally_died.emit()
+		health_depleted.emit()
 
 func _apply_knockback(attacker: Node):
 	if not attacker.has_method("get_global_position"):

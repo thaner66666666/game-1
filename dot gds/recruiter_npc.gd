@@ -91,7 +91,7 @@ func recruit_ally():
 		get_parent().add_child(new_ally)
 		
 		# Position ally next to recruiter
-		new_ally.global_position = global_position + Vector3(randf_range(-2, 2), 0, randf_range(-2, 2))
+		new_ally.global_position = global_position + Vector3(randf_range(-2, 2), 5.0, randf_range(-2, 2))
 
 		# Ensure visual setup
 		if new_ally.has_method("_create_visual"):
