@@ -40,6 +40,10 @@ func _setup_components():
 	ai_component.setup(self)
 	health_component.ally_died.connect(_on_ally_died)
 	_create_character_appearance()
+	# Debug: Check if foot nodes exist after character creation
+	var left_foot = get_node_or_null("LeftFoot")
+	var right_foot = get_node_or_null("RightFoot")
+	print("🦶 POST-CREATION CHECK - LeftFoot: ", left_foot, " RightFoot: ", right_foot)
 	# Make hands visible by default
 	_ensure_hands_visible()
 	# Configure collision layers for separation

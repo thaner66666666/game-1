@@ -23,8 +23,8 @@ var side_step_modifier := 1.4
 signal foot_animation_update(left_pos: Vector3, right_pos: Vector3)
 
 # Animation node references
-# var left_foot_node: Node3D = null
-# var right_foot_node: Node3D = null
+var left_foot_node: Node3D = null
+var right_foot_node: Node3D = null
 var left_foot_origin: Vector3 = Vector3.ZERO
 var right_foot_origin: Vector3 = Vector3.ZERO
 
@@ -32,7 +32,14 @@ func setup(ally, move_speed: float):
 	ally_ref = ally
 	speed = move_speed
 	orbit_angle = randf() * TAU  # Random starting orbit position
+	# Wait one frame to ensure ally is fully instantiated
+	await ally.get_tree().process_frame
 	initialize_foot_animation()
+	# Validate initialization
+	if not left_foot_node or not right_foot_node:
+		print("⚠️ ALLY FOOT SETUP FAILED: Could not find foot nodes!")
+	else:
+		print("✅ ALLY FOOT SETUP SUCCESS: Foot nodes found and stored")
 
 func move_towards_target(target_pos: Vector3, delta: float):
 	var direction = (target_pos - ally_ref.global_position)
@@ -122,59 +129,52 @@ func _face_direction(direction: Vector3):
 
 func initialize_foot_animation():
 	print("🦶 SEARCH: Looking for foot nodes...")
-	var left_foot = ally_ref.get_node_or_null("LeftFoot")
-	var right_foot = ally_ref.get_node_or_null("RightFoot")
-	print("🦶 LEFT: ", left_foot)
-	print("🦶 RIGHT: ", right_foot)
+	left_foot_node = ally_ref.get_node_or_null("LeftFoot")
+	right_foot_node = ally_ref.get_node_or_null("RightFoot")
+	print("🦶 LEFT: ", left_foot_node)
+	print("🦶 RIGHT: ", right_foot_node)
 	# Store original positions
-	if left_foot:
-		left_foot_origin = left_foot.position
-	if right_foot:
-		right_foot_origin = right_foot.position
+	if left_foot_node:
+		left_foot_origin = left_foot_node.position
+	if right_foot_node:
+		right_foot_origin = right_foot_node.position
 	print("🦶 Ally foot animation initialized - Origins: [", left_foot_origin, ", ", right_foot_origin, "]")
 
 func _update_foot_animation(delta: float, is_moving: bool):
-	print("🦶 CALLED: is_moving=", is_moving)
-	# Find foot nodes fresh each time (more reliable than storing references)
-	var left_foot = ally_ref.get_node_or_null("LeftFoot")
-	var right_foot = ally_ref.get_node_or_null("RightFoot")
-	print("🦶 FOUND: left=", left_foot, " right=", right_foot)
-	if not left_foot or not right_foot:
-		print("🦶 MISSING: Can't find foot nodes!")
+	# Use stored references instead of searching each time
+	if not left_foot_node or not right_foot_node:
+		print("🦶 MISSING: Foot node references not initialized!")
 		return
-	
+	# Validate that the nodes are still valid
+	if not is_instance_valid(left_foot_node) or not is_instance_valid(right_foot_node):
+		print("🦶 INVALID: Foot nodes became invalid!")
+		return
 	if not is_moving:
 		# Return to rest position when not moving
-		left_foot.position = left_foot_origin
-		right_foot.position = right_foot_origin
+		left_foot_node.position = left_foot_origin
+		right_foot_node.position = right_foot_origin
 		return
-	
 	# Advance walk cycle
 	var move_speed = ally_ref.velocity.length()
 	step_cycle_speed = max(4.0, move_speed / max(1.0, speed) * 5.0)
 	walk_cycle_time += delta * step_cycle_speed * 2.0
-	
 	# Keep in range [0, TAU]
 	if walk_cycle_time > TAU:
 		walk_cycle_time -= TAU
-	
 	# Calculate foot animation phases
 	var foot_phase = walk_cycle_time + personality_offset
-	
 	# Calculate foot movements
 	var foot_swing_modifier = foot_step_strength
 	var left_foot_swing = sin(foot_phase) * foot_swing_modifier
 	var right_foot_swing = sin(foot_phase + PI) * foot_swing_modifier
 	var left_foot_lift = max(0, sin(foot_phase + PI/2)) * 0.12
 	var right_foot_lift = max(0, sin(foot_phase + PI + PI/2)) * 0.12
-	
 	# Apply foot positions
-	var left_foot_pos = left_foot_origin + Vector3(0, left_foot_lift, -left_foot_swing)
-	var right_foot_pos = right_foot_origin + Vector3(0, right_foot_lift, -right_foot_swing)
-	
+	var left_foot_pos = left_foot_origin + Vector3(0, left_foot_lift, left_foot_swing)
+	var right_foot_pos = right_foot_origin + Vector3(0, right_foot_lift, right_foot_swing)
 	# ACTUALLY MOVE THE FOOT NODES!
-	left_foot.position = left_foot_pos
-	right_foot.position = right_foot_pos
-	
+	left_foot_node.position = left_foot_pos
+	right_foot_node.position = right_foot_pos
 	# Emit signal for any listeners
 	foot_animation_update.emit(left_foot_pos, right_foot_pos)
+	print("🦶 SUCCESS: Animated feet - Left: ", left_foot_pos, " Right: ", right_foot_pos)
