@@ -181,3 +181,28 @@ static func test_generation():
 	print("Warrior body height: ", warrior["body_height"])
 	
 	print("=== TEST COMPLETE ===")
+
+# Apply a skin tone to an ally using CharacterAppearanceManager
+static func apply_skin_tone_to_ally(character: CharacterBody3D, skin_tone: Color):
+	var config = generate_random_character_config()
+	config["skin_tone"] = skin_tone
+	CharacterAppearanceManager.create_player_appearance(character, config)
+
+# Generate a team with unique skin tones
+static func generate_team_with_skin_variety(team_size: int) -> Array:
+	var rng = RandomNumberGenerator.new()
+	var used_indices = []
+	var configs = []
+	var tones = BodyPartVariants.skin_tones
+	var max_unique = min(team_size, tones.size())
+	for i in range(max_unique):
+		var idx = i
+		used_indices.append(idx)
+	for i in range(team_size):
+		var config = generate_random_character_config()
+		if i < max_unique:
+			config["skin_tone"] = tones[used_indices[i]]
+		else:
+			config["skin_tone"] = tones[rng.randi() % tones.size()]
+		configs.append(config)
+	return configs

@@ -17,7 +17,16 @@ static var skin_tones = [
 	Color(0.82, 0.68, 0.52),  # Olive tone
 	Color(0.98, 0.85, 0.75),  # Porcelain
 	Color(0.87, 0.67, 0.45),  # Golden
-	Color(0.55, 0.42, 0.30)   # Deep bronze
+	Color(0.55, 0.42, 0.30),  # Deep bronze
+	# --- Added realistic global skin tones with undertones ---
+	Color(0.99, 0.92, 0.82),  # Light (peachy undertone)
+	Color(0.96, 0.85, 0.78),  # Light (rosy undertone)
+	Color(0.93, 0.80, 0.70),  # Light (yellow undertone)
+	Color(0.80, 0.65, 0.55),  # Medium (neutral undertone)
+	Color(0.72, 0.54, 0.40),  # Medium (warm undertone)
+	Color(0.60, 0.44, 0.32),  # Medium-dark (cool undertone)
+	Color(0.50, 0.36, 0.28),  # Dark (neutral undertone)
+	Color(0.36, 0.24, 0.18),  # Deep (cool undertone)
 ]
 
 # =================================
@@ -217,3 +226,22 @@ static func get_complementary_color(color: Color) -> Color:
 
 static func blend_colors(color1: Color, color2: Color, weight: float = 0.5) -> Color:
 	return color1.lerp(color2, weight)
+
+# Helper: Get skin tone by category
+static func get_skin_tone_by_category(category: String) -> Color:
+	var tones = skin_tones
+	match category.to_lower():
+		"light":
+			return tones[randi() % 6] # First 6 are lightest
+		"medium":
+			return tones[5 + randi() % 6] # Next 6 are medium
+		"dark":
+			return tones[11 + randi() % 7] # Last 7 are darkest
+		"warm":
+			return tones[7] if tones.size() > 7 else tones[0]
+		"cool":
+			return tones[17] if tones.size() > 17 else tones[-1]
+		"random":
+			return tones[randi() % tones.size()]
+		_:
+			return tones[randi() % tones.size()]
