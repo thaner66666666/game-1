@@ -33,6 +33,7 @@ func _load_all_weapons():
 	
 	# Uncommon weapons (mid-tier)
 	_add_weapon_to_pool("res://Weapons/steel_sword.tres", "uncommon")
+	_add_weapon_to_pool("res://Weapons/mage_staff.tres", "uncommon")
 	
 	# Rare weapons (high-tier)
 	_add_weapon_to_pool("res://Weapons/enchanted_blade.tres", "rare")
@@ -149,3 +150,9 @@ func print_weapon_stats():
 			print("  - ", weapon.weapon_name, " (", weapon.attack_damage, " dmg)")
 	print("Found this run: ", weapons_found_this_run)
 	print("==========================")
+
+
+# ...existing code...
+# Disabled staff in weapon pool for now
+# _add_weapon_to_pool("res://Weapons/mage_staff.tres", "uncommon")
+# ...existing code...

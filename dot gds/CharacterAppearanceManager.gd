@@ -93,10 +93,10 @@ static func create_random_character(character: CharacterBody3D):
 	return create_player_appearance(character, config)
 
 static func _clear_existing_appearance(character: CharacterBody3D):
-	"""Clear any existing parts - FIXED to preserve foot nodes for animation"""
+	"""Clear any existing parts - FIXED with more comprehensive clearing"""
 	var parts_to_remove = [
 		"LeftArm", "RightArm", "LeftLeg", "RightLeg",
-		"LeftHand", "RightHand", "Foot0", "Foot1",  # Removed LeftFoot and RightFoot
+		"LeftHand", "RightHand", "LeftFoot", "RightFoot", "Foot0", "Foot1",
 		"LeftEye", "RightEye",  # Added eyes
 		"Mouth", "MouthSphere0", "MouthSphere1", "MouthSphere2",  # Added mouth and spheres
 		"Hair", "Mustache", "Goatee", "Beard"
@@ -182,53 +182,39 @@ static func _create_hands_old_way(character: CharacterBody3D, cfg := {}):
 		character.add_child(hand)
 
 static func _create_feet(character: CharacterBody3D, cfg := {}):
-	"""Create or modify existing foot nodes to add visual mesh"""
+	"""Floating feet with shape and position options.
+	All foot shapes use BoxMesh for safety and appropriateness."""
 	var shape = cfg.get("shape", "bare")
 	var size = cfg.get("size", FOOT_SIZE)
+	var dist = cfg.get("distance", 0.25)
+	var height = cfg.get("height", -1.05) + 0.2 - 0.05
 	var scale_vec = Vector3(0.85 * 0.75, 0.85, 0.85)
 
-	# Check for existing foot nodes first
-	var left_foot = character.get_node_or_null("LeftFoot")
-	var right_foot = character.get_node_or_null("RightFoot")
-	
-	# If existing nodes exist, add mesh as child, otherwise create new nodes
+	# Only BoxMesh is allowed for all foot shapes for safety and style consistency.
 	for i in [-1, 1]:
-		var foot_node = left_foot if i < 0 else right_foot
-		var foot_name = "LeftFoot" if i < 0 else "RightFoot"
-		
-		if not foot_node:
-			# Create new node if it doesn't exist
-			foot_node = Node3D.new()
-			foot_node.name = foot_name
-			foot_node.position = Vector3(i * 0.25, -0.9, 0.18)  # Match ally.tscn positions
-			character.add_child(foot_node)
-		
-		# Clear any existing mesh children
-		for child in foot_node.get_children():
-			if child is MeshInstance3D:
-				child.queue_free()
-		
-		# Add visual mesh as child of foot node
-		var foot_visual = MeshInstance3D.new()
-		foot_visual.name = "FootMesh"
+		var foot = MeshInstance3D.new()
+		foot.name = "LeftFoot" if i < 0 else "RightFoot"
 		var mesh = BoxMesh.new()
-		
 		match shape:
 			"bare":
 				mesh.size = Vector3(size.x * 1.7, size.y * 2.5, size.z * 1.7)
+				foot.scale = scale_vec
 			"boot":
 				mesh.size = Vector3(size.x * 1.8, size.y * 2.5, size.z * 1.9)
+				foot.scale = scale_vec
 			"small":
 				mesh.size = Vector3(size.x * 1.2, size.y * 2.2, size.z * 1.2)
+				foot.scale = scale_vec
 			"wide":
 				mesh.size = Vector3(size.x * 2.2, size.y * 2.5, size.z * 2.2)
+				foot.scale = scale_vec
 			_:
 				mesh.size = Vector3(size.x * 1.2, size.y * 2.2, size.z * 1.2)
-		
-		foot_visual.mesh = mesh
-		foot_visual.scale = scale_vec
-		foot_visual.material_override = SKIN_MATERIAL
-		foot_node.add_child(foot_visual)
+				foot.scale = scale_vec
+		foot.mesh = mesh
+		foot.position = Vector3(i * dist, height, 0)
+		foot.material_override = SKIN_MATERIAL
+		character.add_child(foot)
 
 static func get_eye_z_position(body_radius: float) -> float:
 	# For skinny (radius ~0.15): Z = -0.15 (closer to center)

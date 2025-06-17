@@ -123,8 +123,8 @@ func _update_body_in_scene(config: Dictionary):
 @export var side_step_modifier: float = 0.4
 
 # --- Node References (using @onready for caching) ---
-var left_foot: Node3D
-var right_foot: Node3D
+var left_foot: MeshInstance3D
+var right_foot: MeshInstance3D
 
 @onready var movement_component: PlayerMovement = $MovementComponent
 @onready var combat_component: PlayerCombat = $CombatComponent

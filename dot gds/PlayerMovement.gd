@@ -721,12 +721,12 @@ func _update_walking_animations(delta: float, input_direction: Vector3):
 			left_foot_pos = left_foot_origin + Vector3(
 				cross_multiplier,
 				left_foot_lift + cross_lift_multiplier,
-				left_foot_swing
+				left_foot_swing * foot_direction_multiplier
 			)
 			right_foot_pos = right_foot_origin + Vector3(
 				-cross_multiplier,
 				right_foot_lift + cross_lift_multiplier,
-				right_foot_swing
+				right_foot_swing * foot_direction_multiplier
 			)
 		elif is_diagonal:
 			# Diagonal: blend between forward and side, reduce crossing but keep visible
@@ -735,24 +735,24 @@ func _update_walking_animations(delta: float, input_direction: Vector3):
 			left_foot_pos = left_foot_origin + Vector3(
 				diag_cross,
 				left_foot_lift + diag_lift,
-				left_foot_swing
+				left_foot_swing * foot_direction_multiplier
 			)
 			right_foot_pos = right_foot_origin + Vector3(
 				-diag_cross,
 				right_foot_lift + diag_lift,
-				right_foot_swing
+				right_foot_swing * foot_direction_multiplier
 			)
 		else:
 			# Normal foot animation for forward/backward
 			left_foot_pos = left_foot_origin + Vector3(
 				0,
 				left_foot_lift,
-				left_foot_swing
+				left_foot_swing * foot_direction_multiplier
 			)
 			right_foot_pos = right_foot_origin + Vector3(
 				0,
 				right_foot_lift,
-				right_foot_swing
+				right_foot_swing * foot_direction_multiplier
 			)
 
 	if left_foot_pos != null and right_foot_pos != null:
