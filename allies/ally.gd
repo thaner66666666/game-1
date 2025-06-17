@@ -27,6 +27,10 @@ var right_foot
 var left_foot_original_pos: Vector3
 var right_foot_original_pos: Vector3
 var animation_time: float = 0.0
+# Simple body animation variables
+var body_node
+var body_original_pos: Vector3
+var body_waddle_time: float = 0.0
 
 var player_ref: CharacterBody3D
 
@@ -38,6 +42,9 @@ func _ready():
 	# Connect health component death signal
 	if health_component:
 		health_component.health_depleted.connect(_on_health_depleted)
+	# Initialize body animation after movement setup
+	if movement_component:
+		movement_component.initialize_body_animation()
 
 # Use 'await' instead of 'yield' for Godot 4.x compatibility
 func _setup_components() -> void:
@@ -98,6 +105,36 @@ func _setup_foot_references() -> void:
 			print("   - Found LeftFoot: ", left_foot.name)
 		if right_foot:
 			print("   - Found RightFoot: ", right_foot.name)
+	# Find body node (MeshInstance3D with 'Body' in name)
+	body_node = null
+	var mesh_children = []
+	for child in get_children():
+		if child is MeshInstance3D:
+			mesh_children.append(child)
+	print("🔍 MeshInstance3D children:", mesh_children.map(func(c): return c.name))
+	# Try to find by 'Body', 'Torso', 'Chest'
+	# Use 'body_name' to avoid shadowing base class property
+	for body_name in ["Body", "Torso", "Chest"]:
+		for child in mesh_children:
+			if body_name in child.name:
+				body_node = child
+				body_original_pos = body_node.position
+				print("✅ Found body node by name '", body_name, "': ", body_node.name, " at ", body_original_pos)
+				break
+		if body_node:
+			break
+	# Fallback: use mesh_instance or first MeshInstance3D
+	if not body_node:
+		if mesh_instance:
+			body_node = mesh_instance
+			body_original_pos = body_node.position
+			print("⚠️ Fallback: using mesh_instance as body_node: ", body_node.name, " at ", body_original_pos)
+		elif mesh_children.size() > 0:
+			body_node = mesh_children[0]
+			body_original_pos = body_node.position
+			print("⚠️ Fallback: using first MeshInstance3D as body_node: ", body_node.name, " at ", body_original_pos)
+	if not body_node:
+		print("❌ Could not find body node")
 
 func _find_player():
 	player_ref = get_tree().get_first_node_in_group("player")
@@ -130,6 +167,22 @@ func _physics_process(delta):
 			if right_foot and right_foot is MeshInstance3D:
 				right_foot_original_pos = right_foot.position
 				print("🦶 Found RightFoot late!")
+	# Simple body waddle animation with debug prints
+	if body_node:
+		print("[BodyAnim] body_node found: ", body_node.name)
+	print("[BodyAnim] velocity.length(): ", velocity.length())
+	if body_node and velocity.length() > 0.1:
+		body_waddle_time += delta * 5.0
+		var sway = sin(body_waddle_time) * 0.15
+		var bob = sin(body_waddle_time * 2.0) * 0.08
+		print("[BodyAnim] sway: ", sway, ", bob: ", bob)
+		body_node.position = body_original_pos + Vector3(sway, bob, 0)
+		print("[BodyAnim] body_node.position: ", body_node.position)
+	else:
+		body_waddle_time = 0.0
+		if body_node:
+			body_node.position = body_original_pos
+			print("[BodyAnim] Reset body_node.position: ", body_node.position)
 
 func take_damage(amount: int, attacker: Node = null):
 	health_component.take_damage(amount, attacker)

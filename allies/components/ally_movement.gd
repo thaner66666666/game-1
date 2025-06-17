@@ -10,10 +10,47 @@ var separation_distance := 1.5
 var orbit_radius := 2.5
 var orbit_angle: float
 
+# Body animation variables
+var body_origin: Vector3
+var current_body_sway: Vector3 = Vector3.ZERO
+var target_body_sway: Vector3 = Vector3.ZERO
+var body_sway_strength: float = 0.08
+var body_lean_strength: float = 0.15
+var interpolation_speed: float = 8.0
+var walk_cycle_time: float = 0.0
+var personality_offset: float = 0.0
+var body_node
+
 func setup(ally, move_speed: float):
 	ally_ref = ally
 	speed = move_speed
 	orbit_angle = randf() * TAU  # Random starting orbit position
+	initialize_body_animation()
+
+func initialize_body_animation():
+	# Find the body node (MeshInstance3D with 'Body', 'Torso', or 'Chest' in name)
+	body_node = null
+	var mesh_children = []
+	for child in ally_ref.get_children():
+		if child is MeshInstance3D:
+			mesh_children.append(child)
+	# Use 'body_name' to avoid shadowing base class property
+	for body_name in ["Body", "Torso", "Chest"]:
+		for child in mesh_children:
+			if body_name in child.name:
+				body_node = child
+				break
+		if body_node:
+			break
+	if not body_node and ally_ref.mesh_instance:
+		body_node = ally_ref.mesh_instance
+	if body_node:
+		body_origin = body_node.position
+	else:
+		body_origin = Vector3.ZERO
+	personality_offset = randf_range(-0.1, 0.1)
+	current_body_sway = Vector3.ZERO
+	target_body_sway = Vector3.ZERO
 
 func move_towards_target(target_pos: Vector3, delta: float):
 	var direction = (target_pos - ally_ref.global_position)
@@ -28,6 +65,27 @@ func move_towards_target(target_pos: Vector3, delta: float):
 		# Stop when close enough
 		ally_ref.velocity.x = move_toward(ally_ref.velocity.x, 0, speed * 2 * delta)
 		ally_ref.velocity.z = move_toward(ally_ref.velocity.z, 0, speed * 2 * delta)
+	
+	# Call body animation update after velocity is set
+	if body_node:
+		_update_ally_body_animation(delta, ally_ref.velocity)
+
+func _update_ally_body_animation(delta: float, velocity: Vector3):
+	if not body_node:
+		return
+	if velocity.length() > 0.1:
+		walk_cycle_time += delta * 4.0
+		var vel_scale = clamp(velocity.length() / 3.5, 0.3, 1.5)
+		var vertical_bob = sin(walk_cycle_time * 2.0 + personality_offset) * body_sway_strength * 0.5 * vel_scale
+		var horizontal_sway = sin(walk_cycle_time + personality_offset) * body_sway_strength * 0.3 * vel_scale
+		target_body_sway = Vector3(horizontal_sway, vertical_bob, 0)
+		current_body_sway = lerp(current_body_sway, target_body_sway, interpolation_speed * delta)
+		body_node.position = body_origin + current_body_sway
+		#print("[AllyBodyAnim] vel:", velocity.length(), "sway:", current_body_sway)
+	else:
+		walk_cycle_time = 0.0
+		current_body_sway = lerp(current_body_sway, Vector3.ZERO, interpolation_speed * delta)
+		body_node.position = body_origin + current_body_sway
 
 func orbit_around_player(player: Node3D, delta: float):
 	if not player:
