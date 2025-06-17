@@ -97,7 +97,6 @@ func _update_body_in_scene(config: Dictionary):
 
 @export_group("Health")
 @export var max_health := 100
-@export var current_health := 100
 @export var health_regen_rate := 2.0
 @export var health_regen_delay := 3.0
 
@@ -109,10 +108,6 @@ func _update_body_in_scene(config: Dictionary):
 @export var max_dash_charges := 1
 
 @export_group("Experience")
-@export var xp := 0
-@export var level := 1
-@export var xp_to_next_level := 100
-@export var xp_growth := 1.5
 @export var heal_amount_from_potion := 30
 
 @export_group("Animation")
@@ -129,6 +124,8 @@ var right_foot: MeshInstance3D
 @onready var movement_component: PlayerMovement = $MovementComponent
 @onready var combat_component: PlayerCombat = $CombatComponent
 @onready var sword_node: MeshInstance3D = $WeaponAttachPoint/SwordNode
+@onready var health_component = $HealthComponent
+@onready var progression_component: PlayerProgression = $ProgressionComponent
 
 # Weapon system variables
 var weapon_attach_point: Node3D = null
@@ -141,13 +138,11 @@ var base_attack_cooldown := 1.0
 var base_attack_cone_angle := 90.0
 
 # Player state
-var currency := 0
-var total_coins_collected := 0
 var is_dead := false
 var nearby_weapon_pickup = null
 
-# Health system state
-var last_damage_time := 0.0
+# --- Health System Component ---
+# Removed duplicate declaration of health_component
 
 # Mouse look system
 var camera: Camera3D = null
@@ -167,8 +162,8 @@ var left_foot_step_progress := 1.0
 var right_foot_step_progress := 1.0
 
 # Visual effects
-var invulnerability_timer := 0.0
-const INVULNERABILITY_DURATION := 0.5
+# var invulnerability_timer := 0.0
+# const INVULNERABILITY_DURATION := 0.5
 
 # Node references (cached in _ready)
 var attack_area: Area3D
@@ -178,9 +173,7 @@ const FRICTION_MULTIPLIER := 3.0
 const MOVEMENT_THRESHOLD := 0.1
 
 # Signals
-signal health_changed(current_health: int, max_health: int)
 signal dash_charges_changed(current_charges: int, max_charges: int)
-signal player_died
 signal coin_collected(amount: int)
 signal xp_changed(xp: int, xp_to_next: int, level: int)
 
@@ -203,6 +196,15 @@ func _ready():
 		movement_component.initialize(self)
 	if combat_component and combat_component.has_method("initialize"):
 		combat_component.initialize(self, movement_component)
+	# Health system setup
+	health_component.setup(self, max_health)
+	health_component.health_changed.connect(_on_health_changed)
+	health_component.player_died.connect(_on_player_died)
+	health_component.health_depleted.connect(_on_health_depleted)
+	# Progression system setup
+	progression_component.setup(self)
+	progression_component.coin_collected.connect(_on_coin_collected)
+	progression_component.xp_changed.connect(_on_xp_changed)
 	# Pass animation settings to movement_component if supported
 	if movement_component and movement_component.has_method("set_animation_settings"):
 		movement_component.set_animation_settings({
@@ -235,9 +237,6 @@ func _setup_player():
 	_configure_collision()
 	_create_visual()
 	_setup_attack_system()
-	_setup_health_system()
-	_initialize_currency()
-	_initialize_base_stats()
 	_setup_hand_references()
 	_setup_weapon_attach_point()
 	_connect_weapon_manager_signals()
@@ -260,12 +259,6 @@ func _create_visual():
 	# Only create MeshInstance3D if it doesn't exist; do not call CharacterAppearanceManager or create_random_character here
 	print("✅ Player visual created successfully!")
 
-func _initialize_base_stats():
-	base_attack_damage = attack_damage
-	base_attack_range = attack_range
-	base_attack_cooldown = attack_cooldown
-	base_attack_cone_angle = attack_cone_angle
-
 func _setup_attack_system():
 	attack_area = Area3D.new()
 	attack_area.name = "AttackArea"
@@ -279,16 +272,6 @@ func _setup_attack_system():
 	attack_area.collision_mask = 4
 	if not attack_area.is_connected("area_entered", _on_area_pickup_entered):
 		attack_area.area_entered.connect(_on_area_pickup_entered)
-
-func _setup_health_system():
-	current_health = max_health
-	last_damage_time = 0.0
-	is_dead = false
-	health_changed.emit(current_health, max_health)
-
-func _initialize_currency():
-	currency = 0
-	total_coins_collected = 0
 
 func _setup_hand_references():
 	# --- FEET (find them after character creation) ---
@@ -466,207 +449,55 @@ func _on_area_pickup_entered(area: Area3D):
 
 func _pickup_coin(area: Area3D):
 	var coin_value = area.get_meta("coin_value") if area.has_meta("coin_value") else 10
-	_add_currency(coin_value)
+	progression_component.add_currency(coin_value)
 	coin_collected.emit(coin_value)
 	if is_instance_valid(area):
 		area.queue_free()
 
-func _add_currency(amount: int):
-	currency += amount
-	total_coins_collected += amount
-	coin_collected.emit(currency)
-
 func _pickup_health_potion(area: Area3D):
-	if current_health >= max_health:
+	if health_component.current_health >= max_health:
 		# Don't pick up if at full health
 		return
-	heal(heal_amount_from_potion)
+	health_component.heal(heal_amount_from_potion)
 	if is_instance_valid(area):
 		area.queue_free()
 
 func _pickup_xp_orb(area: Area3D):
 	var xp_value = area.get_meta("xp_value") if area.has_meta("xp_value") else 10
-	add_xp(xp_value)
+	progression_component.add_xp(xp_value)
 	if is_instance_valid(area):
 		area.queue_free()
 
-func add_xp(amount: int):
-	xp += amount
-	xp_changed.emit(xp, xp_to_next_level, level)
-	if xp >= xp_to_next_level:
-		_level_up()
+# --- Health System Component Handlers ---
+func _on_health_changed(_current_health: int, _max_health: int):
+	# Update UI or other systems as needed
+	pass
 
-func _level_up():
-	xp -= xp_to_next_level
-	level += 1
-	xp_to_next_level = int(xp_to_next_level * xp_growth)
-	current_health = max_health
-	health_changed.emit(current_health, max_health)
-	xp_changed.emit(xp, xp_to_next_level, level)
-
-# --- Health System Methods ---
-func heal(heal_amount: int):
-	if is_dead or current_health >= max_health:
-		return
-	var old_health = current_health
-	current_health = min(current_health + heal_amount, max_health)
-	if current_health != old_health:
-		health_changed.emit(current_health, max_health)
-		_show_heal_feedback(heal_amount)
-
-func take_damage(amount: int, from: Node3D = null):
-	if is_dead or invulnerability_timer > 0:
-		return
-	var old_health = current_health
-	current_health = max(current_health - amount, 0)
-	last_damage_time = Time.get_ticks_msec() / 1000.0
-	invulnerability_timer = INVULNERABILITY_DURATION
-	health_changed.emit(current_health, max_health)
-	if from and movement_component:
-		movement_component.apply_knockback_from_enemy(from)
-	if current_health <= 0 and not is_dead:
-		_handle_player_death()
-	if current_health != old_health:
-		_show_damage_feedback(amount)
-
-func _show_heal_feedback(heal_amount: int):
-	# Flash green
-	if mesh_instance and mesh_instance.material_override:
-		mesh_instance.material_override.albedo_color = Color(0.3, 1.0, 0.3)
-	
-	# FIXED: Use the correct damage numbers system for healing
-	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
-	if damage_system:
-		damage_system.show_heal(heal_amount, self)
-	
-	# Play heal sound (if available)
-	if has_node("HealSound"):
-		$HealSound.play()
-
-func _show_damage_feedback(damage_amount: int):
-	# Flash red
-	if mesh_instance and mesh_instance.material_override:
-		mesh_instance.material_override.albedo_color = Color(1.0, 0.2, 0.2)
-	
-	# FIXED: Use the correct damage numbers system
-	var damage_system = get_tree().get_first_node_in_group("damage_numbers")
-	if damage_system:
-		damage_system.show_damage(damage_amount, self, "normal")
-	
-	# Play damage sound (if available)
-	if has_node("DamageSound"):
-		$DamageSound.play()
-	
-	# Screen shake (if camera exists and supports it)
-	if camera and camera.has_method("shake"):
-		camera.shake(0.2, 4.0)
-	
-	# Damage particles (if available)
-	if has_node("DamageParticles"):
-		$DamageParticles.restart()
-
-func _handle_player_death():
+func _on_player_died():
 	is_dead = true
-	player_died.emit()
-	# Play death animation if available
-	if mesh_instance and mesh_instance.has_animation("death"):
-		mesh_instance.play("death")
-	# Disable input (if using an input component)
-	if has_node("InputComponent"):
-		$InputComponent.set_process(false)
-	# Show death/game over screen (if available)
-	if has_node("/root/DeathScreen"):
-		get_node("/root/DeathScreen").show()
+	# Handle player death logic (animation, input disable, etc.)
+	pass
 
-# Public API / Getters
-func get_health() -> int:
-	return current_health
+func _on_health_depleted():
+	# Handle logic when health reaches zero (game over, respawn, etc.)
+	pass
 
-func get_max_health() -> int:
-	return max_health
+func _on_coin_collected(amount: int):
+	coin_collected.emit(amount)  # Re-emit for UI
 
-func get_health_percentage() -> float:
-	return float(current_health) / float(max_health) if max_health > 0 else 0.0
+func _on_xp_changed(xp_val: int, xp_to_next_val: int, level_val: int):
+	xp_changed.emit(xp_val, xp_to_next_val, level_val)  # Re-emit for UI
 
-func set_max_health(new_max_health: int):
-	max_health = new_max_health
-	current_health = max_health
-	health_changed.emit(current_health, max_health)
-
-func get_dash_charges() -> int:
-	return movement_component.current_dash_charges
-
-func get_max_dash_charges() -> int:
-	return max_dash_charges
-
-func upgrade_dash_charges(increase: int):
-	max_dash_charges += increase
-	movement_component.current_dash_charges = min(movement_component.current_dash_charges + increase, max_dash_charges)
-	dash_charges_changed.emit(movement_component.current_dash_charges, max_dash_charges)
-
-func get_currency() -> int:
-	return currency
-
-func get_xp() -> int:
-	return xp
-
-func get_facing_direction() -> Vector3:
-	# Ensure facing direction is -Z (forward)
-	return -transform.basis.z
-
-func is_moving() -> bool:
-	return Vector2(velocity.x, velocity.z).length() > MOVEMENT_THRESHOLD
-
-func get_position_2d() -> Vector2:
-	return Vector2(global_position.x, global_position.z)
-
-func get_player_stats() -> Dictionary:
-	var current_weapon = WeaponManager.get_current_weapon() if WeaponManager.is_weapon_equipped() else null
-	var current_weapon_name = current_weapon.weapon_name if current_weapon and "weapon_name" in current_weapon else ""
-	var nearby_weapon_name = ""
-	
-	if nearby_weapon_pickup:
-		if "weapon_name" in nearby_weapon_pickup:
-			nearby_weapon_name = nearby_weapon_pickup.weapon_name
-		elif nearby_weapon_pickup.has_meta("weapon_name"):
-			nearby_weapon_name = str(nearby_weapon_pickup.get_meta("weapon_name"))
-	
-	return {
-		"health": current_health,
-		"max_health": max_health,
-		"dash_charges": movement_component.current_dash_charges,
-		"max_dash_charges": max_dash_charges,
-		"currency": currency,
-		"total_coins": total_coins_collected,
-		"attack_damage": attack_damage,
-		"speed": speed,
-		"is_dashing": movement_component.is_dashing,
-		"is_attacking": combat_component.state != combat_component.CombatState.IDLE,
-		"is_dead": is_dead,
-		"knockback_force": knockback_force,
-		"knockback_duration": knockback_duration,
-		"is_being_knocked_back": movement_component.is_being_knocked_back,
-		"xp": xp,
-		"level": level,
-		"current_weapon_name": current_weapon_name,
-		"nearby_weapon_name": nearby_weapon_name,
-		"can_drop_weapon": WeaponManager.is_weapon_equipped(),
-		"can_swap_weapon": is_instance_valid(nearby_weapon_pickup),
-		"combat_state": combat_component.state
-	}
-
-#region Animation Functions
-
-# --- Animation signal handlers ---
-func _on_hand_animation_update(_left_pos: Vector3, _right_pos: Vector3, _left_rot: Vector3, _right_rot: Vector3) -> void:
-	var left_hand = get_node_or_null("LeftHand")
+# Animation signal handlers for movement component
+func _on_hand_animation_update(left_pos: Vector3, right_pos: Vector3, left_rot: Vector3, right_rot: Vector3) -> void:
+	var left_hand = get_node_or_null("LeftHandAnchor/LeftHand")
 	if left_hand:
-		left_hand.position = _left_pos
-		left_hand.rotation_degrees = _left_rot
-	var right_hand = get_node_or_null("RightHand")
+		left_hand.position = left_pos
+		left_hand.rotation_degrees = left_rot
+	var right_hand = get_node_or_null("RightHandAnchor/RightHand")
 	if right_hand:
-		right_hand.position = _right_pos
-		right_hand.rotation_degrees = _right_rot
+		right_hand.position = right_pos
+		right_hand.rotation_degrees = right_rot
 
 func _on_foot_animation_update(left_pos: Vector3, right_pos: Vector3) -> void:
 	if left_foot:
@@ -675,15 +506,17 @@ func _on_foot_animation_update(left_pos: Vector3, right_pos: Vector3) -> void:
 		right_foot.position = right_pos
 
 func _on_animation_state_changed(_is_idle: bool) -> void:
-	pass
-
-func _on_combat_attack_state_changed(_state: int) -> void:
+	# Handle animation state changes if needed
 	pass
 
 func _on_body_animation_update(body_pos: Vector3, body_rot: Vector3) -> void:
 	if mesh_instance:
 		mesh_instance.position = body_pos
-		mesh_instance.rotation = body_rot
+		mesh_instance.rotation_degrees = body_rot
+
+func _on_combat_attack_state_changed(_state: int) -> void:
+	# Handle combat state changes if needed
+	pass
 
 func _process(_delta):
 	pass
@@ -797,31 +630,17 @@ func _physics_process(delta):
 
 	movement_component.handle_movement_and_dash(delta)
 	combat_component.handle_attack_input()
-	_handle_health_regen(delta)
 	movement_component.handle_dash_cooldown(delta)
 	_handle_invulnerability(delta)
 	_handle_advanced_blinking(delta)
 
-func _handle_health_regen(delta: float):
-	if is_dead or current_health >= max_health:
-		return
-	if combat_component and combat_component.state != combat_component.CombatState.IDLE:
-		return
-	var time_since_damage = Time.get_ticks_msec() / 1000.0 - last_damage_time
-	if time_since_damage >= health_regen_delay:
-		var old_health = current_health
-		current_health = min(current_health + (health_regen_rate * delta), max_health)
-		if current_health != old_health:
-			health_changed.emit(current_health, max_health)
-
 func _handle_invulnerability(delta: float):
-	if invulnerability_timer > 0:
-		invulnerability_timer -= delta
-		if mesh_instance and mesh_instance.material_override:
-			var flash_intensity = sin(invulnerability_timer * 30) * 0.5 + 0.5
+	var still_invulnerable = health_component.update_invulnerability(delta)
+	if mesh_instance and mesh_instance.material_override:
+		if still_invulnerable:
+			var flash_intensity = sin(health_component.invulnerability_timer * 30) * 0.5 + 0.5
 			mesh_instance.material_override.albedo_color = Color.RED if flash_intensity > 0.5 else Color(0.9, 0.7, 0.6)
-	else:
-		if mesh_instance and mesh_instance.material_override:
+		else:
 			mesh_instance.material_override.albedo_color = Color(0.9, 0.7, 0.6)
 
 func set_character_appearance(config: Dictionary):
@@ -861,3 +680,26 @@ func test_skin_tones():
 	for i in range(5):
 		var config = CharacterGenerator.generate_random_character_config()
 		print("Test ", i, " skin tone: ", config["skin_tone"])
+
+func take_damage(amount: int, from: Node3D = null):
+	if health_component:
+		health_component.take_damage(amount, from)
+
+func heal(amount: int):
+	if health_component:
+		health_component.heal(amount)
+
+func get_health() -> int:
+	if health_component:
+		return health_component.get_health()
+	return 0
+
+func get_max_health() -> int:
+	if health_component:
+		return health_component.get_max_health()
+	return 0
+
+func get_health_percentage() -> float:
+	if health_component:
+		return health_component.get_health_percentage()
+	return 0.0
