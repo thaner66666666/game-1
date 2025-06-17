@@ -64,11 +64,13 @@ func _setup_components() -> void:
 	collision_mask = 3 | 8
 
 func _create_character_appearance():
-	# Generate random character appearance
+	# Generate random character appearance with varied skin tones
 	var config = CharacterGenerator.generate_random_character_config()
-	config["skin_tone"] = Color(0.7, 0.8, 1.0)  # Blue tint for allies
+	# Don't override skin_tone - let it use the random one from generate_random_character_config()
 	CharacterAppearanceManager.create_player_appearance(self, config)
-	
+	print("🎨 Created ally with skin tone: ", config["skin_tone"])
+
+
 func _setup_foot_references() -> void:
 	# Wait multiple frames to ensure nodes are fully created
 	await get_tree().process_frame

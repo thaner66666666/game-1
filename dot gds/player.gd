@@ -224,6 +224,12 @@ func _ready():
 	# Initialize blinking system
 	_reset_blink_timer()
 
+	# Apply random skin tone to player
+	var config = CharacterGenerator.generate_random_character_config()
+	CharacterAppearanceManager.create_player_appearance(self, config)
+	print("🎨 Player skin tone: ", config["skin_tone"])
+
+
 func _setup_player():
 	add_to_group("player")
 	_configure_collision()
@@ -841,3 +847,10 @@ func change_player_skin_tone(skin_color: Color):
 # Disabled staff logic for now
 # case int(WeaponResource.WeaponType.STAFF):
 # ...existing code...
+
+
+func test_skin_tones():
+	print("=== TESTING SKIN TONES ===")
+	for i in range(5):
+		var config = CharacterGenerator.generate_random_character_config()
+		print("Test ", i, " skin tone: ", config["skin_tone"])
