@@ -555,10 +555,10 @@ static func animate_feet_walk(left_foot: MeshInstance3D, right_foot: MeshInstanc
 		right_foot.position = right_foot_origin
 		return
 
-	# Shuffle: small, quick steps
+	# Shuffle: extremely visible steps
 	var walk_cycle_speed = clamp(speed * 4.0, 6.0, 12.0)
-	var stride = 0.04  # Small stride for shuffle
-	var lift = 0.01    # Very little lift for shuffle
+	var stride = 0.28  # Extreme stride for shuffle (was 0.12)
+	var lift = 0.09    # Extreme lift for shuffle (was 0.03)
 	var phase = anim_time * walk_cycle_speed
 
 	# Left foot
@@ -573,57 +573,3 @@ static func animate_feet_walk(left_foot: MeshInstance3D, right_foot: MeshInstanc
 	var interp_speed = clamp(delta * 16.0, 0.0, 1.0)
 	left_foot.position = left_foot.position.lerp(left_target, interp_speed)
 	right_foot.position = right_foot.position.lerp(right_target, interp_speed)
-
-
-static func _create_feet(character: CharacterBody3D, cfg := {}):
-	"""Floating feet with shape and position options.
-	All foot shapes use BoxMesh for safety and appropriateness."""
-	var shape = cfg.get("shape", "bare")
-	var size = cfg.get("size", FOOT_SIZE)
-	var dist = cfg.get("distance", 0.25)
-	var height = cfg.get("height", -1.05) + 0.2 - 0.05
-	var scale_vec = Vector3(0.85 * 0.75, 0.85, 0.85)
-
-	print("🦶 Creating feet for character: ", character.name)
-	
-	# Clear any existing feet first to prevent naming conflicts
-	var existing_left = character.get_node_or_null("LeftFoot")
-	var existing_right = character.get_node_or_null("RightFoot")
-	if existing_left:
-		existing_left.queue_free()
-	if existing_right:
-		existing_right.queue_free()
-
-	# Only BoxMesh is allowed for all foot shapes for safety and style consistency.
-	for i in [-1, 1]:
-		var foot = MeshInstance3D.new()
-		var foot_name = "LeftFoot" if i < 0 else "RightFoot"
-		
-		var mesh = BoxMesh.new()
-		match shape:
-			"bare":
-				mesh.size = Vector3(size.x * 1.7, size.y * 2.5, size.z * 1.7)
-				foot.scale = scale_vec
-			"boot":
-				mesh.size = Vector3(size.x * 1.8, size.y * 2.5, size.z * 1.9)
-				foot.scale = scale_vec
-			"small":
-				mesh.size = Vector3(size.x * 1.2, size.y * 2.2, size.z * 1.2)
-				foot.scale = scale_vec
-			"wide":
-				mesh.size = Vector3(size.x * 2.2, size.y * 2.5, size.z * 2.2)
-				foot.scale = scale_vec
-			_:
-				mesh.size = Vector3(size.x * 1.2, size.y * 2.2, size.z * 1.2)
-				foot.scale = scale_vec
-		foot.mesh = mesh
-		foot.position = Vector3(i * dist, height, 0)
-		foot.material_override = SKIN_MATERIAL
-		
-		# Set name before adding to prevent conflicts
-		foot.name = foot_name
-		
-		# Add to character
-		character.add_child(foot)
-		
-		print("✅ Created foot: ", foot.name, " at position: ", foot.position, " final name: ", foot.name)
