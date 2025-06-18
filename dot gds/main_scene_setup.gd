@@ -36,7 +36,7 @@ func _setup_lighting():
 	main_light.light_energy = 0.8 # Lowered for dramatic torch effect
 	main_light.shadow_bias = 0.05
 	main_light.shadow_normal_bias = 0.8
-	main_light.shadow_max_distance = 60.0
+	main_light.directional_shadow_max_distance = 60.0
 	main_light.shadow_blur = 2.0
 	add_child(main_light)
 

@@ -214,12 +214,13 @@ func generate_starting_room():
 
 	# --- TORCH PLACEMENT LOGIC ---
 	# Place torches in the starting room
-	var torch_scene = load("res://dot gds/torch.tscn")
+	var torch_scene = load("res://Scenes/torch.tscn")
 	if torch_scene:
 		var num_torches = randi_range(2, 4)
 		var wall_offset = 2.5 # Distance from wall
 		var placed_torches = 0
 		var tries = 0
+		print("[TORCH DEBUG] Attempting to place %d torches in starting room" % num_torches)
 		while placed_torches < num_torches and tries < 20:
 			tries += 1
 			# Randomly pick a wall (0=left, 1=right, 2=top, 3=bottom)
@@ -240,19 +241,21 @@ func generate_starting_room():
 
 			# Check for collision with player spawn, chest, or other torches (simple distance check)
 			var safe = true
-			if world_pos.distance_to(Vector3((starting_room.get_center().x - map_size.x / 2) * 2.0, 1.2, (starting_room.get_center().y - map_size.y / 2) * 2.0)) < 2.5:
+			if world_pos.distance_to(Vector3((starting_room.get_center().x - map_size.x / 2) * 2.0, 1.2, (starting_room.get_center().y - map_size.y / 2) * 2.0)) < 1.0:
+				print("[TORCH DEBUG] Rejected: Too close to player spawn at %s" % str(world_pos))
 				safe = false
 			for obj in generated_objects:
 				if obj is StaticBody3D and obj.name.begins_with("Torch"):
 					if obj.global_position.distance_to(world_pos) < 2.0:
+						print("[TORCH DEBUG] Rejected: Too close to another torch at %s (distance %.2f)" % [str(world_pos), obj.global_position.distance_to(world_pos)])
 						safe = false
 			if safe:
 				var torch = torch_scene.instantiate()
 				torch.name = "Torch_%d" % placed_torches
 				torch.global_position = world_pos
-				add_child(torch)
 				generated_objects.append(torch)
 				placed_torches += 1
+				print("[TORCH DEBUG] Placed torch at %s (index %d)" % [str(world_pos), placed_torches-1])
 	# --- END TORCH PLACEMENT ---
 
 	print("🛡️ Starting room created with PROTECTED BOUNDARIES!")

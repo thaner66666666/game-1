@@ -12,7 +12,6 @@ func _ready():
 	light = OmniLight3D.new()
 	light.light_energy = torch_light_energy
 	light.light_color = torch_light_color
-	light.range = 8.0
 	add_child(light)
 
 	# Create a simple flame visual (e.g., a small MeshInstance3D or Sprite3D)
