@@ -126,6 +126,7 @@ var right_foot: MeshInstance3D
 @onready var health_component = $HealthComponent
 @onready var progression_component = $ProgressionComponent
 @onready var inventory_component: PlayerInventory = $InventoryComponent
+@onready var stats_component: PlayerStats = $StatsComponent
 
 # Player state
 var is_dead := false
@@ -325,7 +326,8 @@ func _pickup_xp_orb(area: Area3D):
 # --- Health System Component Handlers ---
 func _on_health_changed(_current_health: int, _max_health: int):
 	# Update UI or other systems as needed
-	pass
+	if UI:
+		UI.update_stats(stats_component.get_all_stats())
 
 func _on_player_died():
 	is_dead = true
@@ -528,43 +530,3 @@ func test_skin_tones():
 	for i in range(5):
 		var config = CharacterGenerator.generate_random_character_config()
 		print("Test ", i, " skin tone: ", config["skin_tone"])
-
-func take_damage(amount: int, from: Node3D = null):
-	if health_component:
-		health_component.take_damage(amount, from)
-
-func heal(amount: int):
-	if health_component:
-		health_component.heal(amount)
-
-func get_health() -> int:
-	if health_component:
-		return health_component.get_health()
-	return 0
-
-func get_max_health() -> int:
-	if health_component:
-		return health_component.get_max_health()
-	return 0
-
-# --- Progression System API ---
-func get_currency() -> int:
-	return progression_component.get_currency()
-
-func get_xp() -> int:
-	return progression_component.get_xp()
-
-func get_level() -> int:
-	return progression_component.level
-
-func get_xp_to_next_level() -> int:
-	return progression_component.xp_to_next_level
-
-# --- Inventory System Component Handlers ---
-func _on_weapon_equipped(_weapon_resource: WeaponResource):
-	# Handle weapon equipped logic if needed
-	pass
-
-func _on_weapon_unequipped():
-	# Handle weapon unequipped logic if needed  
-	pass

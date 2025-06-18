@@ -124,7 +124,7 @@ func initialize(player_ref: CharacterBody3D):
 		if cameras.size() > 0:
 			player.camera = cameras[0]
 	
-	current_dash_charges = player.max_dash_charges
+	current_dash_charges = player.stats_component.get_max_dash_charges()
 	last_dash_time = 0.0
 	is_dashing = false
 	is_attacking = false
@@ -234,7 +234,7 @@ func handle_movement_and_dash(delta):
 		return
 		
 	var input_direction = get_movement_input()
-	var move_speed = input_direction.length() * player.speed
+	var move_speed = input_direction.length() * player.stats_component.get_speed()
 	var is_moving = input_direction.length() > player.MOVEMENT_THRESHOLD
 	
 	# Update movement direction for animation
@@ -249,8 +249,8 @@ func handle_movement_and_dash(delta):
 		move_player(input_direction)
 		
 		# Enhanced animation with direction awareness
-		var anim_speed = clamp(move_speed / player.speed * 2.0, 1.0, 3.5)
-		var exaggeration = clamp(move_speed / player.speed * 1.5, 1.0, 2.5)
+		var anim_speed = clamp(move_speed / player.stats_component.get_speed() * 2.0, 1.0, 3.5)
+		var exaggeration = clamp(move_speed / player.stats_component.get_speed() * 1.5, 1.0, 2.5)
 		
 		# Modify animation based on movement direction
 		match current_movement_direction:
@@ -484,7 +484,7 @@ func perform_dash():
 		return
 	current_dash_charges -= 1
 	last_dash_time = Time.get_ticks_msec() / 1000.0
-	dash_charges_changed.emit(current_dash_charges, player.max_dash_charges)
+	dash_charges_changed.emit(current_dash_charges, player.stats_component.get_max_dash_charges())
 	var dash_direction = get_movement_input()
 	if dash_direction.length() == 0:
 		dash_direction = get_facing_direction()
@@ -504,12 +504,12 @@ func perform_dash():
 	dash_ended.emit()
 
 func handle_dash_cooldown(_delta: float):
-	if current_dash_charges >= player.max_dash_charges:
+	if current_dash_charges >= player.stats_component.get_max_dash_charges():
 		return
 	var time_since_dash = Time.get_ticks_msec() / 1000.0 - last_dash_time
 	if time_since_dash >= player.dash_cooldown:
-		current_dash_charges = min(current_dash_charges + 1, player.max_dash_charges)
-		dash_charges_changed.emit(current_dash_charges, player.max_dash_charges)
+		current_dash_charges = min(current_dash_charges + 1, player.stats_component.get_max_dash_charges())
+		dash_charges_changed.emit(current_dash_charges, player.stats_component.get_max_dash_charges())
 
 func get_movement_input() -> Vector3:
 	# Map input so that 'move_up' is -Z (forward), 'move_down' is +Z (backward)
@@ -521,12 +521,12 @@ func get_movement_input() -> Vector3:
 	return input_dir.normalized() if input_dir.length() > 0 else Vector3.ZERO
 
 func move_player(direction: Vector3):
-	player.velocity.x = direction.x * player.speed
-	player.velocity.z = direction.z * player.speed
+	player.velocity.x = direction.x * player.stats_component.get_speed()
+	player.velocity.z = direction.z * player.stats_component.get_speed()
 
 func apply_friction(delta: float):
-	player.velocity.x = move_toward(player.velocity.x, 0, player.speed * player.FRICTION_MULTIPLIER * delta)
-	player.velocity.z = move_toward(player.velocity.z, 0, player.speed * player.FRICTION_MULTIPLIER * delta)
+	player.velocity.x = move_toward(player.velocity.x, 0, player.stats_component.get_speed() * player.FRICTION_MULTIPLIER * delta)
+	player.velocity.z = move_toward(player.velocity.z, 0, player.stats_component.get_speed() * player.FRICTION_MULTIPLIER * delta)
 
 func apply_gravity(delta: float):
 	if not player.is_on_floor():

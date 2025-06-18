@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://dq5lkmafnvuay" path="res://dot gds/PlayerHealth.gd" id="7_3smsa"]
 [ext_resource type="Script" uid="uid://bl4cu5bh7eb27" path="res://dot gds/PlayerProgression.gd" id="8_8erm5"]
 [ext_resource type="Script" uid="uid://dbv3aogrn67ce" path="res://dot gds/PlayerInventory.gd" id="9_f1ek2"]
+[ext_resource type="Script" path="res://dot gds/PlayerStats.gd" id="10_stats"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6t5aa"]
 albedo_color = Color(0, 0, 0, 1)
@@ -254,3 +255,8 @@ script = ExtResource("8_8erm5")
 
 [node name="InventoryComponent" type="Node" parent="."]
 script = ExtResource("9_f1ek2")
+
+[node name="StatsComponent" type="Node" parent="."]
+script = ExtResource("10_stats")
+
+@onready var stats_component: PlayerStats = $StatsComponent
