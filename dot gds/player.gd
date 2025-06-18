@@ -123,8 +123,8 @@ var right_foot: MeshInstance3D
 @onready var combat_component: PlayerCombat = $CombatComponent
 @onready var health_component = $HealthComponent
 @onready var progression_component = $ProgressionComponent
-@onready var inventory_component: PlayerInventory = $InventoryComponent
-@onready var stats_component: PlayerStats = $StatsComponent
+@onready var inventory_component: PlayerInventory = get_node_or_null("InventoryComponent")
+@onready var stats_component: PlayerStats = get_node_or_null("StatsComponent")
 @onready var ui = get_tree().get_root().find_child("HealthUI", true, false)
 
 # Player state
@@ -185,16 +185,21 @@ func _ready():
 	if combat_component and combat_component.has_method("initialize"):
 		combat_component.initialize(self, movement_component)
 	# Health system setup
-	health_component.setup(self, stats_component.get_max_health())
+	if stats_component and stats_component.has_method("get_max_health"):
+		health_component.setup(self, stats_component.get_max_health())
+	else:
+		health_component.setup(self, 100) # fallback value
 	health_component.health_changed.connect(_on_health_changed)
 	health_component.player_died.connect(_on_player_died)
 	health_component.health_depleted.connect(_on_health_depleted)
 	# Progression system setup
 	progression_component.setup(self)
 	# Inventory system setup
-	inventory_component.setup(self)
+	if inventory_component and inventory_component.has_method("setup"):
+		inventory_component.setup(self)
 	# StatsComponent setup
-	stats_component.setup(self)
+	if stats_component and stats_component.has_method("setup"):
+		stats_component.setup(self)
 	# Removed duplicate signal connections for coin_collected and xp_changed
 	# Pass animation settings to movement_component if supported
 	if movement_component and movement_component.has_method("set_animation_settings"):

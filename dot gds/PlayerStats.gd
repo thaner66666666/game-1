@@ -2,7 +2,7 @@ extends Node
 class_name PlayerStats
 
 var player_ref: CharacterBody3D
-var health_component: PlayerHealth
+var health_component: Node # Replace PlayerHealth with Node or the correct type if PlayerHealth is defined elsewhere.
 var progression_component: PlayerProgression  
 var inventory_component: PlayerInventory
 
