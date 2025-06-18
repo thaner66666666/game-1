@@ -32,65 +32,31 @@ func equip_weapon(weapon_resource: WeaponResource) -> void:
 	# --- Weapon mesh creation and attachment ---
 	var p = get_player()
 	if p and p.weapon_attach_point:
-		# Remove previous weapon mesh if exists
-		if p.weapon_attach_point.get_child_count() > 0:
-			for child in p.weapon_attach_point.get_children():
-				if child is MeshInstance3D or child is Node3D:
-					child.call_deferred("queue_free")
-		# Debug: Check visual_scene_path
-		if weapon_resource.visual_scene_path != "":
-			print("Debug: visual_scene_path =", weapon_resource.visual_scene_path)
-			var weapon_scene = load(weapon_resource.visual_scene_path)
-			print("Debug: weapon_scene loaded =", weapon_scene != null)
-			if weapon_scene:
-				var weapon_instance = weapon_scene.instantiate()
-				# Set correct node name for animations
-				match weapon_resource.weapon_type:
-					WeaponResource.WeaponType.SWORD:
-						weapon_instance.name = "SwordNode"
-					WeaponResource.WeaponType.BOW:
-						weapon_instance.name = "BowNode"
-					WeaponResource.WeaponType.STAFF:
-						weapon_instance.name = "StaffNode"
-				# Positioning based on weapon type (int enum)
-				if weapon_resource.weapon_type == WeaponResource.WeaponType.SWORD:
-					weapon_instance.position = Vector3(0, 0, 0)
-					weapon_instance.rotation = Vector3(0, 0, 0)
-				elif weapon_resource.weapon_type == WeaponResource.WeaponType.BOW:
-					weapon_instance.position = Vector3(0.1, 0, 0)
-					weapon_instance.rotation = Vector3(0, 0.5, 0)
-				# Add weapon instance to attach point
-				p.weapon_attach_point.add_child(weapon_instance)
-				print("🗡️ Weapon scene instantiated and attached to WeaponAttachPoint.")
-				# Debug: Confirm attachment
-				print("Debug: WeaponAttachPoint child count:", p.weapon_attach_point.get_child_count())
-				print("Debug: Added weapon node name:", weapon_instance.name)
-			else:
-				print("⚠️ Could not load weapon scene from visual_scene_path.")
-		else:
-			print("⚠️ Weapon resource has no visual_scene_path.")
-			# Create simple fallback weapon mesh
-			var weapon_mesh = MeshInstance3D.new()
-			match weapon_resource.weapon_type:
-				WeaponResource.WeaponType.SWORD:
-					weapon_mesh.name = "SwordNode"
-					var box = BoxMesh.new()
-					box.size = Vector3(0.1, 1.0, 0.1)
-					weapon_mesh.mesh = box
-					var material = StandardMaterial3D.new()
-					material.albedo_color = Color.GRAY
-					weapon_mesh.material_override = material
-				WeaponResource.WeaponType.BOW:
-					weapon_mesh.name = "BowNode"
-					var box = BoxMesh.new()
-					box.size = Vector3(0.05, 1.2, 0.05)
-					weapon_mesh.mesh = box
-					var material = StandardMaterial3D.new()
-					material.albedo_color = Color.SADDLE_BROWN
-					weapon_mesh.material_override = material
-			# Add fallback mesh to attach point
-			p.weapon_attach_point.add_child(weapon_mesh)
-			print("🗡️ Created fallback weapon mesh.")
+		# Hide all weapon nodes first
+		var sword_node = p.weapon_attach_point.get_node_or_null("SwordNode")
+		var bow_node = p.weapon_attach_point.get_node_or_null("BowNode")
+		var staff_node = p.weapon_attach_point.get_node_or_null("StaffNode")
+
+		if sword_node: sword_node.visible = false
+		if bow_node: bow_node.visible = false
+		if staff_node: staff_node.visible = false
+
+		# Show and set mesh for current weapon type
+		if weapon_resource.weapon_type == WeaponResource.WeaponType.SWORD and sword_node:
+			if sword_node.get_child_count() == 0:
+				sword_node.add_child(MeshInstance3D.new())
+			var mesh_instance = sword_node.get_child(0) as MeshInstance3D
+			mesh_instance.mesh = preload("res://3d Models/Sword/broadsword.obj")
+			sword_node.visible = true
+			print("🗡️ Sword mesh loaded in SwordNode")
+		elif weapon_resource.weapon_type == WeaponResource.WeaponType.BOW and bow_node:
+			if bow_node.get_child_count() == 0:
+				bow_node.add_child(MeshInstance3D.new())
+			var mesh_instance = bow_node.get_child(0) as MeshInstance3D
+			mesh_instance.mesh = preload("res://3d Models/Bow/bow_01.obj")
+			bow_node.visible = true
+			print("🏹 Bow mesh loaded in BowNode")
+		# You can add staff logic here if needed
 	else:
 		print("⚠️ Player or WeaponAttachPoint not found for mesh attachment.")
 
@@ -98,6 +64,16 @@ func unequip_weapon() -> void:
 	if not get_player(): return
 	current_weapon = null
 	_apply_weapon_to_player()
+	# Hide all weapon nodes when unequipping
+	var p = get_player()
+	if p and p.weapon_attach_point:
+		var sword_node = p.weapon_attach_point.get_node_or_null("SwordNode")
+		var bow_node = p.weapon_attach_point.get_node_or_null("BowNode")
+		var staff_node = p.weapon_attach_point.get_node_or_null("StaffNode")
+
+		if sword_node: sword_node.visible = false
+		if bow_node: bow_node.visible = false
+		if staff_node: staff_node.visible = false
 
 func get_current_weapon() -> WeaponResource:
 	return current_weapon

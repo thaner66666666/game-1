@@ -1,6 +1,10 @@
 # weapon_pickup.gd - Enhanced weapon pickup with better visuals
 extends Area3D
 
+# Preloaded mesh constants
+const SWORD_MESH = preload("res://3d Models/Sword/broadsword.obj")
+const BOW_MESH = preload("res://3d Models/Bow/bow_01.obj")
+
 # Weapon resource assigned to this pickup
 @export var weapon_resource: WeaponResource = null
 
@@ -123,12 +127,8 @@ func _create_enhanced_sword():
 	_clear_weapon_parts()
 	# Create a MeshInstance3D for the broadsword
 	var sword_mesh_instance = MeshInstance3D.new()
-	var sword_mesh = load("res://3d Models/Sword/broadsword.obj")
-	if sword_mesh:
-		sword_mesh_instance.mesh = sword_mesh
-	else:
-		print("❌ Failed to load broadsword.obj mesh!")
-		sword_mesh_instance.mesh = null
+	# Use preloaded mesh constant
+	sword_mesh_instance.mesh = SWORD_MESH
 
 	# Default material (bluish, shiny)
 	var sword_material = StandardMaterial3D.new()
@@ -182,12 +182,8 @@ func _create_simple_bow_visual():
 	_clear_weapon_parts()
 	# Create a MeshInstance3D for the bow
 	var bow_mesh_instance = MeshInstance3D.new()
-	var bow_mesh = load("res://3d Models/Bow/bow_01.obj")
-	if bow_mesh:
-		bow_mesh_instance.mesh = bow_mesh
-	else:
-		print("❌ Failed to load bow_01.obj mesh!")
-		bow_mesh_instance.mesh = null
+	# Use preloaded mesh constant
+	bow_mesh_instance.mesh = BOW_MESH
 	# Optionally tweak material for glow, color, etc.
 	var bow_material = StandardMaterial3D.new()
 	bow_material.albedo_color = Color(0.7, 0.5, 0.3)
