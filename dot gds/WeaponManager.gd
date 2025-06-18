@@ -35,26 +35,62 @@ func equip_weapon(weapon_resource: WeaponResource) -> void:
 		# Remove previous weapon mesh if exists
 		if p.weapon_attach_point.get_child_count() > 0:
 			for child in p.weapon_attach_point.get_children():
-				if child is MeshInstance3D:
-					child.queue_free()
-		# Create new mesh instance for weapon
-		if weapon_resource.has("mesh") and weapon_resource.mesh:
-			var weapon_mesh = MeshInstance3D.new()
-			weapon_mesh.mesh = weapon_resource.mesh
-			# Positioning based on weapon type (int enum)
-			if weapon_resource.weapon_type == WeaponResource.WeaponType.SWORD:
-				weapon_mesh.position = Vector3(0, 0, 0)
-				weapon_mesh.rotation = Vector3(0, 0, 0)
-			elif weapon_resource.weapon_type == WeaponResource.WeaponType.BOW:
-				weapon_mesh.position = Vector3(0.1, 0, 0)
-				weapon_mesh.rotation = Vector3(0, 0.5, 0)
-			# Add mesh to attach point
-			p.weapon_attach_point.add_child(weapon_mesh)
-			# Store reference for cleanup
-			p.equipped_weapon_mesh = weapon_mesh
-			print("🗡️ Weapon mesh created and attached to WeaponAttachPoint.")
+				if child is MeshInstance3D or child is Node3D:
+					child.call_deferred("queue_free")
+		# Debug: Check visual_scene_path
+		if weapon_resource.visual_scene_path != "":
+			print("Debug: visual_scene_path =", weapon_resource.visual_scene_path)
+			var weapon_scene = load(weapon_resource.visual_scene_path)
+			print("Debug: weapon_scene loaded =", weapon_scene != null)
+			if weapon_scene:
+				var weapon_instance = weapon_scene.instantiate()
+				# Set correct node name for animations
+				match weapon_resource.weapon_type:
+					WeaponResource.WeaponType.SWORD:
+						weapon_instance.name = "SwordNode"
+					WeaponResource.WeaponType.BOW:
+						weapon_instance.name = "BowNode"
+					WeaponResource.WeaponType.STAFF:
+						weapon_instance.name = "StaffNode"
+				# Positioning based on weapon type (int enum)
+				if weapon_resource.weapon_type == WeaponResource.WeaponType.SWORD:
+					weapon_instance.position = Vector3(0, 0, 0)
+					weapon_instance.rotation = Vector3(0, 0, 0)
+				elif weapon_resource.weapon_type == WeaponResource.WeaponType.BOW:
+					weapon_instance.position = Vector3(0.1, 0, 0)
+					weapon_instance.rotation = Vector3(0, 0.5, 0)
+				# Add weapon instance to attach point
+				p.weapon_attach_point.add_child(weapon_instance)
+				print("🗡️ Weapon scene instantiated and attached to WeaponAttachPoint.")
+				# Debug: Confirm attachment
+				print("Debug: WeaponAttachPoint child count:", p.weapon_attach_point.get_child_count())
+				print("Debug: Added weapon node name:", weapon_instance.name)
+			else:
+				print("⚠️ Could not load weapon scene from visual_scene_path.")
 		else:
-			print("⚠️ Weapon resource has no mesh.")
+			print("⚠️ Weapon resource has no visual_scene_path.")
+			# Create simple fallback weapon mesh
+			var weapon_mesh = MeshInstance3D.new()
+			match weapon_resource.weapon_type:
+				WeaponResource.WeaponType.SWORD:
+					weapon_mesh.name = "SwordNode"
+					var box = BoxMesh.new()
+					box.size = Vector3(0.1, 1.0, 0.1)
+					weapon_mesh.mesh = box
+					var material = StandardMaterial3D.new()
+					material.albedo_color = Color.GRAY
+					weapon_mesh.material_override = material
+				WeaponResource.WeaponType.BOW:
+					weapon_mesh.name = "BowNode"
+					var box = BoxMesh.new()
+					box.size = Vector3(0.05, 1.2, 0.05)
+					weapon_mesh.mesh = box
+					var material = StandardMaterial3D.new()
+					material.albedo_color = Color.SADDLE_BROWN
+					weapon_mesh.material_override = material
+			# Add fallback mesh to attach point
+			p.weapon_attach_point.add_child(weapon_mesh)
+			print("🗡️ Created fallback weapon mesh.")
 	else:
 		print("⚠️ Player or WeaponAttachPoint not found for mesh attachment.")
 
@@ -82,17 +118,17 @@ func _apply_weapon_to_player() -> void:
 
 	if current_weapon != null:
 		# ADD weapon stats to base stats instead of replacing
-		p.set("attack_damage", base_stats.attack_damage + current_weapon.attack_damage)
-		p.set("attack_range", base_stats.attack_range + current_weapon.attack_range)
-		p.set("attack_cooldown", max(0.1, base_stats.attack_cooldown - (current_weapon.attack_cooldown * 0.1)))
-		p.set("attack_cone_angle", base_stats.attack_cone_angle + current_weapon.attack_cone_angle)
+		p.set("attack_damage", base_stats["attack_damage"] + current_weapon.attack_damage)
+		p.set("attack_range", base_stats["attack_range"] + current_weapon.attack_range)
+		p.set("attack_cooldown", max(0.1, base_stats["attack_cooldown"] - (current_weapon.attack_cooldown * 0.1)))
+		p.set("attack_cone_angle", base_stats["attack_cone_angle"] + current_weapon.attack_cone_angle)
 		print("🗡️ Equipped: ", current_weapon.weapon_name, " (stats added to base)")
 		emit_signal("weapon_equipped", current_weapon)
 	else:
 		# Restore base stats when unarmed
-		p.set("attack_damage", base_stats.attack_damage)
-		p.set("attack_range", base_stats.attack_range)
-		p.set("attack_cooldown", base_stats.attack_cooldown)
-		p.set("attack_cone_angle", base_stats.attack_cone_angle)
+		p.set("attack_damage", base_stats["attack_damage"])
+		p.set("attack_range", base_stats["attack_range"])
+		p.set("attack_cooldown", base_stats["attack_cooldown"])
+		p.set("attack_cone_angle", base_stats["attack_cone_angle"])
 		print("👊 Unarmed. Player stats restored to base.")
 		emit_signal("weapon_unequipped")
