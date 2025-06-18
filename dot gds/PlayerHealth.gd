@@ -1,4 +1,5 @@
 extends Node
+class_name PlayerHealth
 
 signal health_changed(current_health: int, max_health: int)
 signal player_died
@@ -97,5 +98,3 @@ func _setup_health_system():
 func _initialize_base_stats():
 	# Add health-related base stat initialization if needed
 	pass
-
-# class_name PlayerHealth
