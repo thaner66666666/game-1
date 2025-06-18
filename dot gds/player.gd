@@ -119,12 +119,12 @@ func _update_body_in_scene(config: Dictionary):
 var left_foot: MeshInstance3D
 var right_foot: MeshInstance3D
 
-@onready var movement_component: PlayerMovement = $MovementComponent
+@onready var movement_component: PlayerMovement = $PlayerMovement
 @onready var combat_component: PlayerCombat = $CombatComponent
 @onready var health_component = $HealthComponent
 @onready var progression_component = $ProgressionComponent
 @onready var inventory_component: PlayerInventoryComponent = get_node_or_null("InventoryComponent")
-@onready var stats_component: PlayerStats = get_node_or_null("StatsComponent")
+@onready var stats_component: PlayerStats = get_node_or_null("PlayerStats")
 @onready var ui = get_tree().get_root().find_child("HealthUI", true, false)
 
 # Player state
@@ -197,7 +197,7 @@ func _ready():
 	# Inventory system setup
 	if inventory_component and inventory_component.has_method("setup"):
 		inventory_component.setup(self)
-	# StatsComponent setup
+	# PlayerComponent setup
 	if stats_component and stats_component.has_method("setup"):
 		stats_component.setup(self)
 	# Removed duplicate signal connections for coin_collected and xp_changed

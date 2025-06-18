@@ -233,6 +233,10 @@ func handle_movement_and_dash(delta):
 		return
 		
 	var input_direction = get_movement_input()
+	# Add null safety check before using stats_component
+	if not player or not player.stats_component:
+		push_error("PlayerMovement: Missing player or stats_component reference!")
+		return
 	var move_speed = input_direction.length() * player.stats_component.get_speed()
 	var is_moving = input_direction.length() > player.MOVEMENT_THRESHOLD
 	
