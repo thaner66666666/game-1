@@ -416,17 +416,10 @@ func _update_idle_animations(delta: float):
 			body_node.position = body_origin
 			body_node.rotation_degrees = body_origin_rotation
 	
-	# 🦶 Always update feet animation, even during idle
+	# 🦶 Handle feet during idle - keep them at origin
 	if left_foot_node and right_foot_node:
-		CharacterAppearanceManager.animate_feet_walk(
-			left_foot_node, 
-			right_foot_node, 
-			left_foot_origin, 
-			right_foot_origin, 
-			walk_cycle_time, 
-			Vector3.ZERO,  # No velocity during idle
-			delta
-		)
+		left_foot_node.position = left_foot_origin
+		right_foot_node.position = right_foot_origin
 
 func _update_body_walking_animation(delta: float, input_direction: Vector3):
 	if not body_node:
@@ -628,22 +621,16 @@ func _update_walking_animations(delta: float, input_direction: Vector3):
 				right_foot_swing * foot_direction_multiplier
 			)
 
+	# 🦶 DIRECT FOOT ANIMATION - Apply positions directly to foot nodes
+	if left_foot_node and right_foot_node and left_foot_pos != null and right_foot_pos != null:
+		left_foot_node.position = left_foot_pos
+		right_foot_node.position = right_foot_pos
+	elif not left_foot_node or not right_foot_node:
+		print("❌ Can't animate feet - nodes missing! Left: ", left_foot_node != null, " Right: ", right_foot_node != null)
+
+	# Emit signal for other systems that might need foot positions
 	if left_foot_pos != null and right_foot_pos != null:
 		foot_animation_update.emit(left_foot_pos, right_foot_pos)
-
-	# 🦶 THE MISSING PIECE! - Call CharacterAppearanceManager foot animation
-	if left_foot_node and right_foot_node:
-		CharacterAppearanceManager.animate_feet_walk(
-			left_foot_node, 
-			right_foot_node, 
-			left_foot_origin, 
-			right_foot_origin, 
-			walk_cycle_time, 
-			player.velocity, 
-			delta
-		)
-	else:
-		print("❌ Can't animate feet - nodes missing! Left: ", left_foot_node != null, " Right: ", right_foot_node != null)
 
 # Defensive helper for dash charges
 func get_safe_max_dash_charges() -> int:

@@ -164,8 +164,15 @@ func _setup_player():
 	_create_visual()
 	_setup_attack_system()
 	_setup_hand_references()
-	# _setup_weapon_attach_point() # --- Removed old weapon management functions ---
-	# _connect_weapon_manager_signals() # --- Removed old weapon management functions ---
+	_setup_weapon_attach_point()
+	# Ensure WeaponAnimationPlayer exists
+	if not has_node("WeaponAnimationPlayer"):
+		var weapon_anim_player = AnimationPlayer.new()
+		weapon_anim_player.name = "WeaponAnimationPlayer"
+		add_child(weapon_anim_player)
+		print("✅ Created WeaponAnimationPlayer node")
+	else:
+		print("✅ WeaponAnimationPlayer node already exists")
 	_create_arrow_system()
 
 func _configure_collision():
@@ -216,9 +223,20 @@ func _setup_hand_references():
 	else:
 		print("❌ RightFoot not found!")
 
+func _setup_weapon_attach_point():
+	if not has_node("WeaponAttachPoint"):
+		var attach_point = Node3D.new()
+		attach_point.name = "WeaponAttachPoint"
+		add_child(attach_point)
+		weapon_attach_point = attach_point
+		print("✅ Created WeaponAttachPoint node")
+	else:
+		weapon_attach_point = get_node("WeaponAttachPoint")
+		print("✅ Found existing WeaponAttachPoint node")
+
+var weapon_attach_point: Node3D = null
 
 # --- Removed old weapon management functions ---
-# func _setup_weapon_attach_point():
 # func _connect_weapon_manager_signals():
 # func _on_weapon_equipped(weapon_resource):
 # func _on_weapon_unequipped():

@@ -188,7 +188,7 @@ func _play_attack_animation(combo_idx: int):
 	print("🗡️ DEBUG: Has weapon = ", current_weapon != null)
 	if current_weapon:
 		print("🗡️ DEBUG: Weapon name = ", current_weapon.weapon_name)
-		print("🗡️ DEBUG: weapon_attach_point exists = ", player.inventory_component.weapon_attach_point != null)
+		print("🗡️ DEBUG: weapon_attach_point exists = ", player.weapon_attach_point != null)
 		if player.weapon_attach_point:
 			print("🗡️ DEBUG: weapon_attach_point path = ", player.weapon_attach_point.get_path())
 	if not current_weapon:
@@ -200,7 +200,7 @@ func _play_attack_animation(combo_idx: int):
 		# Armed: play weapon animation using player reference (NOT weapon_attach_point!)
 		if player.weapon_attach_point and is_instance_valid(player.weapon_attach_point):
 			print("✅ Using player's weapon_attach_point reference: ", player.weapon_attach_point.get_path())
-			WeaponAnimationManager.play_attack_animation(current_weapon, player)  # <-- FIXED: always use player
+			WeaponAnimationManager.play_attack_animation(current_weapon, player)
 		else:
 			print("❌ Player weapon_attach_point is null or invalid!")
 			WeaponAnimationManager.play_attack_animation(current_weapon, player)
@@ -575,3 +575,10 @@ func _on_arrow_despawn(arrow: MeshInstance3D):
 	if is_instance_valid(arrow):
 		print("\ud83c\udff9 Arrow despawning after timeout")
 		arrow.queue_free()
+
+func _ready():
+	weapon_animation_player = player.get_node_or_null("WeaponAnimationPlayer")
+	if not weapon_animation_player:
+		push_error("[PlayerCombat] WeaponAnimationPlayer node not found on player!")
+	else:
+		print("[PlayerCombat] WeaponAnimationPlayer node found.")
