@@ -1,124 +1,83 @@
 extends Node
-class_name PlayerInventory
+class_name PlayerInventoryComponent
 
-signal weapon_equipped(weapon_resource: WeaponResource)
-signal weapon_unequipped()
+signal item_added(item)
+signal item_removed(item)
 
-var player_ref: CharacterBody3D
-var weapon_attach_point: Node3D
-var equipped_weapon_mesh: MeshInstance3D
+# Component configuration
+@export var max_items: int = 32
+@export var auto_equip: bool = true
+
+# Inventory data
+var items: Array = []
+
+# References (set by parent or via setup)
+@export var player_ref: Node = null
+@export var weapon_attach_point: Node = null
+
+# Weapon system variables
+var equipped_weapon_mesh: MeshInstance3D = null
 var sword_node: MeshInstance3D = null
+var base_attack_damage: int = 10
+var base_attack_range: float = 2.0
+var base_attack_cooldown: float = 1.0
+var base_attack_cone_angle: float = 90.0
 
-# Base stats for weapon system
-var base_attack_damage := 10
-var base_attack_range := 2.0
-var base_attack_cooldown := 1.0
-var base_attack_cone_angle := 90.0
+func _ready():
+	if player_ref == null:
+		player_ref = get_parent()
+	if player_ref == null:
+		push_error("PlayerInventory: No player_ref set or found as parent.")
+	if weapon_attach_point == null and player_ref:
+		weapon_attach_point = player_ref.get_node_or_null("WeaponAttachPoint")
+	if weapon_attach_point == null:
+		push_warning("PlayerInventory: No weapon_attach_point set or found.")
 
-func setup(player_ref_in: CharacterBody3D):
-	player_ref = player_ref_in
-	call_deferred("_setup_weapon_attach_point")
-	call_deferred("_connect_weapon_manager_signals")
+func add_item(item) -> bool:
+	if item == null:
+		push_warning("Tried to add null item to inventory.")
+		return false
+	if items.size() >= max_items:
+		push_warning("Inventory is full.")
+		return false
+	items.append(item)
+	item_added.emit(item)
+	if auto_equip:
+		_try_auto_equip(item)
+	return true
 
-func _setup_weapon_attach_point():
-	if not player_ref:
-		return
-	weapon_attach_point = player_ref.get_node_or_null("WeaponAttachPoint")
-	if weapon_attach_point:
-		sword_node = weapon_attach_point.get_node_or_null("SwordNode")
-		if sword_node:
-			print("✅ PlayerInventory: Found SwordNode")
-		else:
-			print("⚠️ PlayerInventory: SwordNode not found under WeaponAttachPoint")
+func remove_item(item) -> bool:
+	if item == null:
+		push_warning("Tried to remove null item from inventory.")
+		return false
+	if item in items:
+		items.erase(item)
+		item_removed.emit(item)
+		return true
 	else:
-		print("❌ PlayerInventory: WeaponAttachPoint not found on player")
+		push_warning("Tried to remove item not in inventory.")
+		return false
 
-func _connect_weapon_manager_signals():
-	if WeaponManager:
-		if not WeaponManager.weapon_equipped.is_connected(_on_weapon_equipped):
-			WeaponManager.weapon_equipped.connect(_on_weapon_equipped)
-		if not WeaponManager.weapon_unequipped.is_connected(_on_weapon_unequipped):
-			WeaponManager.weapon_unequipped.connect(_on_weapon_unequipped)
-	
-	# Show weapon if already equipped at start
-	if WeaponManager and WeaponManager.is_weapon_equipped():
-		_on_weapon_equipped(WeaponManager.get_current_weapon())
+func get_item(index: int):
+	if index < 0 or index >= items.size():
+		push_warning("Index out of bounds in get_item.")
+		return null
+	return items[index]
 
-func _on_weapon_equipped(weapon_resource):
-	_show_weapon_visual(weapon_resource)
-	_update_player_stats(weapon_resource)
-	weapon_equipped.emit(weapon_resource)
+func get_items() -> Array:
+	return items.duplicate()
 
-func _on_weapon_unequipped():
-	_hide_weapon_visual()
-	_reset_player_stats()
-	weapon_unequipped.emit()
+func _try_auto_equip(item):
+	# Placeholder for auto-equip logic, can be extended
+	if weapon_attach_point and item.has("mesh"):
+		weapon_attach_point.add_child(item.mesh)
+		# Optionally set equipped_weapon_mesh
+		# equipped_weapon_mesh = item.mesh
 
-func _show_weapon_visual(weapon_resource):
-	_hide_weapon_visual()
-	if not weapon_resource or not weapon_attach_point:
+# Example signal connection usage
+func connect_signals(target: Object):
+	if not is_instance_valid(target):
+		push_warning("Target for signal connection is not valid.")
 		return
-	
-	match int(weapon_resource.weapon_type):
-		int(WeaponResource.WeaponType.SWORD):
-			if sword_node:
-				sword_node.visible = true
-				equipped_weapon_mesh = sword_node
-		int(WeaponResource.WeaponType.BOW):
-			var bow_node = weapon_attach_point.get_node_or_null("BowNode")
-			if bow_node:
-				bow_node.visible = true
-				equipped_weapon_mesh = bow_node
-		int(WeaponResource.WeaponType.STAFF):
-			var mesh = _create_simple_staff_mesh()
-			if mesh:
-				weapon_attach_point.add_child(mesh)
-				equipped_weapon_mesh = mesh
-
-func _hide_weapon_visual():
-	if sword_node:
-		sword_node.visible = false
-	
-	var bow_node = weapon_attach_point.get_node_or_null("BowNode") if weapon_attach_point else null
-	if bow_node:
-		bow_node.visible = false
-	
-	var staff_node = weapon_attach_point.get_node_or_null("StaffNode") if weapon_attach_point else null
-	if staff_node:
-		staff_node.visible = false
-	
-	if (equipped_weapon_mesh and 
-		is_instance_valid(equipped_weapon_mesh) and 
-		equipped_weapon_mesh != sword_node and 
-		equipped_weapon_mesh != bow_node and 
-		equipped_weapon_mesh != staff_node):
-		equipped_weapon_mesh.queue_free()
-	
-	equipped_weapon_mesh = null
-
-func _create_simple_staff_mesh() -> MeshInstance3D:
-	var staff = MeshInstance3D.new()
-	var staff_mesh = CylinderMesh.new()
-	staff_mesh.top_radius = 0.025
-	staff_mesh.bottom_radius = 0.035
-	staff_mesh.height = 0.9
-	staff.mesh = staff_mesh
-	staff.position = Vector3(0, 0.45, 0)
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.4, 0.25, 0.1)
-	staff.material_override = mat
-	return staff
-
-func _update_player_stats(weapon_resource: WeaponResource):
-	if player_ref:
-		player_ref.attack_damage = base_attack_damage + weapon_resource.damage_bonus
-		player_ref.attack_range = base_attack_range + weapon_resource.range_bonus
-		player_ref.attack_cooldown = base_attack_cooldown * weapon_resource.cooldown_multiplier
-		player_ref.attack_cone_angle = base_attack_cone_angle
-
-func _reset_player_stats():
-	if player_ref:
-		player_ref.attack_damage = base_attack_damage
-		player_ref.attack_range = base_attack_range
-		player_ref.attack_cooldown = base_attack_cooldown
-		player_ref.attack_cone_angle = base_attack_cone_angle
+	item_added.connect(target._on_item_added)
+	item_removed.connect(target._on_item_removed)

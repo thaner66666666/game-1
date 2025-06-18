@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3 uid="uid://davx6xri0n0vt"]
+[gd_scene load_steps=24 format=3 uid="uid://davx6xri0n0vt"]
 
 [ext_resource type="Script" uid="uid://bt47480nh31yn" path="res://dot gds/player.gd" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://cqexju0dcbsij" path="res://dot gds/PlayerMovement.gd" id="2_cvnsp"]
@@ -7,7 +7,6 @@
 [ext_resource type="ArrayMesh" uid="uid://dagubfxbsoacu" path="res://3d Models/Bow/bow_01.obj" id="5_x3wgy"]
 [ext_resource type="Script" uid="uid://dq5lkmafnvuay" path="res://dot gds/PlayerHealth.gd" id="7_3smsa"]
 [ext_resource type="Script" uid="uid://bl4cu5bh7eb27" path="res://dot gds/PlayerProgression.gd" id="8_8erm5"]
-[ext_resource type="Script" uid="uid://dbv3aogrn67ce" path="res://dot gds/PlayerInventory.gd" id="8_f1ek2"]
 [ext_resource type="Script" uid="uid://chb3wyyytaqlj" path="res://dot gds/PlayerStats.gd" id="9_tx1dd"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6t5aa"]
@@ -279,7 +278,6 @@ script = ExtResource("2_cvnsp")
 script = SubResource("GDScript_gymyn")
 
 [node name="PlayerInventory" type="Node" parent="."]
-script = ExtResource("8_f1ek2")
 
 [node name="PlayerStats" type="Node" parent="."]
 script = ExtResource("9_tx1dd")

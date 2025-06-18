@@ -123,7 +123,7 @@ var right_foot: MeshInstance3D
 @onready var combat_component: PlayerCombat = $CombatComponent
 @onready var health_component = $HealthComponent
 @onready var progression_component = $ProgressionComponent
-@onready var inventory_component: PlayerInventory = get_node_or_null("InventoryComponent")
+@onready var inventory_component: PlayerInventoryComponent = get_node_or_null("InventoryComponent")
 @onready var stats_component: PlayerStats = get_node_or_null("StatsComponent")
 @onready var ui = get_tree().get_root().find_child("HealthUI", true, false)
 
