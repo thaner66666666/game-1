@@ -123,8 +123,7 @@ func initialize(player_ref: CharacterBody3D):
 		var cameras = player.get_tree().get_nodes_in_group("camera")
 		if cameras.size() > 0:
 			player.camera = cameras[0]
-	
-	current_dash_charges = player.stats_component.get_max_dash_charges()
+	# Remove dash charges initialization from here
 	last_dash_time = 0.0
 	is_dashing = false
 	is_attacking = false
@@ -466,15 +465,17 @@ func _update_body_walking_animation(delta: float, input_direction: Vector3):
 
 func _ready():
 	randomize()
+	# Ensure all components are initialized first
+	await get_tree().process_frame  # Wait a frame for all nodes/components to be ready if needed
+	# Now initialize dash charges after all components are set up
+	current_dash_charges = get_safe_max_dash_charges()
 	# _reset_idle_fidget()  # Remove idle fidget init
 
-# Remove all idle fidget functions
-# func _reset_idle_fidget():
-#     ...
-# func _trigger_idle_fidget():
-#     ...
-# func _update_idle_fidget(delta: float):
-#     ...
+# Defensive helper for dash charges
+func get_safe_max_dash_charges() -> int:
+	if player and is_instance_valid(player.stats_component):
+		return player.stats_component.get_max_dash_charges()
+	return 0
 
 func can_dash() -> bool:
 	return current_dash_charges > 0 and not is_dashing and not is_attacking and not is_being_knocked_back
@@ -484,7 +485,8 @@ func perform_dash():
 		return
 	current_dash_charges -= 1
 	last_dash_time = Time.get_ticks_msec() / 1000.0
-	dash_charges_changed.emit(current_dash_charges, player.stats_component.get_max_dash_charges())
+	var max_charges = get_safe_max_dash_charges()
+	dash_charges_changed.emit(current_dash_charges, max_charges)
 	var dash_direction = get_movement_input()
 	if dash_direction.length() == 0:
 		dash_direction = get_facing_direction()
@@ -504,12 +506,13 @@ func perform_dash():
 	dash_ended.emit()
 
 func handle_dash_cooldown(_delta: float):
-	if current_dash_charges >= player.stats_component.get_max_dash_charges():
+	var max_charges = get_safe_max_dash_charges()
+	if current_dash_charges >= max_charges:
 		return
 	var time_since_dash = Time.get_ticks_msec() / 1000.0 - last_dash_time
 	if time_since_dash >= player.dash_cooldown:
-		current_dash_charges = min(current_dash_charges + 1, player.stats_component.get_max_dash_charges())
-		dash_charges_changed.emit(current_dash_charges, player.stats_component.get_max_dash_charges())
+		current_dash_charges = min(current_dash_charges + 1, max_charges)
+		dash_charges_changed.emit(current_dash_charges, max_charges)
 
 func get_movement_input() -> Vector3:
 	# Map input so that 'move_up' is -Z (forward), 'move_down' is +Z (backward)
