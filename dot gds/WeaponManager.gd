@@ -29,6 +29,35 @@ func equip_weapon(weapon_resource: WeaponResource) -> void:
 	current_weapon = weapon_resource
 	_apply_weapon_to_player()
 
+	# --- Weapon mesh creation and attachment ---
+	var p = get_player()
+	if p and p.weapon_attach_point:
+		# Remove previous weapon mesh if exists
+		if p.weapon_attach_point.get_child_count() > 0:
+			for child in p.weapon_attach_point.get_children():
+				if child is MeshInstance3D:
+					child.queue_free()
+		# Create new mesh instance for weapon
+		if weapon_resource.has("mesh") and weapon_resource.mesh:
+			var weapon_mesh = MeshInstance3D.new()
+			weapon_mesh.mesh = weapon_resource.mesh
+			# Positioning based on weapon type (int enum)
+			if weapon_resource.weapon_type == WeaponResource.WeaponType.SWORD:
+				weapon_mesh.position = Vector3(0, 0, 0)
+				weapon_mesh.rotation = Vector3(0, 0, 0)
+			elif weapon_resource.weapon_type == WeaponResource.WeaponType.BOW:
+				weapon_mesh.position = Vector3(0.1, 0, 0)
+				weapon_mesh.rotation = Vector3(0, 0.5, 0)
+			# Add mesh to attach point
+			p.weapon_attach_point.add_child(weapon_mesh)
+			# Store reference for cleanup
+			p.equipped_weapon_mesh = weapon_mesh
+			print("🗡️ Weapon mesh created and attached to WeaponAttachPoint.")
+		else:
+			print("⚠️ Weapon resource has no mesh.")
+	else:
+		print("⚠️ Player or WeaponAttachPoint not found for mesh attachment.")
+
 func unequip_weapon() -> void:
 	if not get_player(): return
 	current_weapon = null
