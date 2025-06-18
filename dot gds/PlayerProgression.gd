@@ -1,8 +1,12 @@
 extends Node
 class_name PlayerProgression
 
+# Get player node reference using get_node and type it properly
+@onready var player: CharacterBody3D = get_node("../Player")
+
 signal coin_collected(amount: int)
 signal xp_changed(xp: int, xp_to_next: int, level: int)
+signal level_up_stats(health_increase: int, damage_increase: int)
 
 var currency: int = 0
 var total_coins_collected: int = 0
@@ -33,10 +37,9 @@ func _level_up():
 	xp -= xp_to_next_level
 	level += 1
 	xp_to_next_level = int(xp_to_next_level * xp_growth)
-	# Full heal on level up
-	if player_ref.health_component:
-		player_ref.health_component.current_health = player_ref.max_health
-		player_ref.health_component.health_changed.emit(player_ref.health_component.current_health, player_ref.max_health)
+	# Emit level up signal with stat increases instead of direct modification
+	level_up_stats.emit(10, 5)  # Increase health by 10, damage by 5
+	print("Leveled up to level ", level)
 	xp_changed.emit(xp, xp_to_next_level, level)
 
 func get_currency() -> int:
