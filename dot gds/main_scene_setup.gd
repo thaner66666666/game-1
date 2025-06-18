@@ -89,19 +89,19 @@ func _apply_time_of_day_lighting(segment: int):
 		_apply_dusk_lighting(sun_elevation)
 
 func _apply_night_lighting():
-	"""Dark night lighting"""
-	main_light.light_energy = 0.2
-	main_light.light_color = Color(0.4, 0.5, 0.8)
-	world_environment.environment.ambient_light_energy = 0.1
-	world_environment.environment.ambient_light_color = Color(0.2, 0.3, 0.6)
+	"""Dark night lighting (brighter than before)"""
+	main_light.light_energy = 0.4  # Increased from 0.2
+	main_light.light_color = Color(0.5, 0.6, 1.0)
+	world_environment.environment.ambient_light_energy = 0.18  # Increased from 0.1
+	world_environment.environment.ambient_light_color = Color(0.3, 0.4, 0.7)
 
 func _apply_dawn_lighting(elevation: float):
-	"""Sunrise/golden hour lighting"""
-	var intensity = remap(elevation, -10.0, 10.0, 0.3, 0.8)
+	"""Sunrise/golden hour lighting (brighter than before)"""
+	var intensity = remap(elevation, -10.0, 10.0, 0.4, 0.9)  # Increased min/max
 	main_light.light_energy = intensity
-	main_light.light_color = Color(1.0, 0.8, 0.6)
-	world_environment.environment.ambient_light_energy = intensity * 0.4
-	world_environment.environment.ambient_light_color = Color(0.9, 0.7, 0.5)
+	main_light.light_color = Color(1.0, 0.85, 0.7)
+	world_environment.environment.ambient_light_energy = intensity * 0.5  # Increased multiplier
+	world_environment.environment.ambient_light_color = Color(1.0, 0.8, 0.6)
 
 func _apply_day_lighting(elevation: float):
 	"""Bright daytime lighting"""
