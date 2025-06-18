@@ -4,11 +4,10 @@
 [ext_resource type="Script" uid="uid://cqexju0dcbsij" path="res://dot gds/PlayerMovement.gd" id="2_cvnsp"]
 [ext_resource type="Script" uid="uid://chx8k2542vhd2" path="res://dot gds/PlayerCombat.gd" id="3_6t5aa"]
 [ext_resource type="ArrayMesh" uid="uid://dpkhctk1q0bpg" path="res://3d Models/Sword/broadsword.obj" id="4_fkybt"]
+[ext_resource type="Script" uid="uid://cow52y1033t88" path="res://dot gds/test_script.gd" id="4_vgqql"]
 [ext_resource type="ArrayMesh" uid="uid://dagubfxbsoacu" path="res://3d Models/Bow/bow_01.obj" id="5_x3wgy"]
 [ext_resource type="Script" uid="uid://dq5lkmafnvuay" path="res://dot gds/PlayerHealth.gd" id="7_3smsa"]
 [ext_resource type="Script" uid="uid://bl4cu5bh7eb27" path="res://dot gds/PlayerProgression.gd" id="8_8erm5"]
-[ext_resource type="Script" uid="uid://dbv3aogrn67ce" path="res://dot gds/PlayerInventory.gd" id="9_f1ek2"]
-[ext_resource type="Script" path="res://dot gds/PlayerStats.gd" id="10_stats"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6t5aa"]
 albedo_color = Color(0, 0, 0, 1)
@@ -217,6 +216,9 @@ transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0.4
 visible = false
 mesh = SubResource("CylinderMesh_fkybt")
 
+[node name="SimpleHandManager" type="Node3D" parent="WeaponAttachPoint"]
+script = ExtResource("4_vgqql")
+
 [node name="RightHandAnchor" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.44, -0.2, 0)
 
@@ -252,11 +254,3 @@ script = ExtResource("7_3smsa")
 
 [node name="ProgressionComponent" type="Node" parent="."]
 script = ExtResource("8_8erm5")
-
-[node name="InventoryComponent" type="Node" parent="."]
-script = ExtResource("9_f1ek2")
-
-[node name="StatsComponent" type="Node" parent="."]
-script = ExtResource("10_stats")
-
-@onready var stats_component: PlayerStats = $StatsComponent

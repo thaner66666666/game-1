@@ -96,7 +96,6 @@ func _update_body_in_scene(config: Dictionary):
 @export var attack_cone_angle := 90.0
 
 @export_group("Health")
-@export var max_health := 100
 @export var health_regen_rate := 2.0
 @export var health_regen_delay := 3.0
 
@@ -108,7 +107,6 @@ func _update_body_in_scene(config: Dictionary):
 @export var max_dash_charges := 1
 
 @export_group("Experience")
-@export var heal_amount_from_potion := 30
 
 @export_group("Animation")
 @export var body_lean_strength: float = 0.15
@@ -127,6 +125,7 @@ var right_foot: MeshInstance3D
 @onready var progression_component = $ProgressionComponent
 @onready var inventory_component: PlayerInventory = $InventoryComponent
 @onready var stats_component: PlayerStats = $StatsComponent
+@onready var ui = get_tree().get_root().find_child("HealthUI", true, false)
 
 # Player state
 var is_dead := false
@@ -186,7 +185,7 @@ func _ready():
 	if combat_component and combat_component.has_method("initialize"):
 		combat_component.initialize(self, movement_component)
 	# Health system setup
-	health_component.setup(self, max_health)
+	health_component.setup(self, stats_component.get_max_health())
 	health_component.health_changed.connect(_on_health_changed)
 	health_component.player_died.connect(_on_player_died)
 	health_component.health_depleted.connect(_on_health_depleted)
@@ -194,8 +193,8 @@ func _ready():
 	progression_component.setup(self)
 	# Inventory system setup
 	inventory_component.setup(self)
-	inventory_component.weapon_equipped.connect(_on_weapon_equipped)
-	inventory_component.weapon_unequipped.connect(_on_weapon_unequipped)
+	# StatsComponent setup
+	stats_component.setup(self)
 	# Removed duplicate signal connections for coin_collected and xp_changed
 	# Pass animation settings to movement_component if supported
 	if movement_component and movement_component.has_method("set_animation_settings"):
@@ -310,10 +309,10 @@ func _pickup_coin(area: Area3D):
 		area.queue_free()
 
 func _pickup_health_potion(area: Area3D):
-	if health_component.current_health >= max_health:
+	if stats_component.get_health() >= stats_component.get_max_health():
 		# Don't pick up if at full health
 		return
-	health_component.heal(heal_amount_from_potion)
+	health_component.heal(health_component.heal_amount_from_potion)
 	if is_instance_valid(area):
 		area.queue_free()
 
@@ -326,8 +325,8 @@ func _pickup_xp_orb(area: Area3D):
 # --- Health System Component Handlers ---
 func _on_health_changed(_current_health: int, _max_health: int):
 	# Update UI or other systems as needed
-	if UI:
-		UI.update_stats(stats_component.get_all_stats())
+	if ui:
+		ui.update_stats(stats_component.get_all_stats())
 
 func _on_player_died():
 	is_dead = true
