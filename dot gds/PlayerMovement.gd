@@ -45,6 +45,7 @@ var step_cycle_speed := 1.0
 var personality_offset := 0.0
 var is_hands_idle := true
 var hand_animation_time := 0.0
+
 # Idle transition system
 var idle_transition_active := false
 var idle_transition_time := 0.0
@@ -56,7 +57,7 @@ var left_hand_node: Node3D = null
 var right_hand_node: Node3D = null
 var left_foot_node: Node3D = null
 var right_foot_node: Node3D = null
-var body_node: Node3D = null  # Main body/torso reference
+var body_node: Node3D = null
 
 var left_hand_origin: Vector3 = Vector3.ZERO
 var right_hand_origin: Vector3 = Vector3.ZERO
@@ -73,12 +74,15 @@ var target_body_sway := Vector3.ZERO
 var interpolation_speed := 8.0
 
 # Enhanced animation parameters
-var body_lean_strength := 0.15      # How much body leans during movement
-var body_sway_strength := 0.08      # Vertical and horizontal body sway
-var hand_swing_strength := 0.3      # Hand swing amplitude
-var foot_step_strength := 0.18      # Foot step distance
-var side_step_modifier := 1.4       # Extra animation for side-stepping
+var body_lean_strength := 0.15
+var body_sway_strength := 0.08
+var hand_swing_strength := 0.3
+var foot_step_strength := 0.18
+var side_step_modifier := 1.4
 
+var is_punch_animating := false
+
+# Signals
 signal dash_charges_changed(current_charges: int, max_charges: int)
 signal walk_animation_update(speed: float, exaggeration: float)
 signal movement_state_changed(is_moving: bool)
@@ -86,12 +90,15 @@ signal dash_started()
 signal dash_ended()
 signal knockback_started()
 signal knockback_ended()
-
-# Animation signals for player communication
 signal hand_animation_update(left_pos: Vector3, right_pos: Vector3, left_rot: Vector3, right_rot: Vector3)
 signal foot_animation_update(left_pos: Vector3, right_pos: Vector3)
 signal body_animation_update(body_pos: Vector3, body_rot: Vector3)
 signal animation_state_changed(is_idle: bool)
+
+func _ready():
+	randomize()
+	await get_tree().process_frame
+	current_dash_charges = get_safe_max_dash_charges()
 
 # Easing functions for cartoony animation
 func _ease_in_out_cubic(t: float) -> float:
@@ -123,7 +130,8 @@ func initialize(player_ref: CharacterBody3D):
 		var cameras = player.get_tree().get_nodes_in_group("camera")
 		if cameras.size() > 0:
 			player.camera = cameras[0]
-	# Remove dash charges initialization from here
+	
+	# Reset movement state
 	last_dash_time = 0.0
 	is_dashing = false
 	is_attacking = false
@@ -140,12 +148,30 @@ func initialize_animations():
 	# Store a random personality offset for organic animation
 	personality_offset = randf_range(-0.1, 0.1)
 
+	# Debug: Print all children of player to see what's available
+	print("🔍 Player children: ", player.get_children().map(func(c): return c.name))
+
 	# Get limb node references
 	left_hand_node = player.get_node_or_null("LeftHandAnchor/LeftHand")
 	right_hand_node = player.get_node_or_null("RightHandAnchor/RightHand")
 	left_foot_node = player.get_node_or_null("LeftFoot")
 	right_foot_node = player.get_node_or_null("RightFoot")
 	body_node = player.get_node_or_null("MeshInstance3D")
+	
+	# If feet not found, schedule a re-check after character creation
+	if not left_foot_node or not right_foot_node:
+		print("🦶 Feet not found yet - will re-check after character creation")
+		_schedule_foot_recheck()
+
+	# Try alternative paths if direct ones fail
+	if not left_foot_node:
+		left_foot_node = _find_node_recursive(player, "LeftFoot")
+		if left_foot_node:
+			print("🔍 Found LeftFoot via recursive search: ", left_foot_node.get_path())
+	if not right_foot_node:
+		right_foot_node = _find_node_recursive(player, "RightFoot")
+		if right_foot_node:
+			print("🔍 Found RightFoot via recursive search: ", right_foot_node.get_path())
 
 	# Store original positions and rotations
 	left_hand_origin = left_hand_node.position if left_hand_node else Vector3.ZERO
@@ -163,6 +189,7 @@ func initialize_animations():
 	current_body_sway = Vector3.ZERO
 	target_body_sway = Vector3.ZERO
 
+	# Debug output
 	var missing = []
 	if not left_hand_node: missing.append("LeftHand")
 	if not right_hand_node: missing.append("RightHand")
@@ -175,30 +202,82 @@ func initialize_animations():
 	else:
 		print("⚠️ Missing animation nodes: ", missing)
 	
+	# 🦶 Extra foot debugging
+	if left_foot_node and right_foot_node:
+		print("🦶 FEET FOUND! Left: ", left_foot_node.get_path(), " Right: ", right_foot_node.get_path())
+		print("🦶 Foot origins - Left: ", left_foot_origin, " Right: ", right_foot_origin)
+	else:
+		print("❌ FEET NOT FOUND! This is why foot animation isn't working!")
+		if not left_foot_node:
+			print("   - Missing LeftFoot node")
+		if not right_foot_node:
+			print("   - Missing RightFoot node")
+	
 	print("📍 Animation origins captured - Body: ", body_origin, ", Hands: [", left_hand_origin, ", ", right_hand_origin, "], Feet: [", left_foot_origin, ", ", right_foot_origin, "]")
 
+func reinitialize_feet():
+	"""Call this after character appearance is created to find the feet"""
+	print("🦶 Reinitializing feet references...")
+	left_foot_node = player.get_node_or_null("LeftFoot")
+	right_foot_node = player.get_node_or_null("RightFoot")
+	
+	if left_foot_node and right_foot_node:
+		left_foot_origin = left_foot_node.position
+		right_foot_origin = right_foot_node.position
+		print("✅ Feet reinitialized! Left: ", left_foot_node.get_path(), " Right: ", right_foot_node.get_path())
+		print("🦶 Foot origins - Left: ", left_foot_origin, " Right: ", right_foot_origin)
+	else:
+		print("❌ Still can't find feet after reinitialization")
+		if not left_foot_node:
+			print("   - Missing LeftFoot")
+		if not right_foot_node:
+			print("   - Missing RightFoot")
+
+func _schedule_foot_recheck():
+	# Check for feet multiple times with delays to catch them after character creation
+	get_tree().create_timer(0.1).timeout.connect(_recheck_feet)
+	get_tree().create_timer(0.3).timeout.connect(_recheck_feet)  
+	get_tree().create_timer(0.5).timeout.connect(_recheck_feet)
+
+func _recheck_feet():
+	if left_foot_node and right_foot_node:
+		return  # Already found them
+		
+	print("🔍 Re-checking for feet...")
+	left_foot_node = player.get_node_or_null("LeftFoot")
+	right_foot_node = player.get_node_or_null("RightFoot")
+	
+	if left_foot_node and right_foot_node:
+		left_foot_origin = left_foot_node.position
+		right_foot_origin = right_foot_node.position
+		print("🦶 SUCCESS! Found feet after recheck - Left: ", left_foot_node.get_path(), " Right: ", right_foot_node.get_path())
+		print("🦶 Foot origins - Left: ", left_foot_origin, " Right: ", right_foot_origin)
+	else:
+		print("❌ Still no feet found in recheck")
+
+func _find_node_recursive(node: Node, target_name: String) -> Node:
+	if node.name == target_name:
+		return node
+	for child in node.get_children():
+		var result = _find_node_recursive(child, target_name)
+		if result:
+			return result
+	return null
 
 func get_movement_direction_type(input_dir: Vector3, facing_dir: Vector3) -> MovementDirection:
-	"""Determine precise movement direction for better animations"""
 	if input_dir.length() < 0.1:
 		return MovementDirection.NONE
 	
-	# Normalize directions
 	var input_normalized = input_dir.normalized()
 	var facing_normalized = facing_dir.normalized()
 	
-	# Calculate dot product for forward/backward detection
 	var forward_dot = input_normalized.dot(facing_normalized)
-	
-	# Calculate cross product for left/right detection  
 	var cross = facing_normalized.cross(input_normalized)
-	var side_dot = cross.y  # Y component indicates left/right
+	var side_dot = cross.y
 	
-	# Thresholds for direction detection
 	var forward_threshold = 0.7
 	var side_threshold = 0.7
 	
-	# Determine primary direction
 	if abs(forward_dot) > forward_threshold:
 		if forward_dot > 0:
 			return MovementDirection.FORWARD
@@ -233,10 +312,10 @@ func handle_movement_and_dash(delta):
 		return
 		
 	var input_direction = get_movement_input()
-	# Add null safety check before using stats_component
 	if not player or not player.stats_component:
 		push_error("PlayerMovement: Missing player or stats_component reference!")
 		return
+		
 	var move_speed = input_direction.length() * player.stats_component.get_speed()
 	var is_moving = input_direction.length() > player.MOVEMENT_THRESHOLD
 	
@@ -275,7 +354,7 @@ func handle_movement_and_dash(delta):
 			animation_state_changed.emit(false)
 	else:
 		apply_friction(delta)
-		_update_idle_animations(delta)  # Enable idle hand/foot/body animation
+		_update_idle_animations(delta)
 		
 		if state != PlayerState.IDLE:
 			state = PlayerState.IDLE
@@ -286,8 +365,6 @@ func handle_movement_and_dash(delta):
 	apply_gravity(delta)
 	player.move_and_slide()
 
-# --- Idle transition system ---
-
 func _start_idle_transition():
 	idle_transition_active = true
 	idle_transition_time = 0.0
@@ -296,28 +373,20 @@ func _start_idle_transition():
 		idle_transition_start["left_hand"] = left_hand_node.position
 	if right_hand_node:
 		idle_transition_start["right_hand"] = right_hand_node.position
-	if left_foot_node:
-		idle_transition_start["left_foot"] = left_foot_node.position
-	if right_foot_node:
-		idle_transition_start["right_foot"] = right_foot_node.position
+	# DON'T capture feet - let CharacterAppearanceManager handle them
 	if body_node:
 		idle_transition_start["body_pos"] = body_node.position
 		idle_transition_start["body_rot"] = body_node.rotation_degrees
 
-# Smoothly interpolate all body parts to their original positions/rotations
 func _update_idle_animations(delta: float):
 	var t = idle_transition_time / idle_transition_duration
 	t = clamp(t, 0, 1)
 	var ease_t = _ease_in_out_cubic(t)
-	@warning_ignore("unused_variable")
-	var finished = false
 
-	# Only transition if active
 	if idle_transition_active:
 		idle_transition_time += delta
 		if t >= 1.0:
 			idle_transition_active = false
-			finished = true
 			# Reset animation phases for idle
 			walk_cycle_time = 0.0
 			hand_animation_time = 0.0
@@ -326,52 +395,55 @@ func _update_idle_animations(delta: float):
 			current_body_sway = Vector3.ZERO
 			target_body_sway = Vector3.ZERO
 
-		# Interpolate hands
+		# Interpolate hands only
 		if left_hand_node:
 			left_hand_node.position = idle_transition_start["left_hand"].lerp(left_hand_origin, ease_t)
 		if right_hand_node:
 			right_hand_node.position = idle_transition_start["right_hand"].lerp(right_hand_origin, ease_t)
-		# Interpolate feet
-		if left_foot_node:
-			left_foot_node.position = idle_transition_start["left_foot"].lerp(left_foot_origin, ease_t)
-		if right_foot_node:
-			right_foot_node.position = idle_transition_start["right_foot"].lerp(right_foot_origin, ease_t)
+		# DON'T touch feet - CharacterAppearanceManager handles them
 		# Interpolate body
 		if body_node:
 			body_node.position = idle_transition_start["body_pos"].lerp(body_origin, ease_t)
 			body_node.rotation_degrees = idle_transition_start["body_rot"].lerp(body_origin_rotation, ease_t)
 	else:
-		# After transition, ensure all parts are at rest
+		# After transition, ensure hands and body are at rest
 		if left_hand_node:
 			left_hand_node.position = left_hand_origin
 		if right_hand_node:
 			right_hand_node.position = right_hand_origin
-		if left_foot_node:
-			left_foot_node.position = left_foot_origin
-		if right_foot_node:
-			right_foot_node.position = right_foot_origin
+		# DON'T reset feet - let CharacterAppearanceManager handle idle foot position
 		if body_node:
 			body_node.position = body_origin
 			body_node.rotation_degrees = body_origin_rotation
+	
+	# 🦶 Always update feet animation, even during idle
+	if left_foot_node and right_foot_node:
+		CharacterAppearanceManager.animate_feet_walk(
+			left_foot_node, 
+			right_foot_node, 
+			left_foot_origin, 
+			right_foot_origin, 
+			walk_cycle_time, 
+			Vector3.ZERO,  # No velocity during idle
+			delta
+		)
 
 func _update_body_walking_animation(delta: float, input_direction: Vector3):
-	"""Enhanced body animation during walking with directional awareness"""
 	if not body_node:
 		return
 	
 	# Calculate body lean based on movement direction
 	var lean_intensity = input_direction.length() * body_lean_strength
-	var _facing_direction = get_facing_direction()
 	
 	match current_movement_direction:
 		MovementDirection.FORWARD:
-			target_body_lean = Vector3(0, 0, lean_intensity * 0.5)  # Slight forward lean
+			target_body_lean = Vector3(0, 0, lean_intensity * 0.5)
 		MovementDirection.BACKWARD:
-			target_body_lean = Vector3(0, 0, -lean_intensity * 0.7)  # Backward lean
+			target_body_lean = Vector3(0, 0, -lean_intensity * 0.7)
 		MovementDirection.LEFT:
-			target_body_lean = Vector3(0, lean_intensity * 1.2, 0)  # Lean into left turn
+			target_body_lean = Vector3(0, lean_intensity * 1.2, 0)
 		MovementDirection.RIGHT:
-			target_body_lean = Vector3(0, -lean_intensity * 1.2, 0)  # Lean into right turn
+			target_body_lean = Vector3(0, -lean_intensity * 1.2, 0)
 		MovementDirection.DIAGONAL_FL:
 			target_body_lean = Vector3(0, lean_intensity * 0.6, lean_intensity * 0.3)
 		MovementDirection.DIAGONAL_FR:
@@ -385,7 +457,7 @@ func _update_body_walking_animation(delta: float, input_direction: Vector3):
 	
 	# Body sway during walking cycle
 	var sway_phase = walk_cycle_time + personality_offset
-	var vertical_bob = sin(sway_phase * 2.0) * body_sway_strength * 0.5  # Double frequency for bob
+	var vertical_bob = sin(sway_phase * 2.0) * body_sway_strength * 0.5
 	var horizontal_sway = sin(sway_phase) * body_sway_strength * 0.3
 	
 	# Side-stepping gets more pronounced sway
@@ -408,72 +480,170 @@ func _update_body_walking_animation(delta: float, input_direction: Vector3):
 	
 	body_animation_update.emit(final_body_pos, final_body_rot)
 
-# Remove this duplicate function if it appears again below:
-# func _update_body_idle_animation(delta: float):
-#     ... (old or duplicate implementation)
+func _update_walking_animations(delta: float, input_direction: Vector3):
+	if is_punch_animating:
+		return
+	
+	# Advance walk cycle time based on movement speed and step cycle speed
+	var move_speed = input_direction.length() * player.stats_component.get_speed()
+	step_cycle_speed = max(4.0, move_speed / max(1.0, player.stats_component.get_speed()) * 5.0)
+	walk_cycle_time += delta * step_cycle_speed * 2.0
+	
+	# Keep walk_cycle_time in [0, TAU]
+	if walk_cycle_time > TAU:
+		walk_cycle_time -= TAU
 
-# func _update_body_idle_animation(delta: float):
-# 	"""Subtle body animation during idle state, now with breathing and fidgets"""
-# 	if not body_node:
-# 		return
+	# Direction-aware hand and foot animation
+	var facing_direction = get_facing_direction()
+	var movement_dot = 0.0
+	if input_direction.length() > 0.01:
+		movement_dot = input_direction.normalized().dot(facing_direction.normalized())
+	
+	# Enhanced hand animations based on movement direction
+	var hand_phase = walk_cycle_time + personality_offset
+	var foot_phase = hand_phase + PI
+	
+	# Adjust hand swing based on movement direction
+	var hand_swing_modifier = hand_swing_strength
+	var hand_lift_modifier = 1.0
+	var hand_diag_blend = 0.0
+	var hand_diag_offset = 0.0
+	var hand_diag_phase = 0.0
+	
+	match current_movement_direction:
+		MovementDirection.LEFT, MovementDirection.RIGHT:
+			hand_swing_modifier *= side_step_modifier
+			hand_lift_modifier *= 1.2
+		MovementDirection.BACKWARD:
+			hand_swing_modifier *= 0.7
+		MovementDirection.DIAGONAL_FL, MovementDirection.DIAGONAL_FR, MovementDirection.DIAGONAL_BL, MovementDirection.DIAGONAL_BR:
+			hand_diag_blend = 0.5
+			hand_diag_offset = 0.18 if current_movement_direction in [MovementDirection.DIAGONAL_FL, MovementDirection.DIAGONAL_BL] else -0.18
+			hand_swing_modifier *= 1.08
+			hand_lift_modifier *= 1.1
+			hand_diag_phase = 0.35
 
-# 	# Gentle breathing animation (affects body position and rotation)
-# 	hand_animation_time += delta
-# 	var breathing_phase = hand_animation_time * 0.8
-# 	var breathing_intensity = 0.02 + randf_range(-0.002, 0.002)
-# 	var breathing = sin(breathing_phase) * breathing_intensity
-# 	var breathing_rot = cos(breathing_phase) * breathing_intensity * 0.7
+	# Calculate enhanced hand movements
+	var hand_swing_forward = _ease_in_out_cubic(sin(hand_phase)) * hand_swing_modifier
+	var hand_swing_side = _ease_in_out_cubic(cos(hand_phase + hand_diag_phase)) * hand_swing_modifier * 0.7
+	var hand_swing = hand_swing_forward
+	if hand_diag_blend > 0.0:
+		hand_swing = lerp(hand_swing_forward, hand_swing_side, hand_diag_blend)
+	var hand_lift = _ease_out_back(sin(hand_phase + PI/2)) * 0.07 * hand_lift_modifier
+	
+	var left_hand_pos = null
+	var right_hand_pos = null
+	if left_hand_origin != Vector3.ZERO:
+		left_hand_pos = left_hand_origin + Vector3(-hand_swing + hand_diag_offset, hand_lift, 0)
+	if right_hand_origin != Vector3.ZERO:
+		right_hand_pos = right_hand_origin + Vector3(hand_swing + hand_diag_offset, -hand_lift, 0)
 
-# 	# Fidget logic
-# 	_update_idle_fidget(delta)
-# 	var fidget_pos := Vector3.ZERO
-# 	var fidget_rot := Vector3.ZERO
+	var left_hand_rot = Vector3(0, 0, -hand_swing * 2.0)
+	var right_hand_rot = Vector3(0, 0, hand_swing * 2.0)
 
-# 	match idle_fidget_state:
-# 		1: # Scratch head (body leans right, head/hand up)
-# 			fidget_pos = Vector3(0.03, 0.01, 0)
-# 			fidget_rot = Vector3(0, 0, 10) * idle_fidget_blend
-# 		2: # Look around (body rotates slightly left/right)
-# 			var look_dir = sin(hand_animation_time * 0.7) * 1.0
-# 			fidget_rot = Vector3(0, look_dir * 8 * idle_fidget_blend, 0)
-# 		3: # Shift weight (body leans left/right)
-# 			var shift = sin(hand_animation_time * 1.2) * 0.04
-# 			fidget_pos = Vector3(shift * idle_fidget_blend, 0, 0)
-# 			fidget_rot = Vector3(0, 0, -8 * idle_fidget_blend * sign(shift))
-# 		_:
-# 			pass
+	if left_hand_pos != null and right_hand_pos != null:
+		hand_animation_update.emit(left_hand_pos, right_hand_pos, left_hand_rot, right_hand_rot)
 
-# 	target_body_lean = Vector3.ZERO
-# 	target_body_sway = Vector3(0, breathing, 0) + fidget_pos
+	# Enhanced foot animations with crossed feet and diagonal blending
+	var foot_direction_multiplier = 1.0
+	var foot_swing_modifier = foot_step_strength
+	var cross_step_offset = 0.0
+	var is_side_stepping = false
+	var is_diagonal = false
+	
+	match current_movement_direction:
+		MovementDirection.FORWARD:
+			foot_direction_multiplier = -1.0
+		MovementDirection.BACKWARD:
+			foot_direction_multiplier = 1.0
+			foot_swing_modifier *= 0.8
+		MovementDirection.LEFT:
+			foot_direction_multiplier = 0.2
+			foot_swing_modifier *= side_step_modifier
+			cross_step_offset = 0.08
+			is_side_stepping = true
+		MovementDirection.RIGHT:
+			foot_direction_multiplier = 0.2
+			foot_swing_modifier *= side_step_modifier
+			cross_step_offset = -0.08
+			is_side_stepping = true
+		MovementDirection.DIAGONAL_FL, MovementDirection.DIAGONAL_FR:
+			foot_direction_multiplier = -0.7
+			cross_step_offset = 0.15 if current_movement_direction == MovementDirection.DIAGONAL_FL else -0.15
+			is_diagonal = true
+		MovementDirection.DIAGONAL_BL, MovementDirection.DIAGONAL_BR:
+			foot_direction_multiplier = 0.7
+			cross_step_offset = 0.15 if current_movement_direction == MovementDirection.DIAGONAL_BL else -0.15
+			is_diagonal = true
+		_:
+			foot_direction_multiplier = -1.0 if movement_dot >= 0 else 1.0
 
-# 	# Smooth interpolation to idle state
-# 	current_body_lean = current_body_lean.lerp(target_body_lean + fidget_rot, interpolation_speed * delta)
-# 	current_body_sway = current_body_sway.lerp(target_body_sway, interpolation_speed * delta * 0.5)
+	var left_foot_swing = _ease_in_out_cubic(sin(foot_phase)) * foot_swing_modifier
+	var right_foot_swing = _ease_in_out_cubic(sin(foot_phase + PI)) * foot_swing_modifier
+	var left_foot_lift = max(0, _ease_out_back(sin(foot_phase + PI/2))) * 0.12
+	var right_foot_lift = max(0, _ease_out_back(sin(foot_phase + PI + PI/2))) * 0.12
 
-# 	# Apply to body node
-# 	var final_body_pos = body_origin + current_body_sway
-# 	var final_body_rot = body_origin_rotation + current_body_lean + Vector3(breathing_rot, 0, 0)
+	var left_foot_pos = null
+	var right_foot_pos = null
+	
+	if left_foot_origin != Vector3.ZERO and right_foot_origin != Vector3.ZERO:
+		if is_side_stepping:
+			# CROSSED FEET ANIMATION for side-stepping!
+			var cross_multiplier = sin(foot_phase) * cross_step_offset
+			var cross_lift_multiplier = abs(sin(foot_phase)) * 0.08
+			left_foot_pos = left_foot_origin + Vector3(
+				cross_multiplier,
+				left_foot_lift + cross_lift_multiplier,
+				left_foot_swing * foot_direction_multiplier
+			)
+			right_foot_pos = right_foot_origin + Vector3(
+				-cross_multiplier,
+				right_foot_lift + cross_lift_multiplier,
+				right_foot_swing * foot_direction_multiplier
+			)
+		elif is_diagonal:
+			# Diagonal: blend between forward and side
+			var diag_cross = sin(foot_phase) * cross_step_offset
+			var diag_lift = abs(sin(foot_phase)) * 0.05
+			left_foot_pos = left_foot_origin + Vector3(
+				diag_cross,
+				left_foot_lift + diag_lift,
+				left_foot_swing * foot_direction_multiplier
+			)
+			right_foot_pos = right_foot_origin + Vector3(
+				-diag_cross,
+				right_foot_lift + diag_lift,
+				right_foot_swing * foot_direction_multiplier
+			)
+		else:
+			# Normal foot animation for forward/backward
+			left_foot_pos = left_foot_origin + Vector3(
+				0,
+				left_foot_lift,
+				left_foot_swing * foot_direction_multiplier
+			)
+			right_foot_pos = right_foot_origin + Vector3(
+				0,
+				right_foot_lift,
+				right_foot_swing * foot_direction_multiplier
+			)
 
-# 	body_node.position = final_body_pos
-# 	body_node.rotation_degrees = final_body_rot
+	if left_foot_pos != null and right_foot_pos != null:
+		foot_animation_update.emit(left_foot_pos, right_foot_pos)
 
-# 	body_animation_update.emit(final_body_pos, final_body_rot)
-
-# Idle fidget animation variables
-# var idle_fidget_timer := 0.0
-# var idle_fidget_interval := 0.0
-# var idle_fidget_state := 0 # 0 = none, 1 = scratch head, 2 = look around, 3 = shift weight
-# var idle_fidget_blend := 0.0
-# var idle_fidget_duration := 0.8
-# var idle_fidget_elapsed := 0.0
-
-func _ready():
-	randomize()
-	# Ensure all components are initialized first
-	await get_tree().process_frame  # Wait a frame for all nodes/components to be ready if needed
-	# Now initialize dash charges after all components are set up
-	current_dash_charges = get_safe_max_dash_charges()
-	# _reset_idle_fidget()  # Remove idle fidget init
+	# 🦶 THE MISSING PIECE! - Call CharacterAppearanceManager foot animation
+	if left_foot_node and right_foot_node:
+		CharacterAppearanceManager.animate_feet_walk(
+			left_foot_node, 
+			right_foot_node, 
+			left_foot_origin, 
+			right_foot_origin, 
+			walk_cycle_time, 
+			player.velocity, 
+			delta
+		)
+	else:
+		print("❌ Can't animate feet - nodes missing! Left: ", left_foot_node != null, " Right: ", right_foot_node != null)
 
 # Defensive helper for dash charges
 func get_safe_max_dash_charges() -> int:
@@ -519,7 +689,6 @@ func handle_dash_cooldown(_delta: float):
 		dash_charges_changed.emit(current_dash_charges, max_charges)
 
 func get_movement_input() -> Vector3:
-	# Map input so that 'move_up' is -Z (forward), 'move_down' is +Z (backward)
 	var input_dir = Vector3(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		0,
@@ -593,8 +762,6 @@ func can_attack() -> bool:
 	var time_since_last_attack = Time.get_ticks_msec() / 1000.0 - player.last_attack_time
 	return time_since_last_attack >= player.attack_cooldown and not is_attacking
 
-var is_punch_animating := false
-
 func set_punch_animating(value: bool):
 	is_punch_animating = value
 
@@ -610,157 +777,3 @@ func set_animation_settings(settings: Dictionary) -> void:
 	if "side_step_modifier" in settings:
 		side_step_modifier = settings["side_step_modifier"]
 	print("✅ PlayerMovement animation settings applied: ", settings)
-
-func _update_walking_animations(delta: float, input_direction: Vector3):
-	"""Enhanced walking animations with directional awareness and CROSSED FEET for side-stepping and smooth diagonals"""
-	if is_punch_animating:
-		return
-	
-	# Advance walk cycle time based on movement speed and step cycle speed
-	var move_speed = input_direction.length() * player.speed
-	step_cycle_speed = max(4.0, move_speed / max(1.0, player.speed) * 5.0)
-	walk_cycle_time += delta * step_cycle_speed * 2.0
-	
-	# Keep walk_cycle_time in [0, TAU]
-	if walk_cycle_time > TAU:
-		walk_cycle_time -= TAU
-
-	# Direction-aware hand and foot animation
-	var facing_direction = get_facing_direction()
-	var movement_dot = 0.0
-	if input_direction.length() > 0.01:
-		movement_dot = input_direction.normalized().dot(facing_direction.normalized())
-	
-	# Enhanced hand animations based on movement direction
-	var hand_phase = walk_cycle_time + personality_offset
-	var foot_phase = hand_phase + PI
-	
-	# Adjust hand swing based on movement direction
-	var hand_swing_modifier = hand_swing_strength
-	var hand_lift_modifier = 1.0
-	var hand_diag_blend = 0.0
-	var hand_diag_offset = 0.0
-	var hand_diag_phase = 0.0
-	
-	match current_movement_direction:
-		MovementDirection.LEFT, MovementDirection.RIGHT:
-			hand_swing_modifier *= side_step_modifier  # More pronounced side movement
-			hand_lift_modifier *= 1.2
-		MovementDirection.BACKWARD:
-			hand_swing_modifier *= 0.7  # Less swing when backing up
-		MovementDirection.DIAGONAL_FL, MovementDirection.DIAGONAL_FR, MovementDirection.DIAGONAL_BL, MovementDirection.DIAGONAL_BR:
-			# Diagonal: blend between forward and side swing, add offset for more natural feel
-			hand_diag_blend = 0.5
-			hand_diag_offset = 0.18 if current_movement_direction in [MovementDirection.DIAGONAL_FL, MovementDirection.DIAGONAL_BL] else -0.18
-			hand_swing_modifier *= 1.08  # Slightly more swing for diagonal
-			hand_lift_modifier *= 1.1
-			hand_diag_phase = 0.35  # Add a phase offset for diagonals for more natural swing
-
-	# Calculate enhanced hand movements
-	var hand_swing_forward = _ease_in_out_cubic(sin(hand_phase)) * hand_swing_modifier
-	var hand_swing_side = _ease_in_out_cubic(cos(hand_phase + hand_diag_phase)) * hand_swing_modifier * 0.7
-	var hand_swing = hand_swing_forward
-	if hand_diag_blend > 0.0:
-		# Blend forward/side for diagonals
-		hand_swing = lerp(hand_swing_forward, hand_swing_side, hand_diag_blend)
-	var hand_lift = _ease_out_back(sin(hand_phase + PI/2)) * 0.07 * hand_lift_modifier
-	
-	var left_hand_pos = null
-	var right_hand_pos = null
-	if left_hand_origin != Vector3.ZERO:
-		left_hand_pos = left_hand_origin + Vector3(-hand_swing + hand_diag_offset, hand_lift, 0)
-	if right_hand_origin != Vector3.ZERO:
-		right_hand_pos = right_hand_origin + Vector3(hand_swing + hand_diag_offset, -hand_lift, 0)
-
-	var left_hand_rot = Vector3(0, 0, -hand_swing * 2.0)
-	var right_hand_rot = Vector3(0, 0, hand_swing * 2.0)
-
-	if left_hand_pos != null and right_hand_pos != null:
-		hand_animation_update.emit(left_hand_pos, right_hand_pos, left_hand_rot, right_hand_rot)
-
-	# ===== ENHANCED FOOT ANIMATIONS WITH CROSSED FEET AND DIAGONAL BLENDING =====
-	var foot_direction_multiplier = 1.0
-	var foot_swing_modifier = foot_step_strength
-	var cross_step_offset = 0.0  # How much feet cross over during side-stepping
-	var is_side_stepping = false
-	var is_diagonal = false
-	
-	match current_movement_direction:
-		MovementDirection.FORWARD:
-			foot_direction_multiplier = -1.0
-		MovementDirection.BACKWARD:
-			foot_direction_multiplier = 1.0
-			foot_swing_modifier *= 0.8  # Smaller steps when backing up
-		MovementDirection.LEFT:
-			foot_direction_multiplier = 0.2  # Reduced forward/back movement
-			foot_swing_modifier *= side_step_modifier
-			cross_step_offset = 0.08  # Feet cross over to the right
-			is_side_stepping = true
-		MovementDirection.RIGHT:
-			foot_direction_multiplier = 0.2
-			foot_swing_modifier *= side_step_modifier
-			cross_step_offset = -0.08  # Feet cross over to the left
-			is_side_stepping = true
-		MovementDirection.DIAGONAL_FL, MovementDirection.DIAGONAL_FR:
-			foot_direction_multiplier = -0.7  # Mostly forward
-			cross_step_offset = 0.15 if current_movement_direction == MovementDirection.DIAGONAL_FL else -0.15  # More visible crossing
-			is_diagonal = true
-		MovementDirection.DIAGONAL_BL, MovementDirection.DIAGONAL_BR:
-			foot_direction_multiplier = 0.7  # Mostly backward
-			cross_step_offset = 0.15 if current_movement_direction == MovementDirection.DIAGONAL_BL else -0.15
-			is_diagonal = true
-		_:
-			foot_direction_multiplier = -1.0 if movement_dot >= 0 else 1.0
-
-	var left_foot_swing = _ease_in_out_cubic(sin(foot_phase)) * foot_swing_modifier
-	var right_foot_swing = _ease_in_out_cubic(sin(foot_phase + PI)) * foot_swing_modifier
-	var left_foot_lift = max(0, _ease_out_back(sin(foot_phase + PI/2))) * 0.12
-	var right_foot_lift = max(0, _ease_out_back(sin(foot_phase + PI + PI/2))) * 0.12
-
-	var left_foot_pos = null
-	var right_foot_pos = null
-	
-	if left_foot_origin != Vector3.ZERO and right_foot_origin != Vector3.ZERO:
-		if is_side_stepping:
-			# CROSSED FEET ANIMATION for side-stepping! 
-			var cross_multiplier = sin(foot_phase) * cross_step_offset
-			var cross_lift_multiplier = abs(sin(foot_phase)) * 0.08  # Extra lift when crossing
-			left_foot_pos = left_foot_origin + Vector3(
-				cross_multiplier,
-				left_foot_lift + cross_lift_multiplier,
-				left_foot_swing * foot_direction_multiplier
-			)
-			right_foot_pos = right_foot_origin + Vector3(
-				-cross_multiplier,
-				right_foot_lift + cross_lift_multiplier,
-				right_foot_swing * foot_direction_multiplier
-			)
-		elif is_diagonal:
-			# Diagonal: blend between forward and side, reduce crossing but keep visible
-			var diag_cross = sin(foot_phase) * cross_step_offset
-			var diag_lift = abs(sin(foot_phase)) * 0.05
-			left_foot_pos = left_foot_origin + Vector3(
-				diag_cross,
-				left_foot_lift + diag_lift,
-				left_foot_swing * foot_direction_multiplier
-			)
-			right_foot_pos = right_foot_origin + Vector3(
-				-diag_cross,
-				right_foot_lift + diag_lift,
-				right_foot_swing * foot_direction_multiplier
-			)
-		else:
-			# Normal foot animation for forward/backward
-			left_foot_pos = left_foot_origin + Vector3(
-				0,
-				left_foot_lift,
-				left_foot_swing * foot_direction_multiplier
-			)
-			right_foot_pos = right_foot_origin + Vector3(
-				0,
-				right_foot_lift,
-				right_foot_swing * foot_direction_multiplier
-			)
-
-	if left_foot_pos != null and right_foot_pos != null:
-		foot_animation_update.emit(left_foot_pos, right_foot_pos)

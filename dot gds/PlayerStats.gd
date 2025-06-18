@@ -60,7 +60,7 @@ func get_speed() -> float:
 	return player_ref.speed if player_ref else 5.0
 
 func get_dash_charges() -> int:
-	return player_ref.movement_component.current_charges if player_ref.movement_component else 0
+	return player_ref.movement_component.current_dash_charges if player_ref and is_instance_valid(player_ref.movement_component) else 1
 
 func get_max_dash_charges() -> int:
 	return player_ref.max_dash_charges if player_ref else 1

@@ -117,6 +117,9 @@ func _ready():
 	progression_component.setup(self)
 	# Connect to progression component's level up signal
 	progression_component.level_up_stats.connect(_on_level_up_stats)
+	# Connect XP and coin signals to forward to UI
+	progression_component.xp_changed.connect(_on_xp_changed)
+	progression_component.coin_collected.connect(_on_coin_collected)
 	# Inventory system setup
 	if inventory_component and inventory_component.has_method("setup"):
 		inventory_component.setup(self)
@@ -149,7 +152,11 @@ func _ready():
 	var config = CharacterGenerator.generate_random_character_config()
 	CharacterAppearanceManager.create_player_appearance(self, config)
 	print("🎨 Player skin tone: ", config["skin_tone"])
+
+	# 🦶 REINITIALIZE FEET AFTER CHARACTER CREATION
+	movement_component.reinitialize_feet()
 	# Removed duplicate/overwriting character creation calls
+
 
 func _setup_player():
 	add_to_group("player")
@@ -254,7 +261,7 @@ func _pickup_xp_orb(area: Area3D):
 func _on_health_changed(_current_health: int, _max_health: int):
 	# Update UI or other systems as needed
 	if ui:
-		ui.update_stats(stats_component.get_all_stats())
+		pass  # UI updates automatically in _process()
 
 func _on_player_died():
 	is_dead = true
@@ -273,6 +280,14 @@ func _on_level_up_stats(health_increase: int, _damage_increase: int):
 	if health_component.has_method("set_max_health"):
 		health_component.set_max_health(max_health)
 	print("Level up! Health increased by ", health_increase)
+
+func _on_xp_changed(xp: int, xp_to_next: int, level: int):
+	# Forward XP signal to UI
+	get_tree().call_group("UI", "_on_player_xp_changed", xp, xp_to_next, level)
+
+func _on_coin_collected(amount: int):
+	# Forward coin signal to UI  
+	get_tree().call_group("UI", "_on_player_coin_collected", amount)
 
 # Animation signal handlers for movement component
 func _on_hand_animation_update(left_pos: Vector3, right_pos: Vector3, left_rot: Vector3, right_rot: Vector3) -> void:
@@ -466,3 +481,12 @@ func test_skin_tones():
 	for i in range(5):
 		var config = CharacterGenerator.generate_random_character_config()
 		print("Test ", i, " skin tone: ", config["skin_tone"])
+
+func get_xp() -> int:
+	return stats_component.get_xp() if stats_component else 0
+
+func get_level() -> int:
+	return stats_component.get_level() if stats_component else 1
+
+func get_xp_to_next_level() -> int:
+	return stats_component.get_xp_to_next_level() if stats_component else 100
