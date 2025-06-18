@@ -1,6 +1,13 @@
 # main_scene_setup.gd - FIXED: Prevents double spawning issue
 extends Node3D
 
+# Time of day system - 64 different times
+@export_group("Time of Day")
+@export var time_of_day_segments := 64
+var current_time_segment: int = 0
+var main_light: DirectionalLight3D
+var world_environment: WorldEnvironment
+
 func _ready():
 	print("🎮 Main Scene: Starting...")
 	
@@ -22,23 +29,95 @@ func _ready():
 	call_deferred("_create_simple_systems")
 
 func _setup_lighting():
-	"""Create simple lighting"""
-	var light = DirectionalLight3D.new()
-	light.name = "MainLight"
-	light.light_energy = 1.2
-	light.position = Vector3(0, 15, 10)
-	light.rotation_degrees = Vector3(-45, 30, 0)
-	light.shadow_enabled = true
-	add_child(light)
-	
+	"""Create dynamic lighting that changes based on time of day"""
+	main_light = DirectionalLight3D.new()
+	main_light.name = "MainLight"
+	main_light.shadow_enabled = true
+	main_light.light_energy = 0.8 # Lowered for dramatic torch effect
+	main_light.shadow_bias = 0.05
+	main_light.shadow_normal_bias = 0.8
+	main_light.shadow_max_distance = 60.0
+	main_light.shadow_blur = 2.0
+	add_child(main_light)
+
 	var env = Environment.new()
 	env.background_mode = Environment.BG_SKY
-	env.ambient_light_energy = 0.4
-	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.15 # Lowered ambient for more contrast
+	env.ambient_light_color = Color(0.2, 0.2, 0.25)
+
+	world_environment = WorldEnvironment.new()
+	world_environment.environment = env
+	add_child(world_environment)
 	
-	var world_env = WorldEnvironment.new()
-	world_env.environment = env
-	add_child(world_env)
+	# Set random time of day when game starts
+	_set_random_time_of_day()
+
+func _set_random_time_of_day():
+	"""Randomly select one of 64 time segments and apply lighting"""
+	current_time_segment = randi() % time_of_day_segments
+	_apply_time_of_day_lighting(current_time_segment)
+	print("🌅 Time of day set to segment: ", current_time_segment, "/", time_of_day_segments)
+
+func _apply_time_of_day_lighting(segment: int):
+	"""Apply lighting settings based on time segment (0-63)"""
+	if not main_light or not world_environment:
+		return
+	
+	# Convert segment to time (0 = midnight, 32 = noon)
+	var time_progress = float(segment) / float(time_of_day_segments)
+	var sun_angle = time_progress * 360.0 - 90.0  # -90° to 270°
+	
+	# Calculate sun position
+	var sun_elevation = sin(deg_to_rad(sun_angle + 90.0)) * 90.0
+	var sun_rotation = Vector3(sun_elevation, sun_angle * 0.5, 0)
+	main_light.rotation_degrees = sun_rotation
+	
+	# Determine lighting phase
+	var is_night = sun_elevation < -10.0
+	var is_dawn = sun_elevation >= -10.0 and sun_elevation < 10.0
+	var is_day = sun_elevation >= 10.0 and sun_elevation < 80.0
+	var is_dusk = sun_elevation >= 80.0 and sun_elevation < 100.0
+	
+	# Apply lighting based on phase
+	if is_night:
+		_apply_night_lighting()
+	elif is_dawn:
+		_apply_dawn_lighting(sun_elevation)
+	elif is_day:
+		_apply_day_lighting(sun_elevation)
+	elif is_dusk:
+		_apply_dusk_lighting(sun_elevation)
+
+func _apply_night_lighting():
+	"""Dark night lighting"""
+	main_light.light_energy = 0.2
+	main_light.light_color = Color(0.4, 0.5, 0.8)
+	world_environment.environment.ambient_light_energy = 0.1
+	world_environment.environment.ambient_light_color = Color(0.2, 0.3, 0.6)
+
+func _apply_dawn_lighting(elevation: float):
+	"""Sunrise/golden hour lighting"""
+	var intensity = remap(elevation, -10.0, 10.0, 0.3, 0.8)
+	main_light.light_energy = intensity
+	main_light.light_color = Color(1.0, 0.8, 0.6)
+	world_environment.environment.ambient_light_energy = intensity * 0.4
+	world_environment.environment.ambient_light_color = Color(0.9, 0.7, 0.5)
+
+func _apply_day_lighting(elevation: float):
+	"""Bright daytime lighting"""
+	var intensity = remap(elevation, 10.0, 80.0, 0.8, 1.2)
+	main_light.light_energy = intensity
+	main_light.light_color = Color.WHITE
+	world_environment.environment.ambient_light_energy = intensity * 0.4
+	world_environment.environment.ambient_light_color = Color.WHITE
+
+func _apply_dusk_lighting(elevation: float):
+	"""Sunset lighting"""
+	var intensity = remap(elevation, 80.0, 100.0, 0.8, 0.3)
+	main_light.light_energy = intensity
+	main_light.light_color = Color(1.0, 0.6, 0.4)
+	world_environment.environment.ambient_light_energy = intensity * 0.3
+	world_environment.environment.ambient_light_color = Color(0.8, 0.5, 0.3)
 
 func _create_simple_systems():
 	"""Create simple reliable systems"""

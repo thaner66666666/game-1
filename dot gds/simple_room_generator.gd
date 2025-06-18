@@ -212,6 +212,49 @@ func generate_starting_room():
 	else:
 		print("⚠️ Recruiter NPC scene not loaded, cannot spawn recruiter!")
 
+	# --- TORCH PLACEMENT LOGIC ---
+	# Place torches in the starting room
+	var torch_scene = load("res://dot gds/torch.tscn")
+	if torch_scene:
+		var num_torches = randi_range(2, 4)
+		var wall_offset = 2.5 # Distance from wall
+		var placed_torches = 0
+		var tries = 0
+		while placed_torches < num_torches and tries < 20:
+			tries += 1
+			# Randomly pick a wall (0=left, 1=right, 2=top, 3=bottom)
+			var wall = randi() % 4
+			var t = randf_range(0.15, 0.85) # Avoid corners
+			var pos = Vector2()
+			if wall == 0:
+				pos = Vector2(starting_room.position.x + wall_offset, lerp(starting_room.position.y + wall_offset, starting_room.position.y + starting_room.size.y - wall_offset, t))
+			elif wall == 1:
+				pos = Vector2(starting_room.position.x + starting_room.size.x - wall_offset, lerp(starting_room.position.y + wall_offset, starting_room.position.y + starting_room.size.y - wall_offset, t))
+			elif wall == 2:
+				pos = Vector2(lerp(starting_room.position.x + wall_offset, starting_room.position.x + starting_room.size.x - wall_offset, t), starting_room.position.y + wall_offset)
+			else:
+				pos = Vector2(lerp(starting_room.position.x + wall_offset, starting_room.position.x + starting_room.size.x - wall_offset, t), starting_room.position.y + starting_room.size.y - wall_offset)
+
+			# Convert to world position
+			var world_pos = Vector3((pos.x - map_size.x / 2) * 2.0, 1.2, (pos.y - map_size.y / 2) * 2.0)
+
+			# Check for collision with player spawn, chest, or other torches (simple distance check)
+			var safe = true
+			if world_pos.distance_to(Vector3((starting_room.get_center().x - map_size.x / 2) * 2.0, 1.2, (starting_room.get_center().y - map_size.y / 2) * 2.0)) < 2.5:
+				safe = false
+			for obj in generated_objects:
+				if obj is StaticBody3D and obj.name.begins_with("Torch"):
+					if obj.global_position.distance_to(world_pos) < 2.0:
+						safe = false
+			if safe:
+				var torch = torch_scene.instantiate()
+				torch.name = "Torch_%d" % placed_torches
+				torch.global_position = world_pos
+				add_child(torch)
+				generated_objects.append(torch)
+				placed_torches += 1
+	# --- END TORCH PLACEMENT ---
+
 	print("🛡️ Starting room created with PROTECTED BOUNDARIES!")
 	terrain_generated.emit()
 
