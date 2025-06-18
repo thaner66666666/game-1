@@ -577,7 +577,9 @@ func _on_arrow_despawn(arrow: MeshInstance3D):
 		arrow.queue_free()
 
 func _ready():
-	weapon_animation_player = player.get_node_or_null("WeaponAnimationPlayer")
+	if not player:
+		player = get_parent()
+	weapon_animation_player = player.get_node_or_null("WeaponAnimationPlayer") if player else null
 	if not weapon_animation_player:
 		push_error("[PlayerCombat] WeaponAnimationPlayer node not found on player!")
 	else:
