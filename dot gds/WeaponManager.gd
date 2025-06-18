@@ -28,17 +28,11 @@ func equip_weapon(weapon_resource: WeaponResource) -> void:
 	if not get_player(): return
 	current_weapon = weapon_resource
 	_apply_weapon_to_player()
-	var hand_manager = player.get_node_or_null("WeaponAttachPoint/SimpleHandManager")
-	if hand_manager and hand_manager.has_method("refresh_weapon_hands"):
-		hand_manager.refresh_weapon_hands()
 
 func unequip_weapon() -> void:
 	if not get_player(): return
 	current_weapon = null
 	_apply_weapon_to_player()
-	var hand_manager = player.get_node_or_null("WeaponAttachPoint/SimpleHandManager")
-	if hand_manager and hand_manager.has_method("refresh_weapon_hands"):
-		hand_manager.refresh_weapon_hands()
 
 func get_current_weapon() -> WeaponResource:
 	return current_weapon

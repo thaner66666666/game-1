@@ -7,7 +7,7 @@ signal weapon_unequipped()
 var player_ref: CharacterBody3D
 var weapon_attach_point: Node3D
 var equipped_weapon_mesh: MeshInstance3D
-var sword_node: MeshInstance3D
+var sword_node: MeshInstance3D = null
 
 # Base stats for weapon system
 var base_attack_damage := 10
@@ -17,15 +17,22 @@ var base_attack_cone_angle := 90.0
 
 func setup(player_ref_in: CharacterBody3D):
 	player_ref = player_ref_in
-	_setup_weapon_attach_point()
-	_connect_weapon_manager_signals()
+	call_deferred("_setup_weapon_attach_point")
+	call_deferred("_connect_weapon_manager_signals")
 
 func _setup_weapon_attach_point():
-	# Get weapon attach point from player
+	if not player_ref:
+		return
 	weapon_attach_point = player_ref.get_node_or_null("WeaponAttachPoint")
 	if weapon_attach_point:
 		sword_node = weapon_attach_point.get_node_or_null("SwordNode")
-	
+		if sword_node:
+			print("✅ PlayerInventory: Found SwordNode")
+		else:
+			print("⚠️ PlayerInventory: SwordNode not found under WeaponAttachPoint")
+	else:
+		print("❌ PlayerInventory: WeaponAttachPoint not found on player")
+
 func _connect_weapon_manager_signals():
 	if WeaponManager:
 		if not WeaponManager.weapon_equipped.is_connected(_on_weapon_equipped):

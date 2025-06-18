@@ -123,7 +123,6 @@ var right_foot: MeshInstance3D
 
 @onready var movement_component: PlayerMovement = $MovementComponent
 @onready var combat_component: PlayerCombat = $CombatComponent
-@onready var sword_node: MeshInstance3D = $WeaponAttachPoint/SwordNode
 @onready var health_component = $HealthComponent
 @onready var progression_component = $ProgressionComponent
 @onready var inventory_component: PlayerInventory = $InventoryComponent

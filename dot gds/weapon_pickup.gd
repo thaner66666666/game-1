@@ -406,22 +406,12 @@ func _interact_with_weapon():
 func _pickup_weapon():
 	WeaponManager.equip_weapon(weapon_resource)
 	print("🗡️ Picked up: ", weapon_resource.weapon_name)
-	# Immediately update hand visuals if SimpleHandManager exists
-	if Engine.has_singleton("SimpleHandManager"):
-		var hand_mgr = get_node("/root/SimpleHandManager")
-		if hand_mgr and hand_mgr.has_method("refresh_weapon_hands"):
-			hand_mgr.refresh_weapon_hands()
 	queue_free()
 
 func _swap_weapons():
 	var old_weapon = WeaponManager.get_current_weapon()
 	WeaponManager.equip_weapon(weapon_resource)
 	print("🗡️ Swapped to: ", weapon_resource.weapon_name)
-	# Immediately update hand visuals if SimpleHandManager exists
-	if Engine.has_singleton("SimpleHandManager"):
-		var hand_mgr = get_node("/root/SimpleHandManager")
-		if hand_mgr and hand_mgr.has_method("refresh_weapon_hands"):
-			hand_mgr.refresh_weapon_hands()
 	if old_weapon:
 		set_weapon_resource(old_weapon)
 		print("🗡️ Dropped: ", old_weapon.weapon_name)

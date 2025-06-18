@@ -188,7 +188,7 @@ func _play_attack_animation(combo_idx: int):
 	print("🗡️ DEBUG: Has weapon = ", current_weapon != null)
 	if current_weapon:
 		print("🗡️ DEBUG: Weapon name = ", current_weapon.weapon_name)
-		print("🗡️ DEBUG: weapon_attach_point exists = ", player.weapon_attach_point != null)
+		print("🗡️ DEBUG: weapon_attach_point exists = ", player.inventory_component.weapon_attach_point != null)
 		if player.weapon_attach_point:
 			print("🗡️ DEBUG: weapon_attach_point path = ", player.weapon_attach_point.get_path())
 	if not current_weapon:

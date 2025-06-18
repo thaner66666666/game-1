@@ -21,7 +21,7 @@ func setup(player_ref_in: CharacterBody3D, starting_health: int):
 	last_damage_time = 0.0
 	invulnerability_timer = 0.0
 
-func take_damage(amount: int, from: Node3D = null):
+func take_damage(amount: int, _from: Node3D = null):
 	if current_health <= 0 or invulnerability_timer > 0:
 		return
 	var old_health = current_health
