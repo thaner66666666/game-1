@@ -253,6 +253,7 @@ func generate_starting_room():
 				var torch = torch_scene.instantiate()
 				torch.name = "Torch_%d" % placed_torches
 				torch.global_position = world_pos
+				add_child(torch)  # <-- This is what's missing!
 				generated_objects.append(torch)
 				placed_torches += 1
 				print("[TORCH DEBUG] Placed torch at %s (index %d)" % [str(world_pos), placed_torches-1])
