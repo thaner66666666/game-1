@@ -16,6 +16,11 @@ signal new_room_generated(room_rect: Rect2)
 @export var boundary_thickness = 2  # How many tiles thick the protected boundary is
 @export var safe_zone_margin = 4    # Extra margin inside the boundary for room placement
 
+# Recruiter spawn configuration
+@export var recruiter_base_chance: float = 0.25  # 25% base chance
+@export var recruiter_chance_increase: float = 0.1  # Increases per room
+@export var recruiter_max_chance: float = 0.8  # Max 80% chance
+
 enum TileType { WALL, FLOOR, CORRIDOR }
 
 # NEW: Room shape types
@@ -586,19 +591,22 @@ func create_connected_room():
 	_spawn_destructible_objects_in_room(new_room)  # NEW: Spawn destructibles
 
 	# --- RANDOM RECRUITER NPC SPAWN ---
-	if randi_range(1, 4) == 1: # 25% chance
+	# Calculate spawn chance based on room progression
+	var spawn_chance = min(recruiter_base_chance + (current_room_count * recruiter_chance_increase), recruiter_max_chance)
+	if randf() < spawn_chance:
+		# Check if recruiter already exists
+		var existing_recruiter = get_tree().get_first_node_in_group("recruiters")
+		if existing_recruiter:
+			print("👤 Recruiter already exists, skipping spawn")
+			return
 		var recruiter_npc_scene = load("res://Scenes/recruiter_npc.tscn")
 		if recruiter_npc_scene:
 			var recruiter_npc_instance = recruiter_npc_scene.instantiate()
 			add_child(recruiter_npc_instance)
-			# Position recruiter randomly in the new room
-			var center = new_room.get_center()
-			var offset = Vector2(randf_range(-2, 2), randf_range(-2, 2))
-			recruiter_npc_instance.global_position = Vector3(
-				(center.x - map_size.x / 2) * 2.0 + offset.x,
-				0.5,
-				(center.y - map_size.y / 2) * 2.0 + offset.y
-			)
+			# Find safe spawn position away from objects
+			var safe_position = _find_safe_recruiter_position(new_room)
+			if safe_position != Vector3.ZERO:
+				recruiter_npc_instance.global_position = safe_position
 			print("👤 Recruiter NPC spawned in new room!")
 			# Connect signal for recruiter to disappear after recruiting
 			if recruiter_npc_instance.has_method("connect_recruit_signal"):
@@ -969,3 +977,32 @@ func _get_torch_grid_position(torch_world_pos: Vector3) -> Vector2:
 
 func _setup_lighting():
 	print("🔆 Lighting handled by main_scene_setup.gd")
+
+func _find_safe_recruiter_position(room: Rect2) -> Vector3:
+	var attempts = 10
+	while attempts > 0:
+		var center = room.get_center()
+		var offset = Vector2(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5))
+		var test_pos = Vector3(
+			(center.x - map_size.x / 2) * 2.0 + offset.x,
+			0.5,
+			(center.y - map_size.y / 2) * 2.0 + offset.y
+		)
+		# Check distance from other objects
+		var is_safe = true
+		for child in get_children():
+			if child.has_method("get_global_position"):
+				var child_pos = child.get_global_position()
+				if child_pos.distance_to(test_pos) < 2.0:
+					is_safe = false
+					break
+			elif child.has_method("global_position"):
+				if child.global_position.distance_to(test_pos) < 2.0:
+					is_safe = false
+					break
+		if is_safe:
+			return test_pos
+		attempts -= 1
+	# Fallback to room center
+	var fallback_center = room.get_center()
+	return Vector3((fallback_center.x - map_size.x / 2) * 2.0, 0.5, (fallback_center.y - map_size.y / 2) * 2.0)
