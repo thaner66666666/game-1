@@ -505,19 +505,25 @@ func get_level() -> int:
 func get_xp_to_next_level() -> int:
 	return stats_component.get_xp_to_next_level() if stats_component else 100
 
-func _on_show_level_up_choices():
-	get_tree().paused = true
-	var levelup_ui = get_tree().get_first_node_in_group("levelupui")
-	if levelup_ui and levelup_ui.has_method("show_level_up_ui"):
-		levelup_ui.show_level_up_ui()
+func _on_show_level_up_choices(options: Array):
+	var level_up_ui = get_tree().get_first_node_in_group("levelupui")
+	if level_up_ui:
+		level_up_ui.show_upgrade_choices(options)
 
 func _on_stat_choice_made(stat_name: String):
 	match stat_name:
 		"damage":
 			attack_damage += 5
+			print("✅ Attack damage increased by 5")
 		"speed":
 			speed += 1.0
+			print("✅ Speed increased by 1.0")
 		"attack_speed":
-			attack_cooldown = max(0.1, attack_cooldown - 0.2)
-	get_tree().paused = false
-	print("✅ Upgraded ", stat_name)
+			attack_cooldown -= 0.1
+			print("✅ Attack speed increased")
+		"health":
+			max_health += 20
+			health_component.heal(20)
+			if health_component.has_method("set_max_health"):
+				health_component.set_max_health(max_health)
+			print("✅ Max health increased by 20")
