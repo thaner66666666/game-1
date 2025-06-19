@@ -7,6 +7,8 @@ class_name PlayerProgression
 signal coin_collected(amount: int)
 signal xp_changed(xp: int, xp_to_next: int, level: int)
 signal level_up_stats(health_increase: int, damage_increase: int)
+signal show_level_up_choices
+signal stat_choice_made(stat_name: String)
 
 var currency: int = 0
 var total_coins_collected: int = 0
@@ -41,13 +43,15 @@ func _level_up():
 	xp -= xp_to_next_level
 	level += 1
 	xp_to_next_level = int(xp_to_next_level * xp_growth)
-	# Emit level up signal with stat increases instead of direct modification
-	level_up_stats.emit(10, 5)  # Increase health by 10, damage by 5
 	print("Leveled up to level ", level)
-	xp_changed.emit(xp, xp_to_next_level, level)
+	show_level_up_choices.emit()
 
 func get_currency() -> int:
 	return currency
 
 func get_xp() -> int:
 	return xp
+
+func apply_stat_choice(stat_name: String):
+	stat_choice_made.emit(stat_name)
+	xp_changed.emit(xp, xp_to_next_level, level)

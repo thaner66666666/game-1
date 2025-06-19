@@ -116,7 +116,8 @@ func _ready():
 	# Progression system setup
 	progression_component.setup(self)
 	# Connect to progression component's level up signal
-	progression_component.level_up_stats.connect(_on_level_up_stats)
+	progression_component.show_level_up_choices.connect(_on_show_level_up_choices)
+	progression_component.stat_choice_made.connect(_on_stat_choice_made)
 	# Connect XP and coin signals to forward to UI
 	progression_component.xp_changed.connect(_on_xp_changed)
 	progression_component.coin_collected.connect(_on_coin_collected)
@@ -508,3 +509,21 @@ func get_level() -> int:
 
 func get_xp_to_next_level() -> int:
 	return stats_component.get_xp_to_next_level() if stats_component else 100
+
+func _on_show_level_up_choices():
+	get_tree().paused = true
+	print("🎯 Level Up! Choose a stat:")
+	print("1. Damage +5")
+	print("2. Speed +1.0")
+	print("3. Attack Speed -0.2s")
+
+func _on_stat_choice_made(stat_name: String):
+	match stat_name:
+		"damage":
+			attack_damage += 5
+		"speed":
+			speed += 1.0
+		"attack_speed":
+			attack_cooldown = max(0.1, attack_cooldown - 0.2)
+	get_tree().paused = false
+	print("✅ Upgraded ", stat_name)
