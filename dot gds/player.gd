@@ -105,30 +105,23 @@ func _ready():
 		movement_component.initialize(self)
 	if combat_component and combat_component.has_method("initialize"):
 		combat_component.initialize(self, movement_component)
-	# Health system setup
 	if stats_component and stats_component.has_method("get_max_health"):
 		health_component.setup(self, stats_component.get_max_health())
 	else:
-		health_component.setup(self, 100) # fallback value
+		health_component.setup(self, 100)
 	health_component.health_changed.connect(_on_health_changed)
 	health_component.player_died.connect(_on_player_died)
 	health_component.health_depleted.connect(_on_health_depleted)
-	# Progression system setup
 	progression_component.setup(self)
-	# Connect to progression component's level up signal
 	progression_component.show_level_up_choices.connect(_on_show_level_up_choices)
 	progression_component.stat_choice_made.connect(_on_stat_choice_made)
-	# Connect XP and coin signals to forward to UI
 	progression_component.xp_changed.connect(_on_xp_changed)
 	progression_component.coin_collected.connect(_on_coin_collected)
 	# Inventory system setup
 	if inventory_component and inventory_component.has_method("setup"):
 		inventory_component.setup(self)
-	# PlayerComponent setup
 	if stats_component and stats_component.has_method("setup"):
 		stats_component.setup(self)
-	# Removed duplicate signal connections for coin_collected and xp_changed
-	# Pass animation settings to movement_component if supported
 	if movement_component and movement_component.has_method("set_animation_settings"):
 		movement_component.set_animation_settings({
 			"body_lean_strength": body_lean_strength,
@@ -137,7 +130,6 @@ func _ready():
 			"foot_step_strength": foot_step_strength,
 			"side_step_modifier": side_step_modifier
 		})
-	# Consolidated signal connections
 	if movement_component:
 		movement_component.dash_charges_changed.connect(_on_dash_charges_changed)
 		movement_component.hand_animation_update.connect(_on_hand_animation_update)
@@ -146,17 +138,17 @@ func _ready():
 		movement_component.body_animation_update.connect(_on_body_animation_update)
 	if combat_component:
 		combat_component.attack_state_changed.connect(_on_combat_attack_state_changed)
-	# Initialize blinking system
 	_reset_blink_timer()
-
-	# Apply random skin tone to player (character appearance)
 	var config = CharacterGenerator.generate_random_character_config()
 	CharacterAppearanceManager.create_player_appearance(self, config)
 	print("🎨 Player skin tone: ", config["skin_tone"])
-
-	# 🦶 REINITIALIZE FEET AFTER CHARACTER CREATION
 	movement_component.reinitialize_feet()
-	# Removed duplicate/overwriting character creation calls
+	# Connect upgrade_choice_requested signal
+	progression_component.upgrade_choice_requested.connect(_on_upgrade_choice_requested)
+
+func _on_upgrade_choice_requested(options: Array):
+	get_tree().call_group("levelupui", "show_upgrade_choices", options)
+// ...existing code...
 
 
 func _setup_player():

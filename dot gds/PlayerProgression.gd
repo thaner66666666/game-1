@@ -43,8 +43,12 @@ func _level_up():
 	xp -= xp_to_next_level
 	level += 1
 	xp_to_next_level = int(xp_to_next_level * xp_growth)
-	print("Leveled up to level ", level)
-	show_level_up_choices.emit()
+	# Pause and show upgrade choices
+	get_tree().paused = true
+	var upgrade_options = _generate_upgrade_options()
+	upgrade_choice_requested.emit(upgrade_options)
+	print("Level up! Choose your upgrade...")
+
 
 func get_currency() -> int:
 	return currency
@@ -54,4 +58,25 @@ func get_xp() -> int:
 
 func apply_stat_choice(stat_name: String):
 	stat_choice_made.emit(stat_name)
+	xp_changed.emit(xp, xp_to_next_level, level)
+
+
+signal upgrade_choice_requested(options: Array)
+
+func _generate_upgrade_options() -> Array:
+	return [
+		{"title": "💪 Health Boost", "description": "+20 Max Health", "type": "health", "value": 20},
+		{"title": "⚔️ Damage Up", "description": "+5 Attack Damage", "type": "damage", "value": 5},
+		{"title": "💨 Speed Boost", "description": "+1.0 Movement Speed", "type": "speed", "value": 1.0}
+	]
+
+func apply_upgrade(upgrade_data: Dictionary):
+	match upgrade_data.type:
+		"health":
+			level_up_stats.emit(upgrade_data.value, 0)
+		"damage":
+			player_ref.attack_damage += upgrade_data.value
+		"speed":
+			player_ref.speed += upgrade_data.value
+	get_tree().paused = false
 	xp_changed.emit(xp, xp_to_next_level, level)
