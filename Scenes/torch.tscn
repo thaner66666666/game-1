@@ -11,11 +11,11 @@ radius = 0.1
 script = ExtResource("1_wced7")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.707166, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.0992, 0)
 mesh = ExtResource("2_h1t0l")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.862944, 0.0730011)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.415263, 0.0730011)
 light_color = Color(1, 0.466667, 0, 1)
 omni_range = 8.0
 

@@ -301,6 +301,20 @@ func generate_starting_room():
 			
 			if safe:
 				var torch = torch_scene.instantiate()
+				# Set torch rotation based on which wall it's attached to
+				match wall:
+					0:
+						# Left wall: rotate to face into room (90 degrees around Y)
+						torch.rotation_degrees = Vector3(0, 90, 0)
+					1:
+						# Right wall: rotate to face into room (-90 degrees around Y)
+						torch.rotation_degrees = Vector3(0, -90, 0)
+					2:
+						# Top wall: rotate to face into room (should be 0 degrees around Y)
+						torch.rotation_degrees = Vector3(0, 0, 0)
+					3:
+						# Bottom wall: rotate to face into room (180 degrees around Y)
+						torch.rotation_degrees = Vector3(0, 180, 0)
 				torch.name = "Torch_%d" % placed_torches
 				add_child(torch)
 				torch.global_position = world_pos
