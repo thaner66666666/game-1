@@ -59,6 +59,7 @@ func _ready():
 	
 	_create_materials()
 	_find_references()
+	_setup_lighting()
 	
 	# Load the treasure chest scene
 	if ResourceLoader.exists("res://Scenes/treasure_chest.tscn"):
@@ -302,10 +303,10 @@ func _create_wall_at(grid_x: int, grid_y: int) -> StaticBody3D:
 	mesh.mesh = BoxMesh.new()
 	
 	if is_boundary:
-		mesh.mesh.size = Vector3(1.8, wall_height * 1.2, 1.8)  # Taller boundary walls
+		mesh.mesh.size = Vector3(2.1, wall_height * 1.2, 2.1)  # Taller boundary walls, increased size to eliminate gaps
 		mesh.material_override = boundary_wall_material
 	else:
-		mesh.mesh.size = Vector3(1.8, wall_height, 1.8)
+		mesh.mesh.size = Vector3(2.1, wall_height, 2.1)  # Increased size to eliminate gaps
 		mesh.material_override = wall_material
 	
 	wall.add_child(mesh)
@@ -313,7 +314,7 @@ func _create_wall_at(grid_x: int, grid_y: int) -> StaticBody3D:
 	# Collision
 	var coll = CollisionShape3D.new()
 	coll.shape = BoxShape3D.new()
-	coll.shape.size = mesh.mesh.size
+	coll.shape.size = mesh.mesh.size  # Match collision shape to mesh size
 	wall.add_child(coll)
 	
 	# Position
@@ -836,10 +837,11 @@ func _world_to_grid(world_pos: Vector3) -> Vector2:
 	)
 
 func _spawn_torches_in_room(room: Rect2):
-	"""Spawns 2-4 torches around the given room's walls, using wall placement, rotation, and collision logic."""
+	"""Spawns 4-8 torches around the given room's walls, using wall placement, rotation, and collision logic."""
 	var torch_scene = load("res://Scenes/torch.tscn")
 	if torch_scene:
-		var num_torches = randi_range(2, 4)
+		# Doubled the amount: was randi_range(2, 4), now randi_range(4, 8)
+		var num_torches = randi_range(4, 8)
 		var placed_torches = 0
 		var tries = 0
 		print("[TORCH DEBUG] Attempting to place %d torches in room %s" % [num_torches, str(room)])
@@ -886,6 +888,15 @@ func _spawn_torches_in_room(room: Rect2):
 				1.5,
 				(torch_grid_pos.y - map_size.y / 2) * 2.0
 			)
+			# Add small offset toward room center
+			if wall == 0:
+				world_pos.x += 0.3
+			elif wall == 1:
+				world_pos.x -= 0.3
+			elif wall == 2:
+				world_pos.z += 0.3
+			elif wall == 3:
+				world_pos.z -= 0.3
 			var safe = true
 			var room_center_world = Vector3(
 				(room.get_center().x - map_size.x / 2) * 2.0,
@@ -928,3 +939,23 @@ func _spawn_torches_in_room(room: Rect2):
 func _get_torch_grid_position(torch_world_pos: Vector3) -> Vector2:
 	# Converts a torch's world position back to grid coordinates
 	return Vector2(int((torch_world_pos.x / 2.0) + (map_size.x / 2)), int((torch_world_pos.z / 2.0) + (map_size.y / 2)))
+
+# Lighting setup: simple dark directional light and environment
+func _setup_lighting():
+	"""Create simple dark lighting"""
+	var main_light = DirectionalLight3D.new()
+	main_light.name = "MainLight"
+	main_light.shadow_enabled = true
+	main_light.light_energy = 0.6
+	main_light.light_color = Color(0.9, 0.95, 1.0)  # Slight blue tint
+	main_light.rotation_degrees = Vector3(-45, 30, 0)  # Fixed angle
+	add_child(main_light)
+
+	var env = Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.ambient_light_energy = 0.1  # Very dark
+	env.ambient_light_color = Color(0.2, 0.2, 0.3)
+
+	var world_environment = WorldEnvironment.new()
+	world_environment.environment = env
+	add_child(world_environment)
