@@ -1,25 +1,24 @@
 [gd_scene load_steps=4 format=3 uid="uid://e3h2x2hy5wl5"]
 
 [ext_resource type="Script" uid="uid://2qil4br21uwm" path="res://dot gds/torch.gd" id="1_wced7"]
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_h1t0l"]
-top_radius = 0.1
-bottom_radius = 0.1
+[ext_resource type="ArrayMesh" uid="uid://csx3tds4ley28" path="res://3d Models/Torch/walltorch.obj" id="2_h1t0l"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_beu3c"]
+height = 1.19434
 radius = 0.1
 
 [node name="Torch" type="StaticBody3D"]
 script = ExtResource("1_wced7")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-mesh = SubResource("CylinderMesh_h1t0l")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.372047, 0)
+mesh = ExtResource("2_h1t0l")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.20849, 0)
 light_color = Color(1, 0.466667, 0, 1)
 omni_range = 8.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.597168, -0.0638661)
 shape = SubResource("CylinderShape3D_beu3c")
