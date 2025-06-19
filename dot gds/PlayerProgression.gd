@@ -7,8 +7,8 @@ class_name PlayerProgression
 signal coin_collected(amount: int)
 signal xp_changed(xp: int, xp_to_next: int, level: int)
 signal level_up_stats(health_increase: int, damage_increase: int)
-signal show_level_up_choices
 signal stat_choice_made(stat_name: String)
+signal show_level_up_choices
 
 var currency: int = 0
 var total_coins_collected: int = 0
@@ -45,8 +45,8 @@ func _level_up():
 	xp_to_next_level = int(xp_to_next_level * xp_growth)
 	# Pause and show upgrade choices
 	get_tree().paused = true
-	var upgrade_options = _generate_upgrade_options()
-	upgrade_choice_requested.emit(upgrade_options)
+	_generate_upgrade_options() # No need to assign to a variable if not used
+	show_level_up_choices.emit()
 	print("Level up! Choose your upgrade...")
 
 

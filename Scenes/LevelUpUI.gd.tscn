@@ -1,25 +1,11 @@
 [gd_scene load_steps=2 format=3 uid="uid://b1bnsvkbkoh2f"]
 
-[sub_resource type="GDScript" id="GDScript_g2dpt"]
-script/source = "extends Control
-
-func _on_damage_button_pressed() -> void:
-	get_tree().get_first_node_in_group(\"player\").progression_component.apply_stat_choice(\"damage\")
-	hide()
-
-func _on_speed_button_pressed() -> void:
-	get_tree().get_first_node_in_group(\"player\").progression_component.apply_stat_choice(\"speed\")
-	hide()
-
-func _on_attack_speed_button_pressed() -> void:
-	get_tree().get_first_node_in_group(\"player\").progression_component.apply_stat_choice(\"attack_speed\")
-	hide()
-"
+[ext_resource type="Script" uid="uid://b3nd4v62iigqa" path="res://dot gds/LevelUpUI.gd" id="1_483sw"]
 
 [node name="LevelUpUi" type="Control"]
 layout_mode = 3
 anchors_preset = 0
-script = SubResource("GDScript_g2dpt")
+script = ExtResource("1_483sw")
 
 [node name="Button1" type="Button" parent="."]
 layout_mode = 0

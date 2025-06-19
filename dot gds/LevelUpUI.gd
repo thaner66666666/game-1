@@ -35,3 +35,30 @@ func _choose_upgrade(index: int):
 	if player and player.progression_component:
 		player.progression_component.apply_upgrade(current_options[index])
 	visible = false
+
+func _on_damage_button_pressed():
+	var player = get_tree().get_first_node_in_group("player")
+	if player and player.progression_component:
+		player.progression_component.apply_stat_choice("damage")
+	visible = false
+	get_tree().paused = false
+
+func _on_speed_button_pressed():
+	var player = get_tree().get_first_node_in_group("player")
+	if player and player.progression_component:
+		player.progression_component.apply_stat_choice("speed")
+	visible = false
+	get_tree().paused = false
+
+func _on_attack_speed_button_pressed():
+	var player = get_tree().get_first_node_in_group("player")
+	if player and player.progression_component:
+		player.progression_component.apply_stat_choice("attack_speed")
+	visible = false
+	get_tree().paused = false
+
+func show_level_up_ui():
+	visible = true
+	button1.text = "💪 Damage +5"
+	button2.text = "💨 Speed +1.0"
+	button3.text = "⚡ Attack Speed"
