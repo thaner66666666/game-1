@@ -8,6 +8,15 @@ var world_environment: WorldEnvironment
 func _ready():
 	print("🎮 Main Scene: Starting (torch-only lighting)...")
 	
+	# Add LevelUpUI to scene
+	var levelup_ui_scene = load("res://Scenes/LevelUpUI.gd.tscn")
+	if levelup_ui_scene:
+		var levelup_ui = levelup_ui_scene.instantiate()
+		get_tree().current_scene.add_child(levelup_ui)
+		print("✅ LevelUpUI instantiated and added to scene")
+	else:
+		print("❌ Could not load LevelUpUI scene!")
+	
 	# Instantiate enemy spawner from scene early
 	var spawner_scene = load("res://Scenes/spawner.tscn")
 	if spawner_scene:

@@ -3,9 +3,9 @@ extends Control
 var current_options: Array = []
 var player_progression: PlayerProgression
 
-@onready var button1 = $Button1  # Replace with your actual button paths
-@onready var button2 = $Button2
-@onready var button3 = $Button3
+@onready var button1 = $Panel/VBoxContainer/Button1  # Replace with your actual button paths
+@onready var button2 = $Panel/VBoxContainer/Button2
+@onready var button3 = $Panel/VBoxContainer/Button3
 
 func _ready():
 	add_to_group("levelupui")
