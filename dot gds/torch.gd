@@ -1,6 +1,6 @@
 extends StaticBody3D
 
-@export var torch_light_energy: float = 2.0
+@export var torch_light_energy: float = 6.0
 @export var torch_light_color: Color = Color(1.0, 0.7, 0.3)
 
 var light: OmniLight3D

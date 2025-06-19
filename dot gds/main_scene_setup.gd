@@ -38,9 +38,9 @@ func _ready():
 	var world_env = WorldEnvironment.new()
 	var environment = Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.05, 0.05, 0.1)  # Darker
-	environment.ambient_light_energy = 0.02  # Much darker
-	environment.ambient_light_color = Color(0.1, 0.1, 0.2)  # Darker blue
+	environment.background_color = Color(0.07, 0.07, 0.13)  # Slightly brighter
+	environment.ambient_light_energy = 0.05  # Brighter ambient
+	environment.ambient_light_color = Color(0.15, 0.15, 0.25)  # Brighter blue
 	world_env.environment = environment
 	add_child(world_env)
 

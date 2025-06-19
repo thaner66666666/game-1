@@ -9,7 +9,6 @@ signal xp_changed(xp: int, xp_to_next: int, level: int)
 signal level_up_stats(health_increase: int, damage_increase: int)
 signal stat_choice_made(stat_name: String)
 signal show_level_up_choices(options: Array)
-signal upgrade_choice_requested(options: Array)
 
 var currency: int = 0
 var total_coins_collected: int = 0

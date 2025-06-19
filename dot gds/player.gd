@@ -145,16 +145,6 @@ func _ready():
 	CharacterAppearanceManager.create_player_appearance(self, config)
 	print("🎨 Player skin tone: ", config["skin_tone"])
 	movement_component.reinitialize_feet()
-	# Connect upgrade_choice_requested signal
-	progression_component.upgrade_choice_requested.connect(_on_upgrade_choice_requested)
-
-func _on_upgrade_choice_requested(options: Array):
-	var levelup_ui = get_tree().get_first_node_in_group("levelupui")
-	if levelup_ui and levelup_ui.has_method("show_upgrade_choices"):
-		levelup_ui.show_upgrade_choices(options)
-	else:
-		print("⚠️ LevelUpUI not found - unpausing game")
-		get_tree().paused = false
 
 func _setup_player():
 	add_to_group("player")
@@ -295,7 +285,6 @@ func _on_level_up_stats(health_increase: int, _damage_increase: int):
 	print("🔧 Player: _on_level_up_stats called with health_increase: ", health_increase)
 	# Get current values
 	var current_max = health_component.get_max_health()
-	var current_health = health_component.get_health()
 	var new_max_health = current_max + health_increase
 	
 	print("🔧 Current max health: ", current_max, " -> New max health: ", new_max_health)
