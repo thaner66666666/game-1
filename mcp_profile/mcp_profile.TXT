@@ -1,15 +1,6 @@
 # MCP Profile for Thane's 3D Action Game (Godot 4.4+)
 
-## Developer Profile
-- **Name**: Thane, 38, Male
-- **Experience**: Beginner to coding, learning through hands-on game development
-- **Learning Style**: Prefers step-by-step co-pilot prompts with injection points rather than full code rewrites
-- **Project**: 3D dungeon crawler with procedural rooms, combat, loot, and weapon systems
 
-## Collaboration Style
-- **Preferred Response**: Give injection points and specific code snippets to add/modify
-- **When Full Code is Needed**: Only when co-pilot causes too many mistakes
-- **Communication**: Explain WHY changes are needed, not just WHAT to change
 - **Debugging**: Help identify specific problems and provide targeted fixes
 
 ## Current Project Architecture

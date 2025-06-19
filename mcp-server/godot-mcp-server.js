@@ -18,6 +18,7 @@ import path from "path";
 
 class GodotMCPServer {
   constructor() {
+    this.projectRoot = process.env.GODOT_PROJECT_PATH || process.cwd();
     this.server = new Server(
       {
         name: "godot-mcp-server",
@@ -280,24 +281,22 @@ ${scriptContent.substring(0, 200)}...`,
 
   async readGDScript(filePath) {
     try {
-      const content = await fs.readFile(filePath, "utf-8");
+      const resolvedPath = path.resolve(this.projectRoot, filePath);
+      const content = await fs.readFile(resolvedPath, "utf-8");
       const analysis = this.analyzeGDScript(content);
       
       return {
         content: [
           {
             type: "text",
-            text: `GDScript File: ${filePath}
-
-Analysis:
+            text: `GDScript File: ${resolvedPath}
+\nAnalysis:
 - Extends: ${analysis.extends}
 - Class Name: ${analysis.className || "None"}
 - Functions: ${analysis.functions.join(", ") || "None"}
 - Variables: ${analysis.variables.join(", ") || "None"}
 - Signals: ${analysis.signals.join(", ") || "None"}
-
-Full Content:
-${content}`,
+\nFull Content:\n${content}`,
           },
         ],
       };
