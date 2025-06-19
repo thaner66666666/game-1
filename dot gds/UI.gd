@@ -240,10 +240,15 @@ func _update_units(current_units: int):
 		print("❌ Unit label not found!")
 
 func _update_speed():
-	if player and speed_label and player.has_method("get_speed"):
-		speed_label.text = "Speed: %.1f" % player.get_speed()
-	elif player and speed_label and player.has_variable("speed"):
-		speed_label.text = "Speed: %.1f" % player.speed
+	if player and player.has("stats_component"):
+		var stats = player.get("stats_component")
+		if stats and stats.has_method("get_speed"):
+			var speed = stats.get_speed()
+			update_speed_display(speed)
+
+func update_speed_display(speed: float):
+	if speed_label:
+		speed_label.text = "⚡ Speed: %.1f" % speed
 
 func _on_ally_added():
 	print("✅ Received ally_added signal.")
