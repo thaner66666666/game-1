@@ -96,55 +96,11 @@ func _on_dash_charges_changed(current_charges: int, max_charges: int):
 	dash_charges_changed.emit(current_charges, max_charges)  # Re-emit for UI
 
 func _ready():
-	_setup_player()
-	# Initialize health component with proper starting health
-	var starting_health = 100  # Set your desired starting health here
-	health_component.setup(self, starting_health)
-	print("🔧 Player health initialized with: ", starting_health)
-	# Initialize components
-	if movement_component and movement_component.has_method("initialize"):
-		movement_component.initialize(self)
-	if combat_component and combat_component.has_method("initialize"):
-		combat_component.initialize(self, movement_component)
-	if stats_component and stats_component.has_method("get_max_health"):
-		health_component.setup(self, stats_component.get_max_health())
-	else:
-		health_component.setup(self, 100)
-	health_component.health_changed.connect(_on_health_changed)
-	health_component.player_died.connect(_on_player_died)
-	health_component.health_depleted.connect(_on_health_depleted)
-	progression_component.setup(self)
-	progression_component.show_level_up_choices.connect(_on_show_level_up_choices)
-	progression_component.stat_choice_made.connect(_on_stat_choice_made)
-	progression_component.xp_changed.connect(_on_xp_changed)
-	progression_component.coin_collected.connect(_on_coin_collected)
-	# Inventory system setup
-	if inventory_component and inventory_component.has_method("setup"):
-		inventory_component.setup(self)
-	if stats_component and stats_component.has_method("setup"):
-		stats_component.setup(self)
-	if movement_component and movement_component.has_method("set_animation_settings"):
-		movement_component.set_animation_settings({
-			"body_lean_strength": body_lean_strength,
-			"body_sway_strength": body_sway_strength,
-			"hand_swing_strength": hand_swing_strength,
-			"foot_step_strength": foot_step_strength,
-			"side_step_modifier": side_step_modifier
-		})
-	if movement_component:
-		movement_component.dash_charges_changed.connect(_on_dash_charges_changed)
-		movement_component.hand_animation_update.connect(_on_hand_animation_update)
-		movement_component.foot_animation_update.connect(_on_foot_animation_update)
-		movement_component.animation_state_changed.connect(_on_animation_state_changed)
-		movement_component.body_animation_update.connect(_on_body_animation_update)
-	if combat_component:
-		combat_component.attack_state_changed.connect(_on_combat_attack_state_changed)
-	progression_component.level_up_stats.connect(_on_level_up_stats) # Connect missing signal
-	_reset_blink_timer()
-	var config = CharacterGenerator.generate_random_character_config()
-	CharacterAppearanceManager.create_player_appearance(self, config)
-	print("🎨 Player skin tone: ", config["skin_tone"])
-	movement_component.reinitialize_feet()
+	# ... existing setup code ...
+	# Controller setup (put this ONCE at end of _ready)
+	Input.joy_connection_changed.connect(_on_controller_connection_changed)
+	_check_initial_controllers()
+
 
 func _setup_player():
 	add_to_group("player")
@@ -417,23 +373,52 @@ func _set_mouth_expression(expr: String):
 		_:
 			CharacterAppearanceManager.set_mouth_neutral(mesh_instance)
 
-func _input(event):
-	# Add this to your existing _input function
-	if Input.is_action_just_pressed("toggle_fullscreen"):
-		if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-		else:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-	if event.is_action_pressed("ui_text_completion_accept"):  # F1 key
-		var warrior_config = CharacterGenerator.generate_character_by_type("warrior")
-		set_character_appearance(warrior_config)
-	if event.is_action_pressed("drop_weapon"):
-		if WeaponManager.is_weapon_equipped():
-			var weapon_resource = WeaponManager.get_current_weapon()
-			if weapon_resource:
-				if LootManager:
-					LootManager.drop_weapon(global_position, weapon_resource)
-				WeaponManager.unequip_weapon()
+# --- Controller/Keyboard Movement Input ---
+func get_movement_input() -> Vector2:
+	var input_vector = Vector2.ZERO
+	input_vector.x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
+	input_vector.y = Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
+	# Apply deadzone for controllers
+	if input_vector.length() < 0.2:
+		input_vector = Vector2.ZERO
+	return input_vector
+
+func _check_initial_controllers():
+	var connected_controllers = Input.get_connected_joypads()
+	print("🎮 Controllers detected: ", connected_controllers.size())
+	for i in connected_controllers:
+		var controller_name = Input.get_joy_name(i)
+		print("🎮 Controller ", i, ": ", controller_name)
+
+
+func _on_controller_connection_changed(device_id: int, connected: bool):
+	if connected:
+		print("🎮 Controller ", device_id, " connected: ", Input.get_joy_name(device_id))
+	else:
+		print("🎮 Controller ", device_id, " disconnected")
+
+
+func add_controller_feedback(strength: float = 0.5, duration: float = 0.2):
+	var connected_controllers = Input.get_connected_joypads()
+	for controller_id in connected_controllers:
+		Input.start_joy_vibration(controller_id, strength, strength, duration)
+
+func _input(_event):  # Add underscore to suppress unused parameter warning
+	# Enhanced input checking for controller/keyboard
+	if Input.is_action_just_pressed("attack"):
+		if combat_component and combat_component.has_method("perform_attack"):
+			combat_component.perform_attack()
+			add_controller_feedback(0.3, 0.1)  # Light vibration for attack
+
+	if Input.is_action_just_pressed("dash"):
+		if movement_component and movement_component.has_method("perform_dash"):
+			movement_component.perform_dash()
+			add_controller_feedback(0.5, 0.2)  # Medium vibration for dash
+
+	if Input.is_action_just_pressed("interaction"):
+		interact_with_nearest()
+		add_controller_feedback(0.2, 0.1)  # Light vibration for interaction
+
 
 func _physics_process(delta):
 	if is_dead:
@@ -441,6 +426,12 @@ func _physics_process(delta):
 
 	movement_component.handle_mouse_look()
 
+	# Pass movement input to movement component
+	var movement_input = get_movement_input()
+	if movement_component.has_method("set_movement_input"):
+		movement_component.set_movement_input(movement_input)
+
+	# ... rest of your _physics_process code ...
 	if movement_component.is_being_knocked_back:
 		movement_component.handle_knockback(delta)
 		movement_component.apply_gravity(delta)
@@ -452,6 +443,7 @@ func _physics_process(delta):
 	movement_component.handle_dash_cooldown(delta)
 	_handle_invulnerability(delta)
 	_handle_advanced_blinking(delta)
+
 
 func _handle_invulnerability(delta: float):
 	var still_invulnerable = health_component.update_invulnerability(delta)
@@ -546,3 +538,14 @@ func take_damage(amount: int, from: Node3D = null):
 			movement_component.apply_knockback_from_enemy(from)
 	else:
 		print("❌ ERROR: health_component not found or missing take_damage method!")
+
+
+func interact_with_nearest():
+	"""Handle interaction with nearby objects like weapon pickups"""
+	if nearby_weapon_pickup:
+		print("🎮 Interacting with weapon pickup: ", nearby_weapon_pickup)
+		# Add your weapon pickup logic here
+		if WeaponManager and WeaponManager.has_method("pickup_weapon"):
+			WeaponManager.pickup_weapon(nearby_weapon_pickup)
+	else:
+		print("🎮 No nearby objects to interact with")
