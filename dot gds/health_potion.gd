@@ -31,6 +31,11 @@ func _ready():
 	_create_simple_bottle()
 	call_deferred("_find_player")
 	get_tree().create_timer(45.0).timeout.connect(queue_free)
+	connect("body_entered", Callable(self, "_on_body_entered"))
+	# Update visual state if player is at full health
+	if player and player.has_method("can_heal"):
+		set_meta("pickup_disabled", not player.can_heal())
+		_update_visual_state()
 
 func _create_simple_bottle():
 	mesh_instance = MeshInstance3D.new()
@@ -73,6 +78,16 @@ func _find_player():
 	player = get_tree().get_first_node_in_group("player")
 	if not player:
 		get_tree().create_timer(0.5).timeout.connect(_find_player)
+	else:
+		if player.has_signal("health_changed"):
+			player.health_changed.connect(_on_player_health_changed)
+		set_meta("pickup_disabled", not player.can_heal())
+		_update_visual_state()
+
+func _on_player_health_changed(_current_health: int, _max_health: int):
+	if player and player.has_method("can_heal"):
+		set_meta("pickup_disabled", not player.can_heal())
+		_update_visual_state()
 
 func _process(delta):
 	if is_being_collected:
@@ -146,3 +161,41 @@ func _create_pickup_delay_effect(delay_time: float):
 func set_heal_amount(amount: int):
 	heal_amount = amount
 	set_meta("heal_amount", amount)
+
+func _on_body_entered(body):
+	if body.is_in_group("player"):
+		if body.can_heal():
+			_collect_potion()
+		else:
+			# Show feedback for full health
+			if body.has_method("show_message"):
+				body.show_message("Already at full health!")
+			set_meta("pickup_disabled", true)
+			_update_visual_state()
+
+# Utility: Get or create StandardMaterial3D for a MeshInstance3D
+func get_or_create_material(mesh: MeshInstance3D) -> StandardMaterial3D:
+	if not mesh or not mesh.mesh:
+		return null
+	if mesh.mesh.get_surface_count() == 0:
+		return null
+	var mat = mesh.get_active_material(0)
+	if mat == null:
+		mat = StandardMaterial3D.new()
+		mesh.set_surface_override_material(0, mat)
+	elif mat is StandardMaterial3D:
+		mat = mat.duplicate()
+		mesh.set_surface_override_material(0, mat)
+	else:
+		mat = StandardMaterial3D.new()
+		mesh.set_surface_override_material(0, mat)
+	return mat
+
+func _update_visual_state():
+	if mesh_instance:
+		var mat = get_or_create_material(mesh_instance)
+		if mat:
+			if get_meta("pickup_disabled", false):
+				mat.albedo_color = Color(0.5, 0.5, 0.5, 0.5) # Greyed out, semi-transparent
+			else:
+				mat.albedo_color = Color(1, 0.2, 0.2, 0.85) # Normal color

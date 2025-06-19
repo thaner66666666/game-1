@@ -249,9 +249,13 @@ func _pickup_coin(area: Area3D):
 	if is_instance_valid(area):
 		area.queue_free()
 
+func can_heal() -> bool:
+	return health_component.get_health() < health_component.get_max_health()
+
 func _pickup_health_potion(area: Area3D):
-	if health_component.get_health() >= health_component.get_max_health():
-		# Don't pick up if at full health
+	if not can_heal():
+		# Show feedback for full health
+		print("Already at full health!")
 		return
 	health_component.heal(health_component.heal_amount_from_potion)
 	if is_instance_valid(area):

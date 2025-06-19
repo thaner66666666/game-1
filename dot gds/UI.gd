@@ -274,3 +274,24 @@ func _on_ally_removed():
 	print("✅ Received ally_removed signal.")
 	_update_units(get_tree().get_nodes_in_group("allies").size())
 	print("✅ Ally removed, UI updated.")
+
+# --- Temporary Feedback Message ---
+var _message_label: Label = null
+
+func show_message(text: String):
+	if _message_label:
+		_message_label.queue_free()
+	_message_label = Label.new()
+	_message_label.text = text
+	_message_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_message_label.add_theme_font_size_override("font_size", 20)
+	_message_label.add_theme_color_override("font_color", Color.YELLOW)
+	_message_label.position = Vector2(0, 10)
+	_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_message_label.size_flags_vertical = Control.SIZE_FILL
+	add_child(_message_label)
+	var tween = create_tween()
+	tween.tween_property(_message_label, "modulate:a", 0.0, 2.0)
+	tween.tween_callback(Callable(_message_label, "queue_free"))
