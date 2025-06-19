@@ -9,6 +9,7 @@ signal xp_changed(xp: int, xp_to_next: int, level: int)
 signal level_up_stats(health_increase: int, damage_increase: int)
 signal stat_choice_made(stat_name: String)
 signal show_level_up_choices
+signal upgrade_choice_requested(options: Array)
 
 var currency: int = 0
 var total_coins_collected: int = 0
@@ -61,7 +62,6 @@ func apply_stat_choice(stat_name: String):
 	xp_changed.emit(xp, xp_to_next_level, level)
 
 
-signal upgrade_choice_requested(options: Array)
 
 func _generate_upgrade_options() -> Array:
 	return [

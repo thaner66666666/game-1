@@ -150,6 +150,9 @@ func _on_upgrade_choice_requested(options: Array):
 	var levelup_ui = get_tree().get_first_node_in_group("levelupui")
 	if levelup_ui and levelup_ui.has_method("show_upgrade_choices"):
 		levelup_ui.show_upgrade_choices(options)
+	else:
+		print("⚠️ LevelUpUI not found - unpausing game")
+		get_tree().paused = false
 
 func _setup_player():
 	add_to_group("player")
