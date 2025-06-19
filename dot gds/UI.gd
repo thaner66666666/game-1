@@ -163,8 +163,17 @@ func _on_player_coin_collected(_amount: int):
 	print("UI: coin_collected signal received")
 	_update_coins()
 
-func _on_player_health_changed(_current: int, _max: int):
-	pass
+func _on_player_health_changed(current: int, max_health: int):
+	if health_label:
+		health_label.text = "❤️ Health: " + str(current) + "/" + str(max_health)
+		# Change color based on health percentage
+		var health_percentage = float(current) / float(max_health) if max_health > 0 else 0.0
+		if health_percentage <= 0.25:
+			health_label.add_theme_color_override("font_color", Color.RED)
+		elif health_percentage <= 0.5:
+			health_label.add_theme_color_override("font_color", Color.ORANGE)
+		else:
+			health_label.add_theme_color_override("font_color", Color.WHITE)
 
 func _process(_delta):
 	if not player:
