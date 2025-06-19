@@ -506,9 +506,14 @@ func get_xp_to_next_level() -> int:
 	return stats_component.get_xp_to_next_level() if stats_component else 100
 
 func _on_show_level_up_choices(options: Array):
+	print("🎮 Player: Received level up choices signal")
+	print("🔍 Looking for levelupui node...")
 	var level_up_ui = get_tree().get_first_node_in_group("levelupui")
 	if level_up_ui:
+		print("✅ Found LevelUpUI node: ", level_up_ui.name)
 		level_up_ui.show_upgrade_choices(options)
+	else:
+		print("❌ ERROR: LevelUpUI node not found in group 'levelupui'!")
 
 func _on_stat_choice_made(stat_name: String):
 	match stat_name:

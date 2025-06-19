@@ -41,14 +41,21 @@ func add_xp(amount: int):
 		_level_up()
 
 func _level_up():
+	print("🔥 LEVEL UP TRIGGERED - Current level: ", level)
 	xp -= xp_to_next_level
 	level += 1
 	xp_to_next_level = int(xp_to_next_level * xp_growth)
-	# Pause and show upgrade choices
-	get_tree().paused = true
+	
+	print("📊 Generating upgrade options...")
 	var upgrade_options = _generate_upgrade_options()
+	print("✅ Generated ", upgrade_options.size(), " options: ", upgrade_options)
+	
+	print("⏸️ Pausing game...")
+	get_tree().paused = true
+	
+	print("📡 Emitting show_level_up_choices signal with options...")
 	show_level_up_choices.emit(upgrade_options)
-	print("Level up! Choose your upgrade...")
+	print("✅ Signal emitted successfully")
 
 
 func get_currency() -> int:
