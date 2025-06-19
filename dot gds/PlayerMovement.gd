@@ -311,7 +311,9 @@ func handle_movement_and_dash(delta):
 		player.move_and_slide()
 		return
 		
-	var input_direction = get_movement_input()
+	# Convert Vector2 input to Vector3 for movement direction calculation
+	var input_2d = player.get_movement_input()  # Get Vector2 from player
+	var input_direction = Vector3(input_2d.x, 0, input_2d.y)  # Convert to Vector3
 	if not player or not player.stats_component:
 		push_error("PlayerMovement: Missing player or stats_component reference!")
 		return
@@ -675,13 +677,16 @@ func handle_dash_cooldown(_delta: float):
 		current_dash_charges = min(current_dash_charges + 1, max_charges)
 		dash_charges_changed.emit(current_dash_charges, max_charges)
 
-func get_movement_input() -> Vector3:
-	var input_dir = Vector3(
-		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
-		0,
-		-Input.get_action_strength("move_up") + Input.get_action_strength("move_down")
-	)
-	return input_dir.normalized() if input_dir.length() > 0 else Vector3.ZERO
+func get_movement_input() -> Vector2:
+	var input_vector = Vector2.ZERO
+	
+	input_vector.x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
+	input_vector.y = Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
+	
+	if input_vector.length() < 0.2:
+		input_vector = Vector2.ZERO
+	
+	return input_vector
 
 func move_player(direction: Vector3):
 	player.velocity.x = direction.x * player.stats_component.get_speed()
@@ -764,3 +769,10 @@ func set_animation_settings(settings: Dictionary) -> void:
 	if "side_step_modifier" in settings:
 		side_step_modifier = settings["side_step_modifier"]
 	print("✅ PlayerMovement animation settings applied: ", settings)
+
+func interact_with_nearest():
+	"""Handle interaction with nearby objects - delegates to player"""
+	if player and player.has_method("interact_with_nearest"):
+		player.interact_with_nearest()
+	else:
+		print("⚠️ No interaction method available")
