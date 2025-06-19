@@ -19,22 +19,24 @@ func _ready():
 	else:
 		print("❌ Could not load Scenes/spawner.tscn!")
 
-	# --- Dark atmospheric lighting ---
+	# Remove any existing WorldEnvironment nodes first
+	var existing_env = get_tree().get_first_node_in_group("world_environment") 
+	if existing_env:
+		existing_env.queue_free()
+		print("🗑️ Removed conflicting WorldEnvironment")
+
+	# --- DARK ATMOSPHERIC LIGHTING (SINGLE SOURCE) ---
 	var world_env = WorldEnvironment.new()
 	var environment = Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.1, 0.1, 0.15)  # Very dark blue-gray
-	environment.ambient_light_energy = 0.08  # Very low ambient
-	environment.ambient_light_color = Color(0.2, 0.2, 0.3)  # Cool dark tone
+	environment.background_color = Color(0.05, 0.05, 0.1)  # Darker
+	environment.ambient_light_energy = 0.02  # Much darker
+	environment.ambient_light_color = Color(0.1, 0.1, 0.2)  # Darker blue
 	world_env.environment = environment
 	add_child(world_env)
 
-	# Optional: Add very dim directional light
-	var dim_light = DirectionalLight3D.new()
-	dim_light.light_energy = 0.15  # Very dim
-	dim_light.light_color = Color(0.4, 0.5, 0.7)  # Cool moonlight
-	dim_light.rotation_degrees = Vector3(-30, 45, 0)
-	add_child(dim_light)
+	# NO directional light - torches only!
+	print("🌙 Dark atmosphere with torch-only lighting active")
 
 	# Create systems step by step
 	call_deferred("_create_simple_systems")

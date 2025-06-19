@@ -59,7 +59,8 @@ func _ready():
 	
 	_create_materials()
 	_find_references()
-	_setup_lighting()
+	# _setup_lighting()  # DISABLED - conflicting with main_scene_setup lighting
+	print("🔆 Lighting handled by main_scene_setup.gd")
 	
 	# Load the treasure chest scene
 	if ResourceLoader.exists("res://Scenes/treasure_chest.tscn"):
@@ -940,22 +941,25 @@ func _get_torch_grid_position(torch_world_pos: Vector3) -> Vector2:
 	# Converts a torch's world position back to grid coordinates
 	return Vector2(int((torch_world_pos.x / 2.0) + (map_size.x / 2)), int((torch_world_pos.z / 2.0) + (map_size.y / 2)))
 
-# Lighting setup: simple dark directional light and environment
+# --- Lighting setup: simple dark directional light and environment ---
+# func _setup_lighting():
+# 	"""Create simple dark lighting"""
+# 	var main_light = DirectionalLight3D.new()
+# 	main_light.name = "MainLight"
+# 	main_light.shadow_enabled = true
+# 	main_light.light_energy = 0.6
+# 	main_light.light_color = Color(0.9, 0.95, 1.0)  # Slight blue tint
+# 	main_light.rotation_degrees = Vector3(-45, 30, 0)  # Fixed angle
+# 	add_child(main_light)
+#
+# 	var env = Environment.new()
+# 	env.background_mode = Environment.BG_SKY
+# 	env.ambient_light_energy = 0.1  # Very dark
+# 	env.ambient_light_color = Color(0.2, 0.2, 0.3)
+#
+# 	var world_environment = WorldEnvironment.new()
+# 	world_environment.environment = env
+# 	add_child(world_environment)
+
 func _setup_lighting():
-	"""Create simple dark lighting"""
-	var main_light = DirectionalLight3D.new()
-	main_light.name = "MainLight"
-	main_light.shadow_enabled = true
-	main_light.light_energy = 0.6
-	main_light.light_color = Color(0.9, 0.95, 1.0)  # Slight blue tint
-	main_light.rotation_degrees = Vector3(-45, 30, 0)  # Fixed angle
-	add_child(main_light)
-
-	var env = Environment.new()
-	env.background_mode = Environment.BG_SKY
-	env.ambient_light_energy = 0.1  # Very dark
-	env.ambient_light_color = Color(0.2, 0.2, 0.3)
-
-	var world_environment = WorldEnvironment.new()
-	world_environment.environment = env
-	add_child(world_environment)
+	print("🔆 Lighting handled by main_scene_setup.gd")
