@@ -51,6 +51,8 @@ var treasure_chest_scene: PackedScene
 @export var crate_scene: PackedScene
 @export var barrel_scene: PackedScene
 
+var torch_to_wall_map = {}  # Maps torch instances to their wall grid keys
+
 func _ready():
 	add_to_group("terrain")
 	print("🛡️ Protected Boundary Room Generator: Starting with INDESTRUCTIBLE perimeter! 🛡️")
@@ -228,9 +230,7 @@ func _clear_everything():
 	generated_objects.clear()
 	wall_lookup.clear()
 	boundary_walls.clear()  # NEW: Clear boundary tracking
-	rooms.clear()
-	room_shapes.clear()
-	corridors.clear()
+	torch_to_wall_map.clear()
 
 func _fill_with_walls():
 	"""Fill entire map with walls"""
@@ -624,18 +624,22 @@ func _remove_walls_by_grid_lookup():
 			if is_instance_valid(wall):
 				wall.queue_free()
 			wall_lookup.erase(grid_key)
-	# Remove torches attached to deleted walls (world proximity check)
-	for obj in generated_objects.duplicate():
-		if is_instance_valid(obj) and obj is StaticBody3D and obj.name.begins_with("Torch"):
-			for grid_key in to_remove_keys:
-				var parts = grid_key.split(',')
-				if parts.size() != 2:
-					continue
-				var wall_world_pos = Vector3((int(parts[0]) - map_size.x / 2) * 2.0, 0, (int(parts[1]) - map_size.y / 2) * 2.0)
-				if obj.global_position.distance_to(wall_world_pos) < 2.0:
-					obj.queue_free()
-					generated_objects.erase(obj)
-					break
+
+	# Remove torches attached to deleted walls using direct mapping
+	var torches_to_remove = []
+	for torch in torch_to_wall_map.keys():
+		if not is_instance_valid(torch):
+			torches_to_remove.append(torch)
+			continue
+		var wall_key = torch_to_wall_map[torch]
+		if wall_key in to_remove_keys:
+			torch.queue_free()
+			generated_objects.erase(torch)
+			torches_to_remove.append(torch)
+
+	# Clean up the mapping
+	for torch in torches_to_remove:
+		torch_to_wall_map.erase(torch)
 
 func _create_simple_corridor_protected(room_a: Rect2, room_b: Rect2):
 	"""Create corridor with boundary protection"""
@@ -912,6 +916,9 @@ func _spawn_torches_in_room(room: Rect2):
 				add_child(torch)
 				torch.global_position = world_pos
 				generated_objects.append(torch)
+				# Track which wall this torch is attached to
+				var wall_key = str(grid_x) + "," + str(grid_y)
+				torch_to_wall_map[torch] = wall_key
 				placed_torches += 1
 		if placed_torches == 0:
 			print("[TORCH DEBUG] ❌ No torches placed after %d tries!" % tries)
