@@ -527,8 +527,8 @@ func _on_stat_choice_made(stat_name: String):
 			attack_cooldown -= 0.1
 			print("✅ Attack speed increased")
 		"health":
-			max_health += 20
-			health_component.heal(20)
 			if health_component.has_method("set_max_health"):
-				health_component.set_max_health(max_health)
+				health_component.set_max_health(max_health + 20)
+			max_health += 20
+			health_component.heal(20)  # Add the health increase to current health
 			print("✅ Max health increased by 20")

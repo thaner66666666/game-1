@@ -87,7 +87,8 @@ func get_health_percentage() -> float:
 
 func set_max_health(new_max_health: int):
 	max_health = new_max_health
-	current_health = max_health
+	# Don't reset current_health - just ensure it doesn't exceed new max
+	current_health = min(current_health, max_health)
 	health_changed.emit(current_health, max_health)
 
 func _setup_health_system():

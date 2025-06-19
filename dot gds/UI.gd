@@ -14,6 +14,7 @@ var powerup_label: Label
 var xp_bar: ProgressBar
 var xp_label: Label
 var unit_label: Label
+var speed_label: Label
 
 func _ready():
 	add_to_group("UI")
@@ -32,6 +33,7 @@ func _setup_ui():
 	_create_powerup_ui()
 	_create_xp_ui()
 	_create_unit_ui()
+	_create_speed_ui() # Add speed UI
 
 func _create_health_ui():
 	var panel = _create_panel(Vector2(20, 20), Vector2(180, 50), Color.RED)
@@ -80,6 +82,13 @@ func _create_xp_ui():
 func _create_unit_ui():
 	var panel = _create_panel(Vector2(20, 270), Vector2(200, 50), Color.GREEN)
 	unit_label = _create_label("🤝 Units: 0/3", panel)
+
+func _create_speed_ui():
+	var panel = _create_panel(Vector2(-220, 80), Vector2(200, 50), Color.SKY_BLUE)
+	panel.anchor_left = 1.0
+	panel.anchor_right = 1.0
+	speed_label = _create_label("Speed: 0.0", panel)
+	speed_label.add_theme_font_size_override("font_size", 16)
 
 @warning_ignore("shadowed_variable_base_class")
 func _create_panel(pos: Vector2, size: Vector2, border_color: Color) -> Panel:
@@ -165,6 +174,7 @@ func _process(_delta):
 	_update_wave()
 	_update_dash()
 	_update_xp()
+	_update_speed()
 
 func _update_health():
 	if player.has_method("get_health"):
@@ -228,6 +238,12 @@ func _update_units(current_units: int):
 		print("✅ Unit counter updated: ", current_units, " / ", max_units)
 	else:
 		print("❌ Unit label not found!")
+
+func _update_speed():
+	if player and speed_label and player.has_method("get_speed"):
+		speed_label.text = "Speed: %.1f" % player.get_speed()
+	elif player and speed_label and player.has_variable("speed"):
+		speed_label.text = "Speed: %.1f" % player.speed
 
 func _on_ally_added():
 	print("✅ Received ally_added signal.")
