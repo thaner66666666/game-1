@@ -735,17 +735,30 @@ func apply_knockback_from_enemy(enemy: Node3D):
 func handle_mouse_look():
 	if not player.camera:
 		return
-	var mouse_pos = player.get_viewport().get_mouse_position()
-	var from = player.camera.project_ray_origin(mouse_pos)
-	var to = from + player.camera.project_ray_normal(mouse_pos) * 1000
-	var ground_plane = Plane(Vector3.UP, player.global_position.y)
-	var intersection = ground_plane.intersects_ray(from, to - from)
-	if intersection:
-		player.mouse_position_3d = intersection
-		var direction_to_mouse = (player.mouse_position_3d - player.global_position).normalized()
-		direction_to_mouse.y = 0
-		if direction_to_mouse.length() > 0.1:
-			player.look_at(player.global_position + direction_to_mouse, Vector3.UP)
+
+	# --- Controller Look Input (Right Stick) ---
+	var look_input = player.get_look_input() if player.has_method("get_look_input") else Vector2.ZERO
+	var used_controller = false
+	if look_input != Vector2.ZERO:
+		# Rotate player horizontally (Y axis) based on right stick X
+		player.rotation.y -= look_input.x * player.look_sensitivity * get_process_delta_time()
+		used_controller = true
+		# Optionally, update current_look_direction for use elsewhere
+		player.current_look_direction = -player.transform.basis.z
+
+	# --- Mouse Look (if no controller look this frame) ---
+	if not used_controller:
+		var mouse_pos = player.get_viewport().get_mouse_position()
+		var from = player.camera.project_ray_origin(mouse_pos)
+		var to = from + player.camera.project_ray_normal(mouse_pos) * 1000
+		var ground_plane = Plane(Vector3.UP, player.global_position.y)
+		var intersection = ground_plane.intersects_ray(from, to - from)
+		if intersection:
+			player.mouse_position_3d = intersection
+			var direction_to_mouse = (player.mouse_position_3d - player.global_position).normalized()
+			direction_to_mouse.y = 0
+			if direction_to_mouse.length() > 0.1:
+				player.look_at(player.global_position + direction_to_mouse, Vector3.UP)
 
 func get_facing_direction() -> Vector3:
 	return -player.transform.basis.z

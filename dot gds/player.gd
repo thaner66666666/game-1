@@ -428,10 +428,23 @@ func get_movement_input() -> Vector2:
 		input_vector = Vector2.ZERO
 	return input_vector
 
+# --- Look Input Variables ---
+@export_group("Look")
+@export var look_sensitivity: float = 2.0
+var current_look_direction: Vector3 = Vector3.ZERO
+
+# --- Controller/Keyboard Look Input ---
+func get_look_input() -> Vector2:
+	var look_vector = Vector2.ZERO
+	look_vector.x = Input.get_action_strength("look_right") - Input.get_action_strength("look_left")
+	look_vector.y = Input.get_action_strength("look_down") - Input.get_action_strength("look_up")
+	if look_vector.length() < 0.2:
+		look_vector = Vector2.ZERO
+	return look_vector
+
 # --- Controller Detection ---
 # (Controller detection logic moved into the main _ready() function above)
-	_check_initial_controllers()
-	# ...existing code...
+# ...existing code...
 
 func _check_initial_controllers():
 	var connected_controllers = Input.get_connected_joypads()
@@ -468,7 +481,18 @@ func _physics_process(delta):
 	if is_dead:
 		return
 
-	movement_component.handle_mouse_look()
+	# --- Controller Look Input Handling ---
+	var look_input = get_look_input()
+	var using_controller_look = look_input != Vector2.ZERO
+
+	# Only call mouse look if not using controller look
+	if not using_controller_look:
+		movement_component.handle_mouse_look()
+	else:
+		# Rotate player horizontally (Y axis) based on right stick X
+		rotation.y -= look_input.x * look_sensitivity * delta
+		# Optionally, update current_look_direction for use elsewhere
+		current_look_direction = -transform.basis.z
 
 	if movement_component.is_being_knocked_back:
 		movement_component.handle_knockback(delta)
