@@ -1,15 +1,15 @@
 extends Control
 
-var max_allies := 3
+var max_allies := 6
 var current_allies := 0
 
 func _ready():
-    update_counter()
+	update_counter()
 
 func update_counter():
-    $Label.text = str(current_allies, " / ", max_allies)
+	$Label.text = str(current_allies, " / ", max_allies)
 
 func set_allies_count(current, max_allies_param):
-    current_allies = current
-    max_allies = max_allies_param
-    update_counter()
+	current_allies = current
+	max_allies = max_allies_param
+	update_counter()

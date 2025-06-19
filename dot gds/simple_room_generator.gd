@@ -213,119 +213,7 @@ func generate_starting_room():
 		print("⚠️ Recruiter NPC scene not loaded, cannot spawn recruiter!")
 
 	# --- TORCH PLACEMENT LOGIC (FIXED) ---
-	# Place torches in the starting room
-	var torch_scene = load("res://Scenes/torch.tscn")
-	if torch_scene:
-		var num_torches = randi_range(2, 4)
-		var placed_torches = 0
-		var tries = 0
-		print("[TORCH DEBUG] Attempting to place %d torches in starting room" % num_torches)
-		
-		while placed_torches < num_torches and tries < 30:
-			tries += 1
-			
-			# Randomly pick a wall (0=left, 1=right, 2=top, 3=bottom)
-			var wall = randi() % 4
-			var t = randf_range(0.2, 0.8) # Avoid corners more
-			var pos = Vector2()
-			var wall_grid_pos = Vector2()
-			
-			# Calculate position JUST OUTSIDE the room boundary (where walls actually are)
-			if wall == 0:
-				# Left wall: one tile to the left of room
-				pos = Vector2(starting_room.position.x - 1, lerp(starting_room.position.y, starting_room.position.y + starting_room.size.y - 1, t))
-				wall_grid_pos = Vector2(starting_room.position.x - 1, int(pos.y))
-			elif wall == 1:
-				# Right wall: one tile to the right of room
-				pos = Vector2(starting_room.position.x + starting_room.size.x, lerp(starting_room.position.y, starting_room.position.y + starting_room.size.y - 1, t))
-				wall_grid_pos = Vector2(starting_room.position.x + starting_room.size.x, int(pos.y))
-			elif wall == 2:
-				# Top wall: one tile above room
-				pos = Vector2(lerp(starting_room.position.x, starting_room.position.x + starting_room.size.x - 1, t), starting_room.position.y - 1)
-				wall_grid_pos = Vector2(int(pos.x), starting_room.position.y - 1)
-			else:
-				# Bottom wall: one tile below room
-				pos = Vector2(lerp(starting_room.position.x, starting_room.position.x + starting_room.size.x - 1, t), starting_room.position.y + starting_room.size.y)
-				wall_grid_pos = Vector2(int(pos.x), starting_room.position.y + starting_room.size.y)
-
-			# Check if wall position is valid and actually has a wall
-			var grid_x = int(wall_grid_pos.x)
-			var grid_y = int(wall_grid_pos.y)
-			
-			if grid_x < 0 or grid_x >= map_size.x or grid_y < 0 or grid_y >= map_size.y:
-				print("[TORCH DEBUG] Rejected: Wall position outside map bounds")
-				continue
-				
-			if terrain_grid[grid_x][grid_y] != TileType.WALL:
-				print("[TORCH DEBUG] Rejected: No wall at grid position (%d, %d)" % [grid_x, grid_y])
-				continue
-
-			# Convert to world position - place torch BETWEEN wall and room
-			var room_side_pos = Vector2()
-			if wall == 0:
-				room_side_pos = Vector2(starting_room.position.x, pos.y)
-			elif wall == 1:
-				room_side_pos = Vector2(starting_room.position.x + starting_room.size.x - 1, pos.y)
-			elif wall == 2:
-				room_side_pos = Vector2(pos.x, starting_room.position.y)
-			else:
-				room_side_pos = Vector2(pos.x, starting_room.position.y + starting_room.size.y - 1)
-			
-			# Average between wall and room edge for torch placement
-			var torch_grid_pos = (wall_grid_pos + room_side_pos) * 0.5
-			var world_pos = Vector3(
-				(torch_grid_pos.x - map_size.x / 2) * 2.0, 
-				1.5, 
-				(torch_grid_pos.y - map_size.y / 2) * 2.0
-			)
-
-			# Check for collision with player spawn, chest, or other torches
-			var safe = true
-			var room_center_world = Vector3(
-				(starting_room.get_center().x - map_size.x / 2) * 2.0, 
-				1.2, 
-				(starting_room.get_center().y - map_size.y / 2) * 2.0
-			)
-			
-			if world_pos.distance_to(room_center_world) < 3.0:
-				print("[TORCH DEBUG] Rejected: Too close to player spawn")
-				safe = false
-			
-			# Check distance to other torches
-			for obj in generated_objects:
-				if obj is StaticBody3D and obj.name.begins_with("Torch"):
-					if obj.global_position.distance_to(world_pos) < 3.0:
-						print("[TORCH DEBUG] Rejected: Too close to another torch")
-						safe = false
-						break
-			
-			if safe:
-				var torch = torch_scene.instantiate()
-				# Set torch rotation based on which wall it's attached to
-				match wall:
-					0:
-						# Left wall: rotate to face into room (90 degrees around Y)
-						torch.rotation_degrees = Vector3(0, 90, 0)
-					1:
-						# Right wall: rotate to face into room (-90 degrees around Y)
-						torch.rotation_degrees = Vector3(0, -90, 0)
-					2:
-						# Top wall: rotate to face into room (should be 0 degrees around Y)
-						torch.rotation_degrees = Vector3(0, 0, 0)
-					3:
-						# Bottom wall: rotate to face into room (180 degrees around Y)
-						torch.rotation_degrees = Vector3(0, 180, 0)
-				torch.name = "Torch_%d" % placed_torches
-				add_child(torch)
-				torch.global_position = world_pos
-				generated_objects.append(torch)
-				placed_torches += 1
-				print("[TORCH DEBUG] ✅ Placed torch at %s (wall=%d, grid=%s)" % [str(world_pos), wall, str(wall_grid_pos)])
-		
-		if placed_torches == 0:
-			print("[TORCH DEBUG] ❌ No torches placed after %d tries!" % tries)
-		else:
-			print("[TORCH DEBUG] ✅ Successfully placed %d torches" % placed_torches)
+	_spawn_torches_in_room(starting_room)
 	# --- END TORCH PLACEMENT ---
 
 	print("🛡️ Starting room created with PROTECTED BOUNDARIES!")
@@ -676,9 +564,9 @@ func _on_wave_completed(wave_number: int):
 		# Tell the enemy spawner to use this new room for the next wave
 		if enemy_spawner and enemy_spawner.has_method("set_newest_spawning_room"):
 			enemy_spawner.set_newest_spawning_room(new_room)
-		
 		_spawn_treasure_chest_random_in_room(new_room)
 		_spawn_destructible_objects_in_room(new_room)
+		_spawn_torches_in_room(new_room)
 		print("🛡️ New room generated and set as spawning area!")
 	else:
 		print("🛡️ Room generation failed - no valid position found")
@@ -714,8 +602,8 @@ func create_connected_room():
 	return new_room
 
 func _remove_walls_by_grid_lookup():
-	"""Removes wall nodes from the scene if their grid position is now FLOOR or CORRIDOR (but never boundary walls)"""
-	var to_remove = []
+	# Build list of wall grid keys to remove
+	var to_remove_keys = []
 	for grid_key in wall_lookup.keys():
 		var wall = wall_lookup[grid_key]
 		if not is_instance_valid(wall):
@@ -728,12 +616,26 @@ func _remove_walls_by_grid_lookup():
 		if boundary_walls.has(grid_key):
 			continue  # Never remove boundary walls
 		if terrain_grid[x][y] != TileType.WALL:
-			to_remove.append(grid_key)
-	for grid_key in to_remove:
-		var wall = wall_lookup[grid_key]
-		if is_instance_valid(wall):
-			wall.queue_free()
-		wall_lookup.erase(grid_key)
+			to_remove_keys.append(grid_key)
+	# Remove the walls
+	for grid_key in to_remove_keys:
+		if wall_lookup.has(grid_key):
+			var wall = wall_lookup[grid_key]
+			if is_instance_valid(wall):
+				wall.queue_free()
+			wall_lookup.erase(grid_key)
+	# Remove torches attached to deleted walls (world proximity check)
+	for obj in generated_objects.duplicate():
+		if is_instance_valid(obj) and obj is StaticBody3D and obj.name.begins_with("Torch"):
+			for grid_key in to_remove_keys:
+				var parts = grid_key.split(',')
+				if parts.size() != 2:
+					continue
+				var wall_world_pos = Vector3((int(parts[0]) - map_size.x / 2) * 2.0, 0, (int(parts[1]) - map_size.y / 2) * 2.0)
+				if obj.global_position.distance_to(wall_world_pos) < 2.0:
+					obj.queue_free()
+					generated_objects.erase(obj)
+					break
 
 func _create_simple_corridor_protected(room_a: Rect2, room_b: Rect2):
 	"""Create corridor with boundary protection"""
@@ -928,3 +830,94 @@ func _world_to_grid(world_pos: Vector3) -> Vector2:
 		int((world_pos.x / 2.0) + (map_size.x / 2)),
 		int((world_pos.z / 2.0) + (map_size.y / 2))
 	)
+
+func _spawn_torches_in_room(room: Rect2):
+	"""Spawns 2-4 torches around the given room's walls, using wall placement, rotation, and collision logic."""
+	var torch_scene = load("res://Scenes/torch.tscn")
+	if torch_scene:
+		var num_torches = randi_range(2, 4)
+		var placed_torches = 0
+		var tries = 0
+		print("[TORCH DEBUG] Attempting to place %d torches in room %s" % [num_torches, str(room)])
+		while placed_torches < num_torches and tries < 30:
+			tries += 1
+			# Randomly pick a wall (0=left, 1=right, 2=top, 3=bottom)
+			var wall = randi() % 4
+			var t = randf_range(0.2, 0.8) # Avoid corners more
+			var pos = Vector2()
+			var wall_grid_pos = Vector2()
+			if wall == 0:
+				pos = Vector2(room.position.x - 1, lerp(room.position.y, room.position.y + room.size.y - 1, t))
+				wall_grid_pos = Vector2(room.position.x - 1, int(pos.y))
+			elif wall == 1:
+				pos = Vector2(room.position.x + room.size.x, lerp(room.position.y, room.position.y + room.size.y - 1, t))
+				wall_grid_pos = Vector2(room.position.x + room.size.x, int(pos.y))
+			elif wall == 2:
+				pos = Vector2(lerp(room.position.x, room.position.x + room.size.x - 1, t), room.position.y - 1)
+				wall_grid_pos = Vector2(int(pos.x), room.position.y - 1)
+			else:
+				pos = Vector2(lerp(room.position.x, room.position.x + room.size.x - 1, t), room.position.y + room.size.y)
+				wall_grid_pos = Vector2(int(pos.x), room.position.y + room.size.y)
+
+			var grid_x = int(wall_grid_pos.x)
+			var grid_y = int(wall_grid_pos.y)
+			if grid_x < 0 or grid_x >= map_size.x or grid_y < 0 or grid_y >= map_size.y:
+				print("[TORCH DEBUG] Rejected: Wall position outside map bounds")
+				continue
+			if terrain_grid[grid_x][grid_y] != TileType.WALL:
+				print("[TORCH DEBUG] Rejected: No wall at grid position (%d, %d)" % [grid_x, grid_y])
+				continue
+			var room_side_pos = Vector2()
+			if wall == 0:
+				room_side_pos = Vector2(room.position.x, pos.y)
+			elif wall == 1:
+				room_side_pos = Vector2(room.position.x + room.size.x - 1, pos.y)
+			elif wall == 2:
+				room_side_pos = Vector2(pos.x, room.position.y)
+			else:
+				room_side_pos = Vector2(pos.x, room.position.y + room.size.y - 1)
+			var torch_grid_pos = (wall_grid_pos + room_side_pos) * 0.5
+			var world_pos = Vector3(
+				(torch_grid_pos.x - map_size.x / 2) * 2.0,
+				1.5,
+				(torch_grid_pos.y - map_size.y / 2) * 2.0
+			)
+			var safe = true
+			var room_center_world = Vector3(
+				(room.get_center().x - map_size.x / 2) * 2.0,
+				1.2,
+				(room.get_center().y - map_size.y / 2) * 2.0
+			)
+			if world_pos.distance_to(room_center_world) < 3.0:
+				print("[TORCH DEBUG] Rejected: Too close to player spawn")
+				safe = false
+			for obj in generated_objects:
+				if is_instance_valid(obj) and obj is StaticBody3D and obj.name.begins_with("Torch"):
+					if obj.global_position.distance_to(world_pos) < 3.0:
+						print("[TORCH DEBUG] Rejected: Too close to another torch")
+						safe = false
+						break
+			if safe:
+				var torch = torch_scene.instantiate()
+				match wall:
+					0:
+						torch.rotation_degrees = Vector3(0, 90, 0)
+					1:
+						torch.rotation_degrees = Vector3(0, -90, 0)
+					2:
+						torch.rotation_degrees = Vector3(0, 0, 0)
+					3:
+						torch.rotation_degrees = Vector3(0, 180, 0)
+				torch.name = "Torch_%d" % placed_torches
+				add_child(torch)
+				torch.global_position = world_pos
+				generated_objects.append(torch)
+				placed_torches += 1
+		if placed_torches == 0:
+			print("[TORCH DEBUG] ❌ No torches placed after %d tries!" % tries)
+		else:
+			print("[TORCH DEBUG] ✅ Successfully placed %d torches" % placed_torches)
+
+func _get_torch_grid_position(torch_world_pos: Vector3) -> Vector2:
+	# Converts a torch's world position back to grid coordinates
+	return Vector2(int((torch_world_pos.x / 2.0) + (map_size.x / 2)), int((torch_world_pos.z / 2.0) + (map_size.y / 2)))
