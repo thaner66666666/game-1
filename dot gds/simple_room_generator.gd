@@ -267,7 +267,7 @@ func _generate_all_walls_with_boundary_protection():
 	var walls_created = 0
 	var boundary_walls_created = 0
 	wall_lookup.clear()
-	
+	var non_boundary_walls = []
 	for x in range(map_size.x):
 		for y in range(map_size.y):
 			if terrain_grid[x][y] == TileType.WALL:
@@ -280,8 +280,46 @@ func _generate_all_walls_with_boundary_protection():
 					# Check if this is a boundary wall
 					if boundary_walls.has(grid_key):
 						boundary_walls_created += 1
-	
+					else:
+						non_boundary_walls.append(wall)
 	print("🛡️ Created ", walls_created, " total walls (", boundary_walls_created, " are PROTECTED boundary walls)")
+	# Apply random damage to a random 20-40% of non-boundary walls
+	var damage_count = int(non_boundary_walls.size() * randf_range(0.2, 0.4))
+	var shuffled = non_boundary_walls.duplicate()
+	shuffled.shuffle()
+	for i in range(damage_count):
+		_apply_random_wall_damage(shuffled[i])
+
+func _apply_random_wall_damage(wall: StaticBody3D):
+	# Applies random damage: reduce height, darken color, increase roughness, add slight emission
+	if not wall or not wall.get_child_count():
+		return
+	var mesh = null
+	for child in wall.get_children():
+		if child is MeshInstance3D:
+			mesh = child
+			break
+	if not mesh:
+		return
+	# Only apply to non-boundary walls
+	if wall.get_meta("is_boundary"):
+		return
+	# Randomly reduce height by 10-30%
+	var original_size = mesh.mesh.size
+	var reduction = randf_range(0.1, 0.3)
+	var new_height = original_size.y * (1.0 - reduction)
+	mesh.mesh.size = Vector3(original_size.x, new_height, original_size.z)
+	# Darken color and increase roughness
+	var mat = mesh.material_override.duplicate()
+	mat.albedo_color = mat.albedo_color.darkened(randf_range(0.1, 0.3))
+	mat.roughness = clamp(mat.roughness + randf_range(0.05, 0.15), 0.0, 1.0)
+	# Add slight emission for 'age glow'
+	mat.emission_enabled = true
+	mat.emission = mat.albedo_color * randf_range(0.05, 0.15)
+	mesh.material_override = mat
+	# Lower wall position to match new height
+	var y_offset = (mesh.mesh.size.y) / 2
+	wall.global_position.y = y_offset
 
 func _create_wall_at(grid_x: int, grid_y: int) -> StaticBody3D:
 	"""Create a wall at grid position (boundary walls get special treatment)"""
@@ -304,10 +342,10 @@ func _create_wall_at(grid_x: int, grid_y: int) -> StaticBody3D:
 	mesh.mesh = BoxMesh.new()
 	
 	if is_boundary:
-		mesh.mesh.size = Vector3(2.1, wall_height * 1.2, 2.1)  # Taller boundary walls, increased size to eliminate gaps
+		mesh.mesh.size = Vector3(2.0, wall_height * 1.2, 2.0)  # Slightly smaller to avoid overlap
 		mesh.material_override = boundary_wall_material
 	else:
-		mesh.mesh.size = Vector3(2.1, wall_height, 2.1)  # Increased size to eliminate gaps
+		mesh.mesh.size = Vector3(2.0, wall_height, 2.0)  # Slightly smaller to avoid overlap
 		mesh.material_override = wall_material
 	
 	wall.add_child(mesh)
