@@ -7,12 +7,11 @@ extends Node
 @export var combine_window := 0.5 # seconds to wait for more hits
 
 const DAMAGE_COLORS = {
-	"normal": Color.RED, # Changed from Color.WHITE to Color.RED
+	"normal": Color.WHITE,
 	"high": Color.YELLOW,
 	"critical": Color.ORANGE,
 	"massive": Color.RED,
-	"heal": Color.GREEN,
-	"player_damage": Color.RED # Added player-specific damage type
+	"heal": Color.GREEN
 }
 
 var floating_labels: Dictionary = {}

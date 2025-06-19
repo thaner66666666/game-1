@@ -64,7 +64,7 @@ func _show_damage_feedback(damage_amount: int):
 	# Show damage numbers
 	var damage_system = player_ref.get_tree().get_first_node_in_group("damage_numbers")
 	if damage_system:
-		damage_system.show_damage(damage_amount, player_ref, "player_damage") # Changed from "normal" to "player_damage"
+		damage_system.show_damage(damage_amount, player_ref, "normal")
 	# Play damage sound
 	if player_ref.has_node("DamageSound"):
 		player_ref.get_node("DamageSound").play()
