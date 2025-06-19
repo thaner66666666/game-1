@@ -147,9 +147,9 @@ func _ready():
 	progression_component.upgrade_choice_requested.connect(_on_upgrade_choice_requested)
 
 func _on_upgrade_choice_requested(options: Array):
-	get_tree().call_group("levelupui", "show_upgrade_choices", options)
-// ...existing code...
-
+	var levelup_ui = get_tree().get_first_node_in_group("levelupui")
+	if levelup_ui and levelup_ui.has_method("show_upgrade_choices"):
+		levelup_ui.show_upgrade_choices(options)
 
 func _setup_player():
 	add_to_group("player")
@@ -502,12 +502,12 @@ func get_level() -> int:
 func get_xp_to_next_level() -> int:
 	return stats_component.get_xp_to_next_level() if stats_component else 100
 
-func _on_show_level_up_choices():
-	get_tree().paused = true
-	print("🎯 Level Up! Choose a stat:")
-	print("1. Damage +5")
-	print("2. Speed +1.0")
-	print("3. Attack Speed -0.2s")
+# func _on_show_level_up_choices():
+# 	get_tree().paused = true
+# 	print("🎯 Level Up! Choose a stat:")
+# 	print("1. Damage +5")
+# 	print("2. Speed +1.0")
+# 	print("3. Attack Speed -0.2s")
 
 func _on_stat_choice_made(stat_name: String):
 	match stat_name:
