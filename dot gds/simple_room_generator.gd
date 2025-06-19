@@ -212,51 +212,106 @@ func generate_starting_room():
 	else:
 		print("⚠️ Recruiter NPC scene not loaded, cannot spawn recruiter!")
 
-	# --- TORCH PLACEMENT LOGIC ---
+	# --- TORCH PLACEMENT LOGIC (FIXED) ---
 	# Place torches in the starting room
 	var torch_scene = load("res://Scenes/torch.tscn")
 	if torch_scene:
 		var num_torches = randi_range(2, 4)
-		var wall_offset = 2.5 # Distance from wall
 		var placed_torches = 0
 		var tries = 0
 		print("[TORCH DEBUG] Attempting to place %d torches in starting room" % num_torches)
-		while placed_torches < num_torches and tries < 20:
+		
+		while placed_torches < num_torches and tries < 30:
 			tries += 1
+			
 			# Randomly pick a wall (0=left, 1=right, 2=top, 3=bottom)
 			var wall = randi() % 4
-			var t = randf_range(0.15, 0.85) # Avoid corners
+			var t = randf_range(0.2, 0.8) # Avoid corners more
 			var pos = Vector2()
+			var wall_grid_pos = Vector2()
+			
+			# Calculate position JUST OUTSIDE the room boundary (where walls actually are)
 			if wall == 0:
-				pos = Vector2(starting_room.position.x + wall_offset, lerp(starting_room.position.y + wall_offset, starting_room.position.y + starting_room.size.y - wall_offset, t))
+				# Left wall: one tile to the left of room
+				pos = Vector2(starting_room.position.x - 1, lerp(starting_room.position.y, starting_room.position.y + starting_room.size.y - 1, t))
+				wall_grid_pos = Vector2(starting_room.position.x - 1, int(pos.y))
 			elif wall == 1:
-				pos = Vector2(starting_room.position.x + starting_room.size.x - wall_offset, lerp(starting_room.position.y + wall_offset, starting_room.position.y + starting_room.size.y - wall_offset, t))
+				# Right wall: one tile to the right of room
+				pos = Vector2(starting_room.position.x + starting_room.size.x, lerp(starting_room.position.y, starting_room.position.y + starting_room.size.y - 1, t))
+				wall_grid_pos = Vector2(starting_room.position.x + starting_room.size.x, int(pos.y))
 			elif wall == 2:
-				pos = Vector2(lerp(starting_room.position.x + wall_offset, starting_room.position.x + starting_room.size.x - wall_offset, t), starting_room.position.y + wall_offset)
+				# Top wall: one tile above room
+				pos = Vector2(lerp(starting_room.position.x, starting_room.position.x + starting_room.size.x - 1, t), starting_room.position.y - 1)
+				wall_grid_pos = Vector2(int(pos.x), starting_room.position.y - 1)
 			else:
-				pos = Vector2(lerp(starting_room.position.x + wall_offset, starting_room.position.x + starting_room.size.x - wall_offset, t), starting_room.position.y + starting_room.size.y - wall_offset)
+				# Bottom wall: one tile below room
+				pos = Vector2(lerp(starting_room.position.x, starting_room.position.x + starting_room.size.x - 1, t), starting_room.position.y + starting_room.size.y)
+				wall_grid_pos = Vector2(int(pos.x), starting_room.position.y + starting_room.size.y)
 
-			# Convert to world position
-			var world_pos = Vector3((pos.x - map_size.x / 2) * 2.0, 1.2, (pos.y - map_size.y / 2) * 2.0)
+			# Check if wall position is valid and actually has a wall
+			var grid_x = int(wall_grid_pos.x)
+			var grid_y = int(wall_grid_pos.y)
+			
+			if grid_x < 0 or grid_x >= map_size.x or grid_y < 0 or grid_y >= map_size.y:
+				print("[TORCH DEBUG] Rejected: Wall position outside map bounds")
+				continue
+				
+			if terrain_grid[grid_x][grid_y] != TileType.WALL:
+				print("[TORCH DEBUG] Rejected: No wall at grid position (%d, %d)" % [grid_x, grid_y])
+				continue
 
-			# Check for collision with player spawn, chest, or other torches (simple distance check)
+			# Convert to world position - place torch BETWEEN wall and room
+			var room_side_pos = Vector2()
+			if wall == 0:
+				room_side_pos = Vector2(starting_room.position.x, pos.y)
+			elif wall == 1:
+				room_side_pos = Vector2(starting_room.position.x + starting_room.size.x - 1, pos.y)
+			elif wall == 2:
+				room_side_pos = Vector2(pos.x, starting_room.position.y)
+			else:
+				room_side_pos = Vector2(pos.x, starting_room.position.y + starting_room.size.y - 1)
+			
+			# Average between wall and room edge for torch placement
+			var torch_grid_pos = (wall_grid_pos + room_side_pos) * 0.5
+			var world_pos = Vector3(
+				(torch_grid_pos.x - map_size.x / 2) * 2.0, 
+				1.5, 
+				(torch_grid_pos.y - map_size.y / 2) * 2.0
+			)
+
+			# Check for collision with player spawn, chest, or other torches
 			var safe = true
-			if world_pos.distance_to(Vector3((starting_room.get_center().x - map_size.x / 2) * 2.0, 1.2, (starting_room.get_center().y - map_size.y / 2) * 2.0)) < 1.0:
-				print("[TORCH DEBUG] Rejected: Too close to player spawn at %s" % str(world_pos))
+			var room_center_world = Vector3(
+				(starting_room.get_center().x - map_size.x / 2) * 2.0, 
+				1.2, 
+				(starting_room.get_center().y - map_size.y / 2) * 2.0
+			)
+			
+			if world_pos.distance_to(room_center_world) < 3.0:
+				print("[TORCH DEBUG] Rejected: Too close to player spawn")
 				safe = false
+			
+			# Check distance to other torches
 			for obj in generated_objects:
 				if obj is StaticBody3D and obj.name.begins_with("Torch"):
-					if obj.global_position.distance_to(world_pos) < 2.0:
-						print("[TORCH DEBUG] Rejected: Too close to another torch at %s (distance %.2f)" % [str(world_pos), obj.global_position.distance_to(world_pos)])
+					if obj.global_position.distance_to(world_pos) < 3.0:
+						print("[TORCH DEBUG] Rejected: Too close to another torch")
 						safe = false
+						break
+			
 			if safe:
 				var torch = torch_scene.instantiate()
 				torch.name = "Torch_%d" % placed_torches
-				add_child(torch)  # <-- Add to scene tree first
-				torch.global_position = world_pos  # <-- Then set position
+				add_child(torch)
+				torch.global_position = world_pos
 				generated_objects.append(torch)
 				placed_torches += 1
-				print("[TORCH DEBUG] Placed torch at %s (index %d)" % [str(world_pos), placed_torches-1])
+				print("[TORCH DEBUG] ✅ Placed torch at %s (wall=%d, grid=%s)" % [str(world_pos), wall, str(wall_grid_pos)])
+		
+		if placed_torches == 0:
+			print("[TORCH DEBUG] ❌ No torches placed after %d tries!" % tries)
+		else:
+			print("[TORCH DEBUG] ✅ Successfully placed %d torches" % placed_torches)
 	# --- END TORCH PLACEMENT ---
 
 	print("🛡️ Starting room created with PROTECTED BOUNDARIES!")
@@ -526,6 +581,10 @@ func _is_valid_carve_position(x: int, y: int) -> bool:
 		return false
 	return true
 
+func _is_valid_pos(x: int, y: int) -> bool:
+	"""Check if the position is within the map bounds"""
+	return x >= 0 and x < map_size.x and y >= 0 and y < map_size.y
+
 func _find_new_room_position(existing_room: Rect2, room_size: Vector2) -> Rect2:
 	"""Improved: Try many possible positions around the last room, not just 4 directions"""
 	var distance = 4  # Distance between rooms
@@ -715,23 +774,23 @@ func _choose_room_shape() -> RoomShape:
 func _get_size_for_shape(shape: RoomShape) -> Vector2:
 	"""Get appropriate size for each room shape"""
 	match shape:
-		RoomShape.SQUARE: return base_room_size
-		RoomShape.RECTANGLE: return Vector2(base_room_size.x + 3, base_room_size.y)
-		RoomShape.L_SHAPE: return Vector2(base_room_size.x + 1, base_room_size.y + 1)
-		RoomShape.T_SHAPE: return Vector2(base_room_size.x + 2, base_room_size.y + 1)
-		RoomShape.PLUS_SHAPE: return Vector2(base_room_size.x + 1, base_room_size.y + 1)
-		RoomShape.U_SHAPE: return Vector2(base_room_size.x + 2, base_room_size.y + 2)
-		RoomShape.LONG_HALL: return Vector2(base_room_size.x + 4, base_room_size.y)
-		RoomShape.SMALL_SQUARE: return Vector2(base_room_size.x - 1, base_room_size.y - 1)
+		RoomShape.SQUARE:
+			return base_room_size
+		RoomShape.RECTANGLE:
+			return Vector2(base_room_size.x + 4, base_room_size.y)
+		RoomShape.L_SHAPE:
+			return Vector2(base_room_size.x + 2, base_room_size.y + 2)
+		RoomShape.T_SHAPE:
+			return Vector2(base_room_size.x + 2, base_room_size.y + 2)
+		RoomShape.PLUS_SHAPE:
+			return Vector2(base_room_size.x + 2, base_room_size.y + 2)
+		RoomShape.U_SHAPE:
+			return Vector2(base_room_size.x + 2, base_room_size.y + 2)
+		RoomShape.LONG_HALL:
+			return Vector2(base_room_size.x + 6, 5)
+		RoomShape.SMALL_SQUARE:
+			return Vector2(5, 5)
 	return base_room_size
-
-func _is_valid_pos(x: int, y: int) -> bool:
-	return x >= 0 and x < map_size.x and y >= 0 and y < map_size.y
-
-# Public API
-func get_rooms() -> Array:
-	return rooms
-
 func get_current_room_count() -> int:
 	return current_room_count
 
