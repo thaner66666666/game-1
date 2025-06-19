@@ -1,6 +1,17 @@
 # coin.gd - FIXED: Proper pickup delay handling
 extends Area3D
 
+static func safe_set_material(mesh_target: MeshInstance3D, material: Material) -> bool:
+	"""Safely set material with null check - Godot 4.1 best practice"""
+	if not mesh_target:
+		push_warning("🚨 Mesh instance is null - cannot set material")
+		return false
+	if not material:
+		push_warning("🚨 Material is null - creating default material")
+		material = StandardMaterial3D.new()
+	mesh_target.material_override = material
+	return true
+
 # Coin settings
 @export var coin_value: int = 10
 @export var pickup_range: float = 2.5
@@ -65,7 +76,12 @@ func _create_golden_coin():
 	coin_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	coin_material.albedo_color.a = 0.95
 	
-	mesh_instance.material_override = coin_material
+	# Safe material assignment with null check
+	if not safe_set_material(mesh_instance, coin_material):
+		print("❌ Failed to set coin material, using default")
+		var fallback_material = StandardMaterial3D.new()
+		fallback_material.albedo_color = Color.GOLD
+		mesh_instance.material_override = fallback_material
 	
 	var collision = CollisionShape3D.new()
 	var cylinder_shape = CylinderShape3D.new()

@@ -52,7 +52,12 @@ func _create_simple_bottle():
 	potion_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	potion_material.roughness = 0.3
 	potion_material.metallic = 0.1
-	mesh_instance.material_override = potion_material
+	# Safe material assignment with null check
+	if not safe_set_material(mesh_instance, potion_material):
+		print("❌ Failed to set potion material, using default")
+		var fallback_material = StandardMaterial3D.new()
+		fallback_material.albedo_color = Color(1.0, 0.2, 0.2, 0.85)
+		mesh_instance.material_override = fallback_material
 	var cork = MeshInstance3D.new()
 	cork.name = "Cork"
 	mesh_instance.add_child(cork)
@@ -199,3 +204,14 @@ func _update_visual_state():
 				mat.albedo_color = Color(0.5, 0.5, 0.5, 0.5) # Greyed out, semi-transparent
 			else:
 				mat.albedo_color = Color(1, 0.2, 0.2, 0.85) # Normal color
+
+static func safe_set_material(mesh_target: MeshInstance3D, material: Material) -> bool:
+	"""Safely set material with null check - Godot 4.1 best practice"""
+	if not mesh_target:
+		push_warning("🚨 Mesh instance is null - cannot set material")
+		return false
+	if not material:
+		push_warning("🚨 Material is null - creating default material")
+		material = StandardMaterial3D.new()
+	mesh_target.material_override = material
+	return true

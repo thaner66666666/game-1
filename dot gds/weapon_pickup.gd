@@ -1,6 +1,17 @@
 # weapon_pickup.gd - Enhanced weapon pickup with better visuals
 extends Area3D
 
+static func safe_set_material(mesh_target: MeshInstance3D, material: Material) -> bool:
+	"""Safely set material with null check - Godot 4.1 best practice"""
+	if not mesh_target:
+		push_warning("🚨 Mesh instance is null - cannot set material")
+		return false
+	if not material:
+		push_warning("🚨 Material is null - creating default material")
+		material = StandardMaterial3D.new()
+	mesh_target.material_override = material
+	return true
+
 # Preloaded mesh constants
 const SWORD_MESH = preload("res://3d Models/Sword/broadsword.obj")
 const BOW_MESH = preload("res://3d Models/Bow/bow_01.obj")
@@ -54,6 +65,16 @@ func _ready():
 	_create_floating_text()
 	# Defer visual setup to ensure scene is fully loaded
 	call_deferred("_deferred_setup_visual")
+	call_deferred("validate_scene_materials")
+
+func validate_scene_materials():
+	var mesh_nodes = find_children("*", "MeshInstance3D", true, false)
+	for mesh_node in mesh_nodes:
+		if not mesh_node.material_override:
+			print("⚠️ Found MeshInstance3D without material: ", mesh_node.name)
+			var default_mat = StandardMaterial3D.new()
+			default_mat.albedo_color = Color.WHITE
+			mesh_node.material_override = default_mat
 
 func _deferred_setup_visual():
 	print("🗡️ _deferred_setup_visual called")
@@ -145,7 +166,14 @@ func _create_enhanced_sword():
 		sword_material.emission = Color(0.3, 0.7, 1.0) * glow_intensity
 		sword_material.rim_enabled = true
 		sword_material.rim = 0.8
-		sword_mesh_instance.material_override = sword_material
+		# Validate material before assignment
+		if sword_material and sword_mesh_instance:
+			safe_set_material(sword_mesh_instance, sword_material)
+		else:
+			print("❌ Sword material or mesh is null, creating fallback")
+			var fallback = StandardMaterial3D.new()
+			fallback.albedo_color = Color.SILVER
+			safe_set_material(sword_mesh_instance, fallback)
 		# Add magical floating runes
 		_create_floating_runes(sword_mesh_instance)
 	elif sword_name.to_lower().find("steel") != -1 or sword_name.to_lower().find("iron") != -1:
@@ -157,7 +185,13 @@ func _create_enhanced_sword():
 		sword_material.emission = Color(1.0, 0.95, 0.7) * 0.2
 		sword_material.rim_enabled = true
 		sword_material.rim = 0.9
-		sword_mesh_instance.material_override = sword_material
+		if sword_material and sword_mesh_instance:
+			safe_set_material(sword_mesh_instance, sword_material)
+		else:
+			print("❌ Sword material or mesh is null, creating fallback")
+			var fallback = StandardMaterial3D.new()
+			fallback.albedo_color = Color.SILVER
+			safe_set_material(sword_mesh_instance, fallback)
 	else:
 		# Default sword (bluish, shiny)
 		sword_material.albedo_color = Color(0.85, 0.9, 1.0)
@@ -168,7 +202,13 @@ func _create_enhanced_sword():
 		sword_material.emission = Color(0.7, 0.85, 1.0) * glow_intensity * 0.25
 		sword_material.rim_enabled = true
 		sword_material.rim = 0.7
-		sword_mesh_instance.material_override = sword_material
+		if sword_material and sword_mesh_instance:
+			safe_set_material(sword_mesh_instance, sword_material)
+		else:
+			print("❌ Sword material or mesh is null, creating fallback")
+			var fallback = StandardMaterial3D.new()
+			fallback.albedo_color = Color.SILVER
+			safe_set_material(sword_mesh_instance, fallback)
 
 	# Position and scale for pickup (tweak as needed for your mesh)
 	sword_mesh_instance.position = Vector3(0, 0.5, 0)
@@ -191,7 +231,14 @@ func _create_simple_bow_visual():
 	bow_material.roughness = 0.5
 	bow_material.emission_enabled = true
 	bow_material.emission = Color(0.3, 0.6, 0.2) * glow_intensity * 0.2
-	bow_mesh_instance.material_override = bow_material
+	# Validate material before assignment
+	if bow_material and bow_mesh_instance:
+		safe_set_material(bow_mesh_instance, bow_material)
+	else:
+		print("❌ Bow material or mesh is null, creating fallback")
+		var fallback = StandardMaterial3D.new()
+		fallback.albedo_color = Color(0.7, 0.5, 0.3)
+		safe_set_material(bow_mesh_instance, fallback)
 	# Raise the bow even higher above the ground
 	bow_mesh_instance.position = Vector3(0, 1.0, 0) # was 0.6
 	bow_mesh_instance.scale = Vector3(0.7, 0.7, 0.7)
@@ -212,7 +259,13 @@ func _create_enhanced_staff():
 	var shaft_material = StandardMaterial3D.new()
 	shaft_material.albedo_color = Color(0.4, 0.25, 0.1)
 	shaft_material.roughness = 0.8
-	shaft.material_override = shaft_material
+	if shaft_material and shaft:
+		safe_set_material(shaft, shaft_material)
+	else:
+		print("❌ Staff shaft material or mesh is null, creating fallback")
+		var fallback = StandardMaterial3D.new()
+		fallback.albedo_color = Color(0.4, 0.25, 0.1)
+		safe_set_material(shaft, fallback)
 	add_child(shaft)
 	weapon_parts.append(shaft)
 	# Ornate top section
@@ -229,7 +282,13 @@ func _create_enhanced_staff():
 	ornate_material.roughness = 0.2
 	ornate_material.emission_enabled = true
 	ornate_material.emission = Color(0.6, 0.4, 0.1) * 0.5
-	ornate_top.material_override = ornate_material
+	if ornate_material and ornate_top:
+		safe_set_material(ornate_top, ornate_material)
+	else:
+		print("❌ Ornate material or mesh is null, creating fallback")
+		var fallback = StandardMaterial3D.new()
+		fallback.albedo_color = Color(0.8, 0.6, 0.2)
+		safe_set_material(ornate_top, fallback)
 	shaft.add_child(ornate_top)
 	weapon_parts.append(ornate_top)
 	# Crystal orb at top

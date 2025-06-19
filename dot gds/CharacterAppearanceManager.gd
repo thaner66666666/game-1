@@ -2,6 +2,17 @@
 class_name CharacterAppearanceManager
 extends Node
 
+static func safe_set_material(mesh_instance: MeshInstance3D, material: Material) -> bool:
+	"""Safely set material with null check - Godot 4.1 best practice"""
+	if not mesh_instance:
+		push_warning("🚨 Mesh instance is null - cannot set material")
+		return false
+	if not material:
+		push_warning("🚨 Material is null - creating default material")
+		material = StandardMaterial3D.new()
+	mesh_instance.material_override = material
+	return true
+
 # Godot 3D coordinate system:
 #   X+: right, X-: left
 #   Y+: up,    Y-: down
@@ -593,3 +604,15 @@ static func animate_feet_walk(left_foot: MeshInstance3D, right_foot: MeshInstanc
 	var interp_speed = clamp(delta * 16.0, 0.0, 1.0)
 	left_foot.position = left_foot.position.lerp(left_target, interp_speed)
 	right_foot.position = right_foot.position.lerp(right_target, interp_speed)
+	
+func create_safe_material(base_color: Color = Color.WHITE, emission_color: Color = Color.BLACK) -> StandardMaterial3D:
+	var material = StandardMaterial3D.new()
+	if not material:
+		push_error("💥 Failed to create StandardMaterial3D!")
+		return null
+	material.albedo_color = base_color
+	if emission_color != Color.BLACK:
+		material.emission_enabled = true
+		material.emission = emission_color
+	print("✅ Material created successfully: ", material.get_rid())
+	return material
