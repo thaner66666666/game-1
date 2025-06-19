@@ -17,7 +17,7 @@ func get_health() -> int:
 	return health_component.get_health() if health_component else 0
 
 func get_max_health() -> int:
-	return health_component.get_max_health() if health_component else 0
+	return health_component.get_max_health() if health_component else 100  # Return 100 as default, not 0
 
 func get_health_percentage() -> float:
 	return health_component.get_health_percentage() if health_component else 0.0

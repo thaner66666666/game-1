@@ -144,10 +144,12 @@ func _physics_process(delta):
 	if _is_player_valid() and not is_dead and not is_jumping and not is_being_knocked_back:
 		var player_dist = global_position.distance_to(player.global_position)
 		if player_dist <= 1.2:
-			# Only apply if close enough (touching)
+			print("💥 Enemy touching player - dealing damage: ", attack_damage)
 			if player.has_method("take_damage"):
 				player.take_damage(attack_damage, self)
-				# Knockback: handled by player.take_damage (calls movement_component.apply_knockback_from_enemy)
+				print("✅ Damage dealt to player")
+			else:
+				print("❌ Player missing take_damage method!")
 
 
 func _prevent_wall_clipping():

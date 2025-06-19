@@ -21,14 +21,20 @@ func setup(player_ref_in: CharacterBody3D, starting_health: int):
 	current_health = starting_health
 	last_damage_time = 0.0
 	invulnerability_timer = 0.0
+	print("🔧 PlayerHealth setup complete - Max: ", max_health, " Current: ", current_health)
+	# Emit initial health state
+	health_changed.emit(current_health, max_health)
 
 func take_damage(amount: int, _from: Node3D = null):
+	print("🔧 PlayerHealth: take_damage called - amount: ", amount, " current_health: ", current_health, " invuln_timer: ", invulnerability_timer)
 	if current_health <= 0 or invulnerability_timer > 0:
+		print("🔧 Damage blocked - health: ", current_health, " invuln: ", invulnerability_timer)
 		return
 	var old_health = current_health
 	current_health = max(current_health - amount, 0)
 	last_damage_time = Time.get_ticks_msec() / 1000.0
 	invulnerability_timer = INVULNERABILITY_DURATION
+	print("🔧 Health changed from ", old_health, " to ", current_health)
 	health_changed.emit(current_health, max_health)
 	if current_health <= 0:
 		_handle_player_death()
@@ -99,3 +105,6 @@ func _setup_health_system():
 func _initialize_base_stats():
 	# Add health-related base stat initialization if needed
 	pass
+
+func _process(delta: float):
+	update_invulnerability(delta)

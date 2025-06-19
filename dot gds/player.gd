@@ -1,8 +1,5 @@
 extends CharacterBody3D
 
-# Export max_health property so it can be accessed by other scripts
-@export var max_health: float = 100.0
-
 # --- Inspector Properties ---
 @export_group("Movement")
 @export var speed := 5.0
@@ -100,6 +97,10 @@ func _on_dash_charges_changed(current_charges: int, max_charges: int):
 
 func _ready():
 	_setup_player()
+	# Initialize health component with proper starting health
+	var starting_health = 100  # Set your desired starting health here
+	health_component.setup(self, starting_health)
+	print("🔧 Player health initialized with: ", starting_health)
 	# Initialize components
 	if movement_component and movement_component.has_method("initialize"):
 		movement_component.initialize(self)
@@ -138,6 +139,7 @@ func _ready():
 		movement_component.body_animation_update.connect(_on_body_animation_update)
 	if combat_component:
 		combat_component.attack_state_changed.connect(_on_combat_attack_state_changed)
+	progression_component.level_up_stats.connect(_on_level_up_stats) # Connect missing signal
 	_reset_blink_timer()
 	var config = CharacterGenerator.generate_random_character_config()
 	CharacterAppearanceManager.create_player_appearance(self, config)
@@ -258,7 +260,7 @@ func _pickup_coin(area: Area3D):
 		area.queue_free()
 
 func _pickup_health_potion(area: Area3D):
-	if stats_component.get_health() >= stats_component.get_max_health():
+	if health_component.get_health() >= health_component.get_max_health():
 		# Don't pick up if at full health
 		return
 	health_component.heal(health_component.heal_amount_from_potion)
@@ -272,10 +274,12 @@ func _pickup_xp_orb(area: Area3D):
 		area.queue_free()
 
 # --- Health System Component Handlers ---
-func _on_health_changed(_current_health: int, _max_health: int):
+func _on_health_changed(current_health: int, max_health: int):
+	print("🔧 Health changed - Current: ", current_health, " Max: ", max_health)
 	# Update UI or other systems as needed
 	if ui:
-		pass  # UI updates automatically in _process()
+		# Make sure UI gets updated with new health values
+		get_tree().call_group("UI", "_on_player_health_changed", current_health, max_health)
 
 func _on_player_died():
 	is_dead = true
@@ -288,12 +292,19 @@ func _on_health_depleted():
 
 # Update max health through health component and heal player
 func _on_level_up_stats(health_increase: int, _damage_increase: int):
-	max_health += health_increase
-	health_component.heal(health_increase)  # Heal player when leveling up
-	# Update the health component's max health if it has that method
-	if health_component.has_method("set_max_health"):
-		health_component.set_max_health(max_health)
-	print("Level up! Health increased by ", health_increase)
+	print("🔧 Player: _on_level_up_stats called with health_increase: ", health_increase)
+	# Get current values
+	var current_max = health_component.get_max_health()
+	var current_health = health_component.get_health()
+	var new_max_health = current_max + health_increase
+	
+	print("🔧 Current max health: ", current_max, " -> New max health: ", new_max_health)
+	# Set new max health
+	health_component.set_max_health(new_max_health)
+	# Heal player by the health increase amount
+	health_component.heal(health_increase)
+	print("✅ Max health increased by ", health_increase, " to: ", new_max_health)
+	print("✅ Current health after heal: ", health_component.get_health())
 
 func _on_xp_changed(xp: int, xp_to_next: int, level: int):
 	# Forward XP signal to UI
@@ -527,8 +538,18 @@ func _on_stat_choice_made(stat_name: String):
 			attack_cooldown -= 0.1
 			print("✅ Attack speed increased")
 		"health":
-			if health_component.has_method("set_max_health"):
-				health_component.set_max_health(max_health + 20)
-			max_health += 20
-			health_component.heal(20)  # Add the health increase to current health
-			print("✅ Max health increased by 20")
+			# Use health component as single source of truth
+			var new_max_health = health_component.get_max_health() + 20
+			health_component.set_max_health(new_max_health)
+			health_component.heal(20)  # Add the bonus health to current health too
+			print("✅ Max health increased by 20 to: ", new_max_health)
+
+func take_damage(amount: int, from: Node3D = null):
+	print("🩸 Player: take_damage called with amount: ", amount, " from: ", from)
+	if health_component and health_component.has_method("take_damage"):
+		health_component.take_damage(amount, from)
+		# Apply knockback if movement_component exists
+		if movement_component and movement_component.has_method("apply_knockback_from_enemy") and from:
+			movement_component.apply_knockback_from_enemy(from)
+	else:
+		print("❌ ERROR: health_component not found or missing take_damage method!")

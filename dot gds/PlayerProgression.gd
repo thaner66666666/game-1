@@ -78,12 +78,17 @@ func _generate_upgrade_options() -> Array:
 	]
 
 func apply_upgrade(upgrade_data: Dictionary):
+	print("🔧 PlayerProgression: apply_upgrade called with: ", upgrade_data)
 	match upgrade_data.type:
 		"health":
+			print("🔧 Emitting level_up_stats signal with health increase: ", upgrade_data.value)
 			level_up_stats.emit(upgrade_data.value, 0)
 		"damage":
+			print("🔧 Applying damage increase: ", upgrade_data.value)
 			player_ref.attack_damage += upgrade_data.value
 		"speed":
+			print("🔧 Applying speed increase: ", upgrade_data.value)
 			player_ref.speed += upgrade_data.value
+	print("🔧 Unpausing game...")
 	get_tree().paused = false
 	xp_changed.emit(xp, xp_to_next_level, level)

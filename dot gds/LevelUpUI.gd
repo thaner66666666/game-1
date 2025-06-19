@@ -52,9 +52,14 @@ func _on_button_3_pressed():
 	_choose_upgrade(2)
 
 func _choose_upgrade(index: int):
+	print("🎯 LevelUpUI: Button ", index, " pressed!")
+	print("🎯 Selected upgrade: ", current_options[index])
 	var player = get_tree().get_first_node_in_group("player")
 	if player and player.progression_component:
+		print("🎯 Calling apply_upgrade on progression component...")
 		player.progression_component.apply_upgrade(current_options[index])
+	else:
+		print("❌ ERROR: Player or progression component not found!")
 	visible = false
 
 func _on_damage_button_pressed():

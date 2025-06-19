@@ -84,7 +84,7 @@ func _create_unit_ui():
 	unit_label = _create_label("🤝 Units: 0/3", panel)
 
 func _create_speed_ui():
-	var panel = _create_panel(Vector2(-220, 80), Vector2(200, 50), Color.SKY_BLUE)
+	var panel = _create_panel(Vector2(-220, 140), Vector2(200, 50), Color.SKY_BLUE) # moved down from y=80 to y=140
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
 	speed_label = _create_label("Speed: 0.0", panel)
@@ -240,11 +240,17 @@ func _update_units(current_units: int):
 		print("❌ Unit label not found!")
 
 func _update_speed():
-	if player and player.has("stats_component"):
-		var stats = player.get("stats_component")
-		if stats and stats.has_method("get_speed"):
-			var speed = stats.get_speed()
-			update_speed_display(speed)
+	if not player or not speed_label:
+		return
+	# Try to get speed from stats_component first
+	var stats_component = player.get("stats_component")
+	if stats_component and stats_component.has_method("get_speed"):
+		update_speed_display(stats_component.get_speed())
+	# Fallback to direct speed property
+	elif "speed" in player:
+		update_speed_display(player.speed)
+	else:
+		update_speed_display(0.0)
 
 func update_speed_display(speed: float):
 	if speed_label:
