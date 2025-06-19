@@ -162,60 +162,6 @@ func generate_starting_room():
 	_spawn_treasure_chest_random_in_room(starting_room)
 	_spawn_destructible_objects_in_room(starting_room)  # NEW: Spawn destructibles
 
-	# SPAWN TEST SWORD IN ROOM ONE (center)
-	if weapon_pickup_scene:
-		var sword_resource = null
-		if typeof(WeaponPool) != TYPE_NIL:
-			sword_resource = WeaponPool.get_weapon_by_name("Iron Sword")
-		if not sword_resource:
-			# fallback: load directly
-			sword_resource = load("res://Weapons/iron_sword.tres")
-		if sword_resource:
-			var sword_pickup = weapon_pickup_scene.instantiate()
-			add_child(sword_pickup)
-			sword_pickup.global_position = Vector3(
-				(starting_room.get_center().x - map_size.x / 2) * 2.0,
-				0.5,
-				(starting_room.get_center().y - map_size.y / 2) * 2.0
-			)
-			sword_pickup.set_weapon_resource(sword_resource)
-			print("🗡️ Test sword spawned in room one!")
-
-	# SPAWN BOW IN ROOM ONE (center, offset)
-	if weapon_pickup_scene:
-		var bow_resource = null
-		if typeof(WeaponPool) != TYPE_NIL:
-			bow_resource = WeaponPool.get_weapon_by_name("Wooden Bow")
-		if not bow_resource:
-			bow_resource = load("res://Weapons/wooden_bow.tres")
-		if bow_resource:
-			var bow_pickup = weapon_pickup_scene.instantiate()
-			add_child(bow_pickup)
-			bow_pickup.global_position = Vector3(
-				(starting_room.get_center().x - map_size.x / 2) * 2.0 + 2.5,
-				0.5,
-				(starting_room.get_center().y - map_size.y / 2) * 2.0
-			)
-			bow_pickup.set_weapon_resource(bow_resource)
-			print("🏹 Bow spawned in room one!")
-	else:
-		print("⚠️ weapon_pickup_scene not loaded, cannot spawn test sword or bow!")
-	
-	# SPAWN RECRUITER NPC IN ROOM ONE
-	var recruiter_npc_scene = load("res://Scenes/recruiter_npc.tscn")
-	if recruiter_npc_scene:
-		var recruiter_npc_instance = recruiter_npc_scene.instantiate()
-		add_child(recruiter_npc_instance)
-		# Position the NPC near the center of the starting room
-		recruiter_npc_instance.global_position = Vector3(
-			(starting_room.get_center().x - map_size.x / 2) * 2.0 - 2.5, # Offset slightly from center
-			0.5, # Y position (adjust as needed)
-			(starting_room.get_center().y - map_size.y / 2) * 2.0
-		)
-		print("👤 Recruiter NPC spawned in room one!")
-	else:
-		print("⚠️ Recruiter NPC scene not loaded, cannot spawn recruiter!")
-
 	# --- TORCH PLACEMENT LOGIC (FIXED) ---
 	_spawn_torches_in_room(starting_room)
 	# --- END TORCH PLACEMENT ---
@@ -636,9 +582,31 @@ func create_connected_room():
 	current_room_count += 1
 	print("🛡️ New ", RoomShape.keys()[new_shape], " room created safely! Total: ", rooms.size())
 	new_room_generated.emit(new_room)
-	
+
 	_spawn_destructible_objects_in_room(new_room)  # NEW: Spawn destructibles
-	
+
+	# --- RANDOM RECRUITER NPC SPAWN ---
+	if randi_range(1, 4) == 1: # 25% chance
+		var recruiter_npc_scene = load("res://Scenes/recruiter_npc.tscn")
+		if recruiter_npc_scene:
+			var recruiter_npc_instance = recruiter_npc_scene.instantiate()
+			add_child(recruiter_npc_instance)
+			# Position recruiter randomly in the new room
+			var center = new_room.get_center()
+			var offset = Vector2(randf_range(-2, 2), randf_range(-2, 2))
+			recruiter_npc_instance.global_position = Vector3(
+				(center.x - map_size.x / 2) * 2.0 + offset.x,
+				0.5,
+				(center.y - map_size.y / 2) * 2.0 + offset.y
+			)
+			print("👤 Recruiter NPC spawned in new room!")
+			# Connect signal for recruiter to disappear after recruiting
+			if recruiter_npc_instance.has_method("connect_recruit_signal"):
+				recruiter_npc_instance.connect_recruit_signal()
+		else:
+			print("⚠️ Recruiter NPC scene not loaded, cannot spawn recruiter!")
+	# --- END RANDOM RECRUITER NPC SPAWN ---
+
 	return new_room
 
 func _remove_walls_by_grid_lookup():

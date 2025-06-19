@@ -5,6 +5,8 @@ extends StaticBody3D
 @export var recruitment_cost := 0  # Could add coin cost later
 @export var max_allies := 6
 
+signal ally_recruited
+
 var player_in_range := false
 var interaction_text: Label3D
 var current_allies_count := 0
@@ -101,6 +103,9 @@ func recruit_ally():
 		new_ally.ally_died.connect(_on_ally_died)
 		_update_ui_units()
 		print("👤 Recruited new ally! Total allies: ", current_allies.size() + 1)
+		# Emit signal and queue_free recruiter
+		ally_recruited.emit()
+		queue_free()
 	else:
 		print("❌ No ally scene assigned!")
 
@@ -125,3 +130,9 @@ func _update_ally_counter():
 	if has_node("../UI/AllyCounter"):
 		var counter_label = get_node("../UI/AllyCounter")
 		counter_label.text = str(current_allies_count, " / ", max_allies)
+
+func connect_recruit_signal():
+	ally_recruited.connect(_on_ally_recruited)
+
+func _on_ally_recruited():
+	queue_free()
