@@ -76,7 +76,12 @@ func _connect_to_scene_nodes():
 	original_mesh_scale = mesh_instance.scale if mesh_instance and is_instance_valid(mesh_instance) else Vector3.ONE
 	if mesh_instance and is_instance_valid(mesh_instance):
 		mesh_instance.visible = true
-		print("✅ Enemy: Connected to MeshInstance3D")
+		# Ensure material_override is set for flash effect
+		if not mesh_instance.material_override:
+			var mat = StandardMaterial3D.new()
+			mat.albedo_color = Color(1, 1, 1)
+			mesh_instance.material_override = mat
+		print("✅ Enemy: Connected to MeshInstance3D and ensured material_override")
 	else:
 		print("❌ Enemy: Could not find MeshInstance3D!")
 	if collision_shape and is_instance_valid(collision_shape):
@@ -438,21 +443,29 @@ func take_damage(amount: int):
 	if damage_system:
 		damage_system.show_damage(amount, self)
 	health -= amount
+	_flash_red()
 	_apply_knockback_from_player()
-	_create_damage_wobble()
+	_add_wobble()
 	if health <= 0:
 		die()
 
-func _create_damage_wobble():
+# Flash the enemy red briefly when taking damage
+func _flash_red():
 	if not mesh_instance or not is_instance_valid(mesh_instance):
 		return
-	var tween = create_tween()
-	tween.set_parallel(true)
-	var punch_scale = original_mesh_scale * Vector3(0.5, 2.0, 0.5)
-	tween.tween_property(mesh_instance, "scale", punch_scale, 0.05)
-	var overshoot = original_mesh_scale * Vector3(1.8, 0.4, 1.8)
-	tween.tween_property(mesh_instance, "scale", overshoot, 0.08).set_delay(0.05)
-	tween.tween_property(mesh_instance, "scale", original_mesh_scale, 0.15).set_delay(0.13)
+	var original_color = mesh_instance.material_override.albedo_color if mesh_instance.material_override else Color(1,1,1)
+	if not mesh_instance.material_override:
+		return
+	mesh_instance.material_override.albedo_color = Color(1,0,0)
+	var flash_timer = Timer.new()
+	flash_timer.wait_time = 0.12
+	flash_timer.one_shot = true
+	add_child(flash_timer)
+	flash_timer.timeout.connect(func():
+		if mesh_instance and mesh_instance.material_override:
+			mesh_instance.material_override.albedo_color = original_color
+		flash_timer.queue_free()
+	)
 
 func die():
 	if is_dead:
