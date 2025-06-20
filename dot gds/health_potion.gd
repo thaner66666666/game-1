@@ -22,13 +22,15 @@ var time_alive: float = 0.0
 var mesh_instance: MeshInstance3D
 var potion_material: StandardMaterial3D
 
+# Make _ready use await without async keyword
 func _ready():
 	print("🧪 Health Potion: Creating simple glowing potion bottle...")
 	add_to_group("health_potion")
 	set_meta("heal_amount", heal_amount)
 	collision_layer = 4
 	collision_mask = 1
-	_create_simple_bottle()
+	# Create bottle asynchronously to avoid material timing issues
+	await _create_simple_bottle()
 	call_deferred("_find_player")
 	get_tree().create_timer(45.0).timeout.connect(queue_free)
 	connect("body_entered", Callable(self, "_on_body_entered"))
@@ -37,14 +39,20 @@ func _ready():
 		set_meta("pickup_disabled", not player.can_heal())
 		_update_visual_state()
 
+# Replace the _create_simple_bottle function with the fixed version (no async keyword)
 func _create_simple_bottle():
+	# Create MeshInstance3D first
 	mesh_instance = MeshInstance3D.new()
 	mesh_instance.name = "PotionMesh"
 	add_child(mesh_instance)
+	# Create and assign mesh FIRST
 	var bottle_mesh = CapsuleMesh.new()
 	bottle_mesh.radius = 0.12
 	bottle_mesh.height = 0.4
 	mesh_instance.mesh = bottle_mesh
+	# WAIT for next frame before setting materials
+	await get_tree().process_frame
+	# NOW create and set materials safely
 	potion_material = StandardMaterial3D.new()
 	potion_material.albedo_color = Color(1.0, 0.2, 0.2, 0.85)
 	potion_material.emission_enabled = true
@@ -52,12 +60,8 @@ func _create_simple_bottle():
 	potion_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	potion_material.roughness = 0.3
 	potion_material.metallic = 0.1
-	# Safe material assignment with null check
-	if not safe_set_material(mesh_instance, potion_material):
-		print("❌ Failed to set potion material, using default")
-		var fallback_material = StandardMaterial3D.new()
-		fallback_material.albedo_color = Color(1.0, 0.2, 0.2, 0.85)
-		mesh_instance.material_override = fallback_material
+	# Safe assignment
+	mesh_instance.material_override = potion_material
 	var cork = MeshInstance3D.new()
 	cork.name = "Cork"
 	mesh_instance.add_child(cork)
@@ -206,12 +210,17 @@ func _update_visual_state():
 				mat.albedo_color = Color(1, 0.2, 0.2, 0.85) # Normal color
 
 static func safe_set_material(mesh_target: MeshInstance3D, material: Material) -> bool:
-	"""Safely set material with null check - Godot 4.1 best practice"""
 	if not mesh_target:
-		push_warning("🚨 Mesh instance is null - cannot set material")
+		push_warning("🚨 Mesh instance is null")
+		return false
+	if not mesh_target.mesh:
+		push_warning("🚨 Mesh is null")
+		return false
+	if mesh_target.mesh.get_surface_count() == 0:
+		push_warning("🚨 Mesh has no surfaces")
 		return false
 	if not material:
-		push_warning("🚨 Material is null - creating default material")
+		push_warning("🚨 Material is null - creating default")
 		material = StandardMaterial3D.new()
 	mesh_target.material_override = material
 	return true

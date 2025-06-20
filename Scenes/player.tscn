@@ -14,8 +14,9 @@
 albedo_color = Color(0, 0, 0, 1)
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_vgqql"]
-radius = 0.0
-height = 0.0
+radius = 0.3
+height = 1.5
+radial_segments = 16
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_onrkg"]
 

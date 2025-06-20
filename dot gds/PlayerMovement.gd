@@ -2,6 +2,17 @@ extends Node
 class_name PlayerMovement
 
 # --- Material Safety Utilities ---
+static func ensure_mesh_has_material(mesh_instance: MeshInstance3D) -> bool:
+	if not mesh_instance or not mesh_instance.mesh:
+		return false
+	if mesh_instance.mesh.get_surface_count() == 0:
+		push_warning("🚨 Mesh has no surfaces - skipping material operations")
+		return false
+	if not mesh_instance.get_active_material(0):
+		var default_material = StandardMaterial3D.new()
+		mesh_instance.set_surface_override_material(0, default_material)
+	return true
+
 static func safe_get_material(mesh_instance: MeshInstance3D) -> Material:
 	"""Safely get material with null check - prevents material parameter errors"""
 	if not mesh_instance:
