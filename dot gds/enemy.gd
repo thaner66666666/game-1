@@ -625,7 +625,7 @@ func die():
 	
 	enemy_died.emit()
 	
-	await get_tree().create_timer(0.8).timeout
+	await get_tree().create_timer(0.3).timeout
 	queue_free()
 
 func _drop_weapon():
