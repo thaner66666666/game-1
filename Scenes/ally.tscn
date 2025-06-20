@@ -1,6 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://be6r6hee60kb8"]
+[gd_scene load_steps=3 format=3 uid="uid://cjm0u0hqtlgio"]
 
-[ext_resource type="Script" uid="uid://d2adqgrm8iqv" path="res://allies/ally.gd" id="1"]
+[ext_resource type="Script" uid="uid://dhnpo3b877ia2" path="res://allies/ally.gd" id="1"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_ally"]
 radius = 0.25

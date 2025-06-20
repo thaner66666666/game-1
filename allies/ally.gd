@@ -45,18 +45,7 @@ const DEFAULT_ALLY_COLOR = Color(0.9, 0.7, 0.6)  # Default skin tone
 
 var last_valid_position: Vector3
 
-# ...existing code...
-# --- Ally UI and Name ---
-# Remove random name assignment from here
-_setup_ui_component()
-if has_node("AllyUIComponent"):
-	print("UI component setup completed for ally: ", get_meta("display_name", name))
-else:
-	print("❌ ERROR: AllyUIComponent was not created for ally: ", get_meta("display_name", name))
-# ...existing code...
-
-
-
+func _ready():
 	add_to_group("allies")
 	_setup_components()
 	_ensure_hands_visible()
@@ -71,11 +60,6 @@ else:
 	last_valid_position = global_position
 	# --- Ally UI and Name ---
 	_assign_random_name()
-	_setup_ui_component()
-	if has_node("AllyUIComponent"):
-		print("UI component setup completed for ally: ", get_meta("display_name", name))
-	else:
-		print("❌ ERROR: AllyUIComponent was not created for ally: ", get_meta("display_name", name))
 
 func _setup_components() -> void:
 	# Initialize each component with needed references
@@ -366,12 +350,7 @@ func apply_knockback(force: Vector3, duration: float = 0.4):
 	knockback_timer = duration
 	is_being_knocked_back = true
 
-# ...existing code...
-# Remove _assign_random_name and _generate_random_name, let AI component handle naming
-# ...existing code...
-
-
-
+func _assign_random_name():
 	"""Assign a random name to this ally if not already set"""
 	if not has_meta("display_name"):
 		var random_name = _generate_random_name()
@@ -379,12 +358,7 @@ func apply_knockback(force: Vector3, duration: float = 0.4):
 		name = random_name
 		print("🆕 Ally assigned name: ", random_name)
 
-# ...existing code...
-# Remove _generate_random_name, let AI component handle naming
-# ...existing code...
-
-
-
+func _generate_random_name() -> String:
 	"""Generate a random fantasy name"""
 	var first_names = [
 		"Aiden", "Luna", "Kai", "Mira", "Rowan", "Zara", "Finn", "Nova", "Ezra", "Lyra",
@@ -399,27 +373,3 @@ func apply_knockback(force: Vector3, duration: float = 0.4):
 	var first = first_names[randi() % first_names.size()]
 	var last = last_names[randi() % last_names.size()]
 	return first + " " + last
-
-func _setup_ui_component():
-	"""Create and configure the UI component for this ally"""
-	# Ensure the correct path to AllyUIComponent.gd
-	var ui_component = preload("res://allies/components/AllyUIComponent.gd").new()
-	ui_component.name = "AllyUIComponent"
-	add_child(ui_component)
-	if ui_component:
-		ui_component.setup_for_ally(self)
-		print("✅ UI component set up for ally: ", get_meta("display_name", name))
-	else:
-		print("❌ ERROR: Failed to create AllyUIComponent for ally: ", get_meta("display_name", name))
-
-func add_ui_to_existing_ally(ally: Node3D):
-	"""Add UI component to an already existing ally"""
-	if ally.has_node("AllyUIComponent"):
-		print("⚠️ Ally already has UI component")
-		return
-	# Ensure the correct path to AllyUIComponent.gd
-	var ui_component = preload("res://allies/components/AllyUIComponent.gd").new()
-	ui_component.name = "AllyUIComponent"
-	ally.add_child(ui_component)
-	ui_component.setup_for_ally(ally)
-	print("✅ Added UI component to existing ally: ", ally.get_meta("display_name", ally.name))

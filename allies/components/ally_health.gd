@@ -52,12 +52,3 @@ func heal(amount: int):
 
 func _die():
 	queue_free()
-
-
-# Returns the current health value
-func get_health() -> int:
-	return current_health
-
-# Returns the maximum health value
-func get_max_health() -> int:
-	return max_health
