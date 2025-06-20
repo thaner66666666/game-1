@@ -43,6 +43,8 @@ var is_being_knocked_back := false
 # Default ally color for flash restorataion
 const DEFAULT_ALLY_COLOR = Color(0.9, 0.7, 0.6)  # Default skin tone
 
+var last_valid_position: Vector3
+
 func _ready():
 	add_to_group("allies")
 	_setup_components()
@@ -54,6 +56,8 @@ func _ready():
 	# Initialize body animation after movement setup
 	if movement_component:
 		movement_component.initialize_body_animation()
+	# 🔧 FIXED: Initialize last valid position
+	last_valid_position = global_position
 
 func _setup_components() -> void:
 	# Initialize each component with needed references
@@ -67,9 +71,9 @@ func _setup_components() -> void:
 	await _setup_foot_references()
 	# Make hands visible by default
 	_ensure_hands_visible()
-	# Configure collision layers for separation
-	collision_layer = 8
-	collision_mask = 3 | 8
+	# 🔧 FIXED: Configure collision layers properly
+	collision_layer = 8  # Allies are on layer 8
+	collision_mask = 1 | 2 | 8  # Collide with terrain(1), enemies(2), and other allies(8)
 
 func _create_character_appearance():
 	# Generate random character appearance with varied skin tones
@@ -151,6 +155,49 @@ func _find_player():
 	if player_ref:
 		ai_component.set_player_target(player_ref)
 
+func _prevent_wall_clipping():
+	"""Prevent allies from being pushed through walls - similar to enemy system"""
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	var map_size = Vector2(60, 60)
+	if terrain and "map_size" in terrain:
+		map_size = terrain.map_size
+	var grid_x = int((global_position.x / 2.0) + (map_size.x / 2))
+	var grid_y = int((global_position.z / 2.0) + (map_size.y / 2))
+	var is_valid = terrain._is_valid_pos(grid_x, grid_y) if terrain and terrain.has_method("_is_valid_pos") else true
+	if is_valid:
+		last_valid_position = global_position
+	else:
+		# Try to find a valid nearby position
+		var try_offsets = [
+			Vector3(1,0,0), Vector3(-1,0,0), Vector3(0,0,1), Vector3(0,0,-1),
+			Vector3(1,0,1), Vector3(-1,0,1), Vector3(1,0,-1), Vector3(-1,0,-1),
+			Vector3(2,0,0), Vector3(-2,0,0), Vector3(0,0,2), Vector3(0,0,-2)
+		]
+		var found = false
+		for offset in try_offsets:
+			if found:
+				break
+			for dist in [0.5, 1.0, 1.5, 2.0]:
+				var test_pos = global_position + offset.normalized() * dist
+				var test_grid_x = int((test_pos.x / 2.0) + (map_size.x / 2))
+				var test_grid_y = int((test_pos.z / 2.0) + (map_size.y / 2))
+				if terrain and terrain.has_method("_is_valid_pos") and terrain._is_valid_pos(test_grid_x, test_grid_y):
+					global_position = test_pos
+					last_valid_position = test_pos
+					found = true
+					break
+		if not found:
+			# Last resort: return to last known valid position
+			global_position = last_valid_position
+		# Stop movement when hitting walls
+		velocity.x = 0
+		velocity.z = 0
+		knockback_velocity = Vector3.ZERO
+	# Prevent falling through floor
+	if global_position.y < 0.8:
+		global_position.y = 0.8
+		velocity.y = max(0, velocity.y)
+
 func _physics_process(delta):
 	# Add gravity
 	if not is_on_floor():
@@ -168,9 +215,10 @@ func _physics_process(delta):
 		if knockback_timer <= 0.0:
 			knockback_velocity = Vector3.ZERO
 			is_being_knocked_back = false
-	else:
-		# Apply movement
-		move_and_slide()
+	# 🔧 FIXED: Apply movement with proper collision detection
+	move_and_slide()
+	# 🔧 FIXED: Prevent wall clipping after movement
+	_prevent_wall_clipping()
 	# Animate feet based on movement (with safety checks)
 	animation_time += delta
 	if left_foot and right_foot and left_foot is MeshInstance3D and right_foot is MeshInstance3D:
@@ -272,3 +320,30 @@ func apply_knockback_from_attacker(attacker):
 		knockback_velocity = direction * 8.0
 		knockback_timer = knockback_duration
 		is_being_knocked_back = true
+
+# Add function for safe knockback
+func apply_knockback(force: Vector3, duration: float = 0.4):
+	"""Apply knockback with wall collision prevention"""
+	var knockback_dir = Vector3(force.x, 0, force.z).normalized()
+	# Check if knockback would push into wall
+	var terrain = get_tree().get_first_node_in_group("terrain")
+	if terrain and terrain.has_method("_is_valid_pos"):
+		var map_size = Vector2(60, 60)
+		if "map_size" in terrain:
+			map_size = terrain.map_size
+		var test_pos = global_position + knockback_dir * 1.5
+		var test_grid_x = int((test_pos.x / 2.0) + (map_size.x / 2))
+		var test_grid_y = int((test_pos.z / 2.0) + (map_size.y / 2))
+		# If knockback would hit wall, reduce force or redirect
+		if not terrain._is_valid_pos(test_grid_x, test_grid_y):
+			force *= 0.3  # Reduce knockback force near walls
+			# Try perpendicular directions
+			var perpendicular = Vector3(-knockback_dir.z, 0, knockback_dir.x)
+			test_pos = global_position + perpendicular * 1.0
+			test_grid_x = int((test_pos.x / 2.0) + (map_size.x / 2))
+			test_grid_y = int((test_pos.z / 2.0) + (map_size.y / 2))
+			if terrain._is_valid_pos(test_grid_x, test_grid_y):
+				force = perpendicular * force.length() * 0.5
+	knockback_velocity = force
+	knockback_timer = duration
+	is_being_knocked_back = true

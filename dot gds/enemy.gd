@@ -123,7 +123,7 @@ func _setup_slime_material():
 func _setup_physics():
 	add_to_group("enemies")
 	collision_layer = 2
-	collision_mask = 1 | 2
+	collision_mask = 1 | 2 | 8  # 🔧 FIXED: Now enemies detect allies (layer 8)
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
 	max_health = health
 	velocity = Vector3.ZERO
