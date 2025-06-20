@@ -182,9 +182,9 @@ func _physics_process(delta):
 		var forward_lean = sin(body_waddle_time * 0.5) * 0.01  # Minimal lean
 		body_node.position = body_original_pos + Vector3(sway, bob, forward_lean)
 
-func take_damage(amount: int, source = null):
+func take_damage(amount: int, _source = null):
 	if get_tree().get_first_node_in_group("damage_numbers"):
-		get_tree().get_first_node_in_group("damage_numbers").show_damage(amount, self, Color(1,0,0))
+		get_tree().get_first_node_in_group("damage_numbers").show_damage(amount, self, "normal")
 	_flash_red()
 	# ...existing health/damage logic here...
 

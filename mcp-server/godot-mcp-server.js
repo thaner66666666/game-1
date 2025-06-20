@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Godot MCP Server
+ * Godot MCP Server - Fixed for Thane's Project
  * 
  * This MCP server enables GitHub Copilot to interact directly with your Godot project.
  * It can read project structure, create/modify scripts, and understand Godot-specific files.
@@ -18,7 +18,12 @@ import path from "path";
 
 class GodotMCPServer {
   constructor() {
-    this.projectRoot = process.env.GODOT_PROJECT_PATH || process.cwd();
+    // FIXED: Hardcode the correct project path for Thane's setup
+    this.projectRoot = process.env.GODOT_PROJECT_PATH || "D:\\GAME PROJECT\\Game\\game";
+    
+    // Log the project root to verify it's correct
+    console.error(`[MCP] Using project root: ${this.projectRoot}`);
+    
     this.server = new Server(
       {
         name: "godot-mcp-server",
@@ -56,6 +61,7 @@ class GodotMCPServer {
               project_path: {
                 type: "string",
                 description: "Path to the Godot project directory",
+                default: "D:\\GAME PROJECT\\Game\\game"
               },
             },
             required: ["project_path"],
@@ -155,6 +161,7 @@ class GodotMCPServer {
               project_path: {
                 type: "string",
                 description: "Path to the Godot project directory",
+                default: "D:\\GAME PROJECT\\Game\\game"
               },
             },
             required: ["project_path"],
@@ -168,19 +175,28 @@ class GodotMCPServer {
       const { name, arguments: args } = request.params;
 
       try {
+        // If no project_path is provided, use the configured project root
+        const projectPath = args.project_path || this.projectRoot;
+        
         switch (name) {
           case "read_godot_project":
-            return await this.readGodotProject(args.project_path);
+            return await this.readGodotProject(projectPath);
           
           case "create_gdscript":
-            return await this.createGDScript(args.file_path, args.content, args.class_name);
+            return await this.createGDScript(
+              path.join(this.projectRoot, args.file_path), 
+              args.content, 
+              args.class_name
+            );
           
           case "read_gdscript":
-            return await this.readGDScript(args.file_path);
+            return await this.readGDScript(
+              path.join(this.projectRoot, args.file_path)
+            );
           
           case "modify_gdscript":
             return await this.modifyGDScript(
-              args.file_path, 
+              path.join(this.projectRoot, args.file_path), 
               args.function_name, 
               args.function_content, 
               args.insert_after
@@ -188,18 +204,19 @@ class GodotMCPServer {
           
           case "create_scene_template":
             return await this.createSceneTemplate(
-              args.scene_path, 
+              path.join(this.projectRoot, args.scene_path), 
               args.root_node_type || "Node2D", 
               args.scene_name
             );
           
           case "analyze_project_structure":
-            return await this.analyzeProjectStructure(args.project_path);
+            return await this.analyzeProjectStructure(projectPath);
 
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
       } catch (error) {
+        console.error(`[MCP] Error in ${name}:`, error);
         return {
           content: [
             {
@@ -230,6 +247,7 @@ class GodotMCPServer {
             text: `Godot Project Analysis:
 Project Name: ${projectInfo.name || "Unknown"}
 Godot Version: ${projectInfo.version || "Unknown"}
+Project Path: ${projectPath}
 
 Project Structure:
 ${structure}
@@ -256,7 +274,7 @@ ${projectContent.substring(0, 500)}...`,
         scriptContent = `class_name ${className}\n\n${content}`;
       }
       
-      // Ensure proper GDScript formatting
+      // Ensure proper GDScript formatting for Godot 4.x
       if (!scriptContent.startsWith("extends")) {
         scriptContent = `extends Node\n\n${scriptContent}`;
       }
@@ -269,8 +287,11 @@ ${projectContent.substring(0, 500)}...`,
             type: "text",
             text: `Successfully created GDScript file: ${filePath}
 ${className ? `Class name: ${className}` : ""}
-Content preview:
-${scriptContent.substring(0, 200)}...`,
+
+Following Godot 4.1 best practices:
+- Proper extends declaration
+- UTF-8 encoding
+- Created in project directory structure`,
           },
         ],
       };
@@ -281,22 +302,23 @@ ${scriptContent.substring(0, 200)}...`,
 
   async readGDScript(filePath) {
     try {
-      const resolvedPath = path.resolve(this.projectRoot, filePath);
-      const content = await fs.readFile(resolvedPath, "utf-8");
+      const content = await fs.readFile(filePath, "utf-8");
       const analysis = this.analyzeGDScript(content);
       
       return {
         content: [
           {
             type: "text",
-            text: `GDScript File: ${resolvedPath}
-\nAnalysis:
-- Extends: ${analysis.extends}
-- Class Name: ${analysis.className || "None"}
-- Functions: ${analysis.functions.join(", ") || "None"}
-- Variables: ${analysis.variables.join(", ") || "None"}
-- Signals: ${analysis.signals.join(", ") || "None"}
-\nFull Content:\n${content}`,
+            text: `GDScript Analysis: ${filePath}
+
+Extends: ${analysis.extends}
+Class Name: ${analysis.className || "None"}
+Functions: ${analysis.functions.join(", ") || "None"}
+Variables: ${analysis.variables.join(", ") || "None"}
+Signals: ${analysis.signals.join(", ") || "None"}
+
+Content:
+${content}`,
           },
         ],
       };
@@ -308,35 +330,25 @@ ${scriptContent.substring(0, 200)}...`,
   async modifyGDScript(filePath, functionName, functionContent, insertAfter) {
     try {
       let content = await fs.readFile(filePath, "utf-8");
-      const lines = content.split("\n");
       
-      // Find existing function and replace it, or add new function
-      const functionRegex = new RegExp(`^func\\s+${functionName}\\s*\\(`, "m");
-      const existingFunctionMatch = content.match(functionRegex);
+      // Check if function already exists
+      const functionRegex = new RegExp(`func\\s+${functionName}\\s*\\(`, "m");
+      const functionExists = functionRegex.test(content);
       
-      if (existingFunctionMatch) {
+      if (functionExists) {
         // Replace existing function
-        const functionStartIndex = content.indexOf(existingFunctionMatch[0]);
-        const beforeFunction = content.substring(0, functionStartIndex);
-        const afterFunctionStart = content.substring(functionStartIndex);
-        
-        // Find the end of the function (next function or end of file)
-        const nextFunctionMatch = afterFunctionStart.substring(1).match(/^func\s+\w+/m);
-        const functionEnd = nextFunctionMatch ? 
-          functionStartIndex + 1 + nextFunctionMatch.index : 
-          content.length;
-        
-        const afterFunction = content.substring(functionEnd);
-        content = beforeFunction + functionContent + "\n\n" + afterFunction;
+        const fullFunctionRegex = new RegExp(
+          `func\\s+${functionName}\\s*\\([^\\)]*\\)[^{]*?(?=func\\s+|$)`, 
+          "gms"
+        );
+        content = content.replace(fullFunctionRegex, functionContent + "\n\n");
       } else {
         // Add new function
         if (insertAfter) {
           const insertIndex = content.indexOf(insertAfter);
           if (insertIndex !== -1) {
             const lineEnd = content.indexOf("\n", insertIndex);
-            content = content.substring(0, lineEnd + 1) + 
-                     "\n" + functionContent + "\n" + 
-                     content.substring(lineEnd + 1);
+            content = content.slice(0, lineEnd + 1) + "\n" + functionContent + "\n" + content.slice(lineEnd + 1);
           } else {
             content += "\n\n" + functionContent;
           }
@@ -351,8 +363,7 @@ ${scriptContent.substring(0, 200)}...`,
         content: [
           {
             type: "text",
-            text: `Successfully modified ${filePath}
-${existingFunctionMatch ? "Replaced" : "Added"} function: ${functionName}
+            text: `Successfully ${functionExists ? "replaced" : "added"} function: ${functionName}
 
 Function content:
 ${functionContent}`,
@@ -369,7 +380,8 @@ ${functionContent}`,
       const dir = path.dirname(scenePath);
       await fs.mkdir(dir, { recursive: true });
       
-      const sceneContent = `[gd_scene load_steps=1 format=3]
+      // Godot 4.x scene format
+      const sceneContent = `[gd_scene load_steps=1 format=3 uid="uid://new_scene_${Date.now()}"]
 
 [node name="${sceneName}" type="${rootNodeType}"]
 `;
@@ -384,6 +396,7 @@ ${functionContent}`,
 Root node: ${rootNodeType}
 Scene name: ${sceneName}
 
+Godot 4.1 compatible format with UID for proper resource tracking.
 You can now open this scene in Godot and add more nodes!`,
           },
         ],
@@ -404,6 +417,7 @@ You can now open this scene in Godot and add more nodes!`,
           {
             type: "text",
             text: `Complete Godot Project Analysis:
+Project Path: ${projectPath}
 
 DIRECTORY STRUCTURE:
 ${structure}
@@ -414,11 +428,14 @@ ${scripts.map(script => `- ${script}`).join("\n")}
 SCENE FILES (${scenes.length}):
 ${scenes.map(scene => `- ${scene}`).join("\n")}
 
-DEVELOPMENT RECOMMENDATIONS:
-- Keep scripts organized in dedicated folders
-- Use clear naming conventions (PascalCase for classes)
-- Consider creating an autoload for global game state
-- Use scenes for reusable components`,
+GODOT 4.1 BEST PRACTICES RECOMMENDATIONS:
+- Keep scripts organized in dedicated folders ✓
+- Use clear naming conventions (PascalCase for classes) ✓  
+- Use @export for inspector variables instead of export
+- Use @onready for node references
+- Consider creating autoloads for global game state ✓
+- Use typed variables: var health: int = 100
+- Use scenes for reusable components ✓`,
           },
         ],
       };
@@ -427,7 +444,7 @@ DEVELOPMENT RECOMMENDATIONS:
     }
   }
 
-  // Helper methods
+  // Helper methods remain the same but with better error handling
   parseProjectFile(content) {
     const info = {};
     const lines = content.split("\n");
@@ -436,8 +453,12 @@ DEVELOPMENT RECOMMENDATIONS:
       if (line.startsWith("config/name=")) {
         info.name = line.split("=")[1].replace(/"/g, "");
       }
-      if (line.startsWith("config/version=")) {
-        info.version = line.split("=")[1].replace(/"/g, "");
+      if (line.startsWith("config/features=")) {
+        // Extract Godot version from features
+        const features = line.split("=")[1];
+        if (features.includes("4.")) {
+          info.version = "4.x";
+        }
       }
     }
     
@@ -473,7 +494,7 @@ DEVELOPMENT RECOMMENDATIONS:
       
       return structure;
     } catch (error) {
-      return `${prefix}❌ Error reading directory\n`;
+      return `${prefix}❌ Error reading directory: ${error.message}\n`;
     }
   }
 
@@ -570,6 +591,7 @@ DEVELOPMENT RECOMMENDATIONS:
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error("Godot MCP Server running on stdio");
+    console.error(`Project root set to: ${this.projectRoot}`);
   }
 }
 

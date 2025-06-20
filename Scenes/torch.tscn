@@ -20,5 +20,5 @@ light_color = Color(1, 0.466667, 0, 1)
 omni_range = 8.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.519165, 0)
+transform = Transform3D(1.00001, 0, 0, 0, 0.138574, 0, 0, 0, 1.00001, 0, 0.259847, -0.0617565)
 shape = SubResource("CylinderShape3D_beu3c")
