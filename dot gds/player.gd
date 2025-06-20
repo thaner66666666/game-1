@@ -667,6 +667,11 @@ func _on_player_died():
 		return
 	is_dead = true
 	print("💀 Player died - restarting in 2 seconds...")
+	# Step 4: Clear all damage numbers before respawn
+	for node in get_tree().get_nodes_in_group("damage_numbers"):
+		if node.has_method("_clear_all_labels"):
+			print("[Player] Calling damage number cleanup on ", node)
+			node._clear_all_labels()
 	set_process_input(false)
 	if movement_component:
 		movement_component.set_physics_process(false)

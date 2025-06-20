@@ -26,24 +26,32 @@ var camera: Camera3D
 func _ready():
 	add_to_group("damage_numbers")
 	_update_scene_references()
-	
-	# 🔧 FIX: Listen for scene changes to update references
+	# 🔧 FIX: Listen for scene changes to update references (Godot 4 compatibility)
 	if get_tree():
-		get_tree().current_scene_changed.connect(_on_scene_changed)
+		get_tree().tree_changed.connect(_on_scene_changed)
 
 # 🔧 FIX: Update references when scene changes
 func _update_scene_references():
-	current_scene = get_tree().current_scene if get_tree() else null
-	camera = get_viewport().get_camera_3d() if get_viewport() else null
+	if not get_tree():
+		return
+	if get_tree():
+		current_scene = get_tree().current_scene
+	else:
+		current_scene = null
+	if get_viewport():
+		camera = get_viewport().get_camera_3d()
+	else:
+		camera = null
 
 # 🔧 FIX: Handle scene changes
 func _on_scene_changed():
-	print("🔄 DamageNumbers: Scene changed, updating references")
+	print("DamageNumbers: Scene changed, updating references")
 	_clear_all_labels()
-	_update_scene_references()
+	call_deferred("_update_scene_references")
 
 # 🔧 FIX: Clear all labels safely
 func _clear_all_labels():
+	print("DamageNumbers: Clearing labels")
 	for entity in floating_labels.keys():
 		var label = floating_labels[entity]
 		if is_instance_valid(label):
@@ -136,7 +144,7 @@ func _create_label(text: String, damage_type: String) -> Label:
 	label.add_theme_color_override("font_shadow_color", Color.BLACK)
 	label.add_theme_constant_override("shadow_offset_x", 2)
 	label.add_theme_constant_override("shadow_offset_y", 2)
-	
+	print("DamageNumbers: Created label for ", text, " type=", damage_type)
 	return label
 
 func _update_existing_label(label: Label, new_text: String):
@@ -190,6 +198,7 @@ func _clear_entity_data(entity: Node3D):
 	if entity in floating_labels:
 		var label = floating_labels[entity]
 		if is_instance_valid(label):
+			print("DamageNumbers: Destroying label for entity ", entity)
 			label.queue_free()
 		floating_labels.erase(entity)
 	
