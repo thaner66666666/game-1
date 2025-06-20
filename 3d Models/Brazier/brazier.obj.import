@@ -4,11 +4,14 @@ importer="wavefront_obj"
 importer_version=1
 type="Mesh"
 uid="uid://w5u7p078warp"
-valid=false
+path="res://.godot/imported/brazier.obj-170f23d1a4f26b4efb4e68f169b85995.mesh"
 
 [deps]
 
+files=["res://.godot/imported/brazier.obj-170f23d1a4f26b4efb4e68f169b85995.mesh"]
+
 source_file="res://3d Models/Brazier/brazier.obj"
+dest_files=["res://.godot/imported/brazier.obj-170f23d1a4f26b4efb4e68f169b85995.mesh", "res://.godot/imported/brazier.obj-170f23d1a4f26b4efb4e68f169b85995.mesh"]
 
 [params]
 

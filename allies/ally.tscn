@@ -1,11 +1,10 @@
-[gd_scene load_steps=8 format=3 uid="uid://sdrleb6nfb4n"]
+[gd_scene load_steps=7 format=3 uid="uid://sdrleb6nfb4n"]
 
 [ext_resource type="Script" uid="uid://dhnpo3b877ia2" path="res://allies/ally.gd" id="1_lx0ct"]
 [ext_resource type="Script" uid="uid://bssh4v2qws77k" path="res://allies/components/ally_health.gd" id="2_health"]
 [ext_resource type="Script" uid="uid://dx42bc8spjgeu" path="res://allies/components/ally_movement.gd" id="3_movement"]
 [ext_resource type="Script" uid="uid://c360rc3db21fw" path="res://allies/components/ally_combat.gd" id="4_combat"]
 [ext_resource type="Script" uid="uid://ljks40pdy6h8" path="res://allies/components/ally_ai.gd" id="5_ai"]
-[ext_resource type="Script" uid="uid://b0f57gc8mr2i" path="res://allies/components/HealthBar.gd" id="6_885qg"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_o1hd1"]
 
@@ -42,24 +41,3 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.15, -0.9, 0.1)
 
 [node name="RightFoot" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, -0.9, 0.1)
-
-[node name="HealthBar" type="Control" parent="."]
-layout_mode = 3
-anchors_preset = 0
-offset_left = -20.0
-offset_top = 15.0
-offset_right = 20.0
-offset_bottom = 55.0
-script = ExtResource("6_885qg")
-
-[node name="ProgressBar" type="ProgressBar" parent="HealthBar"]
-modulate = Color(0, 1, 0, 1)
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -20.0
-offset_right = 20.0
-offset_bottom = 10.0
-fill_mode = 1
-show_percentage = false

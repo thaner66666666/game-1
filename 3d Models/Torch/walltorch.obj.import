@@ -4,11 +4,14 @@ importer="wavefront_obj"
 importer_version=1
 type="Mesh"
 uid="uid://csx3tds4ley28"
-valid=false
+path="res://.godot/imported/walltorch.obj-b1a7b85d8ac4184f96b97ee5e3aab1c1.mesh"
 
 [deps]
 
+files=["res://.godot/imported/walltorch.obj-b1a7b85d8ac4184f96b97ee5e3aab1c1.mesh"]
+
 source_file="res://3d Models/Torch/walltorch.obj"
+dest_files=["res://.godot/imported/walltorch.obj-b1a7b85d8ac4184f96b97ee5e3aab1c1.mesh", "res://.godot/imported/walltorch.obj-b1a7b85d8ac4184f96b97ee5e3aab1c1.mesh"]
 
 [params]
 

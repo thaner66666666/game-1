@@ -4,11 +4,14 @@ importer="wavefront_obj"
 importer_version=1
 type="Mesh"
 uid="uid://dagubfxbsoacu"
-valid=false
+path="res://.godot/imported/bow_01.obj-9fdec30fd80b8909ffd435a0b5e7adf8.mesh"
 
 [deps]
 
+files=["res://.godot/imported/bow_01.obj-9fdec30fd80b8909ffd435a0b5e7adf8.mesh"]
+
 source_file="res://3d Models/Bow/bow_01.obj"
+dest_files=["res://.godot/imported/bow_01.obj-9fdec30fd80b8909ffd435a0b5e7adf8.mesh", "res://.godot/imported/bow_01.obj-9fdec30fd80b8909ffd435a0b5e7adf8.mesh"]
 
 [params]
 

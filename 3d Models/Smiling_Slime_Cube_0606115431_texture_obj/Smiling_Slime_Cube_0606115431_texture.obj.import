@@ -4,11 +4,14 @@ importer="wavefront_obj"
 importer_version=1
 type="Mesh"
 uid="uid://d0ulm16lan2ub"
-valid=false
+path="res://.godot/imported/Smiling_Slime_Cube_0606115431_texture.obj-6daa57a88b93f9a572035a6ebeca2cd3.mesh"
 
 [deps]
 
+files=["res://.godot/imported/Smiling_Slime_Cube_0606115431_texture.obj-6daa57a88b93f9a572035a6ebeca2cd3.mesh"]
+
 source_file="res://3d Models/Smiling_Slime_Cube_0606115431_texture_obj/Smiling_Slime_Cube_0606115431_texture.obj"
+dest_files=["res://.godot/imported/Smiling_Slime_Cube_0606115431_texture.obj-6daa57a88b93f9a572035a6ebeca2cd3.mesh", "res://.godot/imported/Smiling_Slime_Cube_0606115431_texture.obj-6daa57a88b93f9a572035a6ebeca2cd3.mesh"]
 
 [params]
 
