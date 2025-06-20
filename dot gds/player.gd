@@ -44,7 +44,7 @@ var right_foot: MeshInstance3D
 @onready var inventory_component: PlayerInventoryComponent = get_node_or_null("InventoryComponent")
 @onready var stats_component: PlayerStats = get_node_or_null("PlayerStats")
 @onready var ui = get_tree().get_root().find_child("HealthUI", true, false)
-@onready var ally_command_manager = preload("res://dot gds/AllyCommandManager.gd").new()
+@onready var ally_command_manager = preload("res://allies/components/AllyCommandManager.gd").new()
 
 # Player state
 var is_dead := false
