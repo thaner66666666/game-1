@@ -4,14 +4,11 @@ importer="wavefront_obj"
 importer_version=1
 type="Mesh"
 uid="uid://dpkhctk1q0bpg"
-path="res://.godot/imported/broadsword.obj-570b4ec4833d2660bb4e7284475fa28d.mesh"
+valid=false
 
 [deps]
 
-files=["res://.godot/imported/broadsword.obj-570b4ec4833d2660bb4e7284475fa28d.mesh"]
-
 source_file="res://3d Models/Sword/broadsword.obj"
-dest_files=["res://.godot/imported/broadsword.obj-570b4ec4833d2660bb4e7284475fa28d.mesh", "res://.godot/imported/broadsword.obj-570b4ec4833d2660bb4e7284475fa28d.mesh"]
 
 [params]
 

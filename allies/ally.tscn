@@ -53,6 +53,7 @@ offset_bottom = 55.0
 script = ExtResource("6_885qg")
 
 [node name="ProgressBar" type="ProgressBar" parent="HealthBar"]
+modulate = Color(0, 1, 0, 1)
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.5

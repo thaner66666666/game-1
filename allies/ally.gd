@@ -202,11 +202,13 @@ func take_damage(amount: int, attacker: Node = null):
 	if health_bar:
 		health_bar.set_health(health_component.current_health, health_component.max_health)
 		health_bar.visible = true
-		# Reset timer if already running
-		if health_bar_hide_timer:
-			health_bar_hide_timer.disconnect_all()
-		else:
-			health_bar_hide_timer = get_tree().create_timer(3.0)
+		# Stop previous timer if still running
+		if health_bar_hide_timer and is_instance_valid(health_bar_hide_timer):
+			if health_bar_hide_timer.is_connected("timeout", Callable(self, "_hide_health_bar")):
+				health_bar_hide_timer.timeout.disconnect(_hide_health_bar)
+			health_bar_hide_timer.stop()
+			health_bar_hide_timer = null
+		health_bar_hide_timer = get_tree().create_timer(3.0)
 		health_bar_hide_timer.timeout.connect(_hide_health_bar)
 
 func _hide_health_bar():
