@@ -48,6 +48,9 @@ func _ready():
 	# Initialize body animation after movement setup
 	if movement_component:
 		movement_component.initialize_body_animation()
+	# Connect collision for taking damage from enemies
+	if has_node("CollisionShape3D"):
+		$CollisionShape3D.connect("body_entered", Callable(self, "_on_body_entered"))
 
 func _setup_components() -> void:
 	# Initialize each component with needed references
@@ -179,9 +182,12 @@ func _physics_process(delta):
 		var forward_lean = sin(body_waddle_time * 0.5) * 0.01  # Minimal lean
 		body_node.position = body_original_pos + Vector3(sway, bob, forward_lean)
 
-func take_damage(amount: int, attacker: Node = null):
-	health_component.take_damage(amount, attacker)
-	_flash_red()  # Add flash effect when ally takes damage
+func take_damage(amount: int, source = null):
+	if get_tree().get_first_node_in_group("damage_numbers"):
+		get_tree().get_first_node_in_group("damage_numbers").show_damage(amount, self, Color(1,0,0))
+	_flash_red()
+	# ...existing health/damage logic here...
+
 
 func _on_health_depleted():
 	ally_died.emit()
@@ -225,3 +231,14 @@ func _flash_red():
 		if mesh_instance and is_instance_valid(mesh_instance) and mesh_instance.material_override:
 			mesh_instance.material_override.albedo_color = DEFAULT_ALLY_COLOR
 	)
+
+
+func _on_body_entered(body):
+	if body.is_in_group("enemies"):
+		# Use MCP server or local logic to apply damage
+		if has_node("/root/MCPServer"):
+			# Example: send a message to MCP server (pseudo-code, adapt as needed)
+			var mcp = get_node("/root/MCPServer")
+			mcp.request_ally_take_damage(self, body.attack_damage)
+		else:
+			take_damage(body.attack_damage, body)

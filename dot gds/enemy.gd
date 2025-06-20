@@ -425,21 +425,29 @@ func _handle_ai(delta):
 			elif state_timer >= 2.0:
 				current_state = AIState.PATROL
 				_set_patrol_target()
-		
+				# Add idle fidgeting
+				if randf() < 0.1 * delta:
+					velocity.x = randf_range(-0.5, 0.5)
+					velocity.z = randf_range(-0.5, 0.5)
+
 		AIState.PATROL:
 			if cached_distance <= chase_range:
 				current_state = AIState.CHASE
 			else:
 				_move_to_target(patrol_target, speed * 0.5)
+				# Add random pauses and direction changes
+				if randf() < 0.05 * delta:
+					_set_patrol_target()
 				if global_position.distance_to(patrol_target) < 1.0 or state_timer > 4.0:
 					_set_patrol_target()
 					state_timer = 0.0
-		
+
 		AIState.CHASE:
-			_handle_chase_state(delta)
-		
+			_handle_chase_state_natural(delta)
+
 		AIState.ATTACK:
-			_handle_attack_state(delta)
+			_handle_attack_state_natural(delta)
+
 
 func _set_patrol_target():
 	var angle = randf() * TAU
@@ -626,3 +634,62 @@ func _drop_weapon():
 			LootManager.drop_weapon(global_position, self.weapon_resource)
 		else:
 			LootManager.drop_weapon(global_position)
+
+
+func _handle_chase_state_natural(delta):
+	var target = _find_nearest_target()
+	if not target:
+		current_state = AIState.PATROL
+		return
+
+	cached_distance = global_position.distance_to(target.global_position)
+	if cached_distance <= attack_range:
+		current_state = AIState.ATTACK
+		return
+
+	if cached_distance > chase_range:
+		current_state = AIState.PATROL
+		return
+
+	# Add zig-zag and hesitation to movement
+	var direction = (target.global_position - global_position)
+	direction.y = 0
+	if direction.length() > 0.8:
+		direction = direction.normalized()
+		# Zig-zag offset using Time.get_ticks_msec()
+		var t = Time.get_ticks_msec() * 0.001
+		var zigzag = Vector3(
+			sin(t * randf_range(2.0, 3.5)) * 0.5,
+			0,
+			cos(t * randf_range(2.0, 3.5)) * 0.5
+		)
+		var hesitation = randf() < 0.05 * delta
+		if hesitation:
+			velocity = Vector3.ZERO
+		else:
+			velocity.x = direction.x * speed + zigzag.x
+			velocity.z = direction.z * speed + zigzag.z
+	_face_target(target)
+
+
+func _handle_attack_state_natural(_delta):
+	var target = _find_nearest_target()
+	if not target:
+		current_state = AIState.IDLE
+		return
+
+	var distance = global_position.distance_to(target.global_position)
+	if distance > attack_range * 1.2:
+		current_state = AIState.CHASE
+		return
+
+	# Add fakeout and attack windup
+	if Time.get_unix_time_from_system() - last_attack_time >= attack_cooldown:
+		if randf() < 0.3:
+			# Fakeout: quick hop without attacking
+			velocity = Vector3(randf_range(-1,1), 0, randf_range(-1,1)) * 1.2
+			await get_tree().create_timer(0.18).timeout
+			velocity = Vector3.ZERO
+		else:
+			_perform_slime_jump_attack(target)
+			last_attack_time = Time.get_unix_time_from_system()

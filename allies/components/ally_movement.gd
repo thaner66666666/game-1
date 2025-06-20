@@ -151,3 +151,35 @@ func _face_direction(direction: Vector3):
 	
 	var target_rotation = atan2(-direction.x, -direction.z)
 	ally_ref.rotation.y = lerp_angle(ally_ref.rotation.y, target_rotation, 0.1)
+
+
+# ...existing code...
+func strafe_around_target(target: Node3D, delta: float):
+	if not target:
+		return
+	# Calculate direction to enemy and perpendicular strafe direction
+	var to_enemy = (target.global_position - ally_ref.global_position)
+	to_enemy.y = 0
+	if to_enemy.length() < 0.1:
+		return
+	to_enemy = to_enemy.normalized()
+	var strafe_dir = Vector3(-to_enemy.z, 0, to_enemy.x)  # Perpendicular
+	# Mix forward and strafe for circling
+	var move_dir = (to_enemy + strafe_dir * (randf() * 1.2 - 0.6)).normalized()
+	ally_ref.velocity.x = move_dir.x * speed
+	ally_ref.velocity.z = move_dir.z * speed
+	_face_direction(to_enemy)
+	if body_node:
+		_update_ally_body_animation(delta, ally_ref.velocity)
+# ...existing code...
+func move_away_from_target(target_pos: Vector3, delta: float):
+	var direction = (ally_ref.global_position - target_pos)
+	direction.y = 0
+	if direction.length() > 0.1:
+		direction = direction.normalized()
+		ally_ref.velocity.x = direction.x * speed
+		ally_ref.velocity.z = direction.z * speed
+		_face_direction(-direction)
+	if body_node:
+		_update_ally_body_animation(delta, ally_ref.velocity)
+# ...existing code...
