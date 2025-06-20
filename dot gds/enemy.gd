@@ -271,6 +271,26 @@ func _update_cache(delta):
 func _is_player_valid() -> bool:
 	return player and is_instance_valid(player) and not ("is_dead" in player and player.is_dead)
 
+func _find_nearest_target() -> Node3D:
+	var closest_target: Node3D = null
+	var closest_distance = 999.0
+	# Check player first
+	if _is_player_valid():
+		closest_distance = global_position.distance_to(player.global_position)
+		closest_target = player
+	# Check all allies
+	var allies = get_tree().get_nodes_in_group("allies")
+	for ally in allies:
+		if not is_instance_valid(ally):
+			continue
+		if "health_component" in ally and ally.health_component and "current_health" in ally.health_component and ally.health_component.current_health <= 0:
+			continue
+		var distance = global_position.distance_to(ally.global_position)
+		if distance < closest_distance:
+			closest_distance = distance
+			closest_target = ally
+	return closest_target
+
 func _is_valid_instance(node):
 	return node and is_instance_valid(node)
 
@@ -297,23 +317,9 @@ func _handle_ai(delta):
 					_set_patrol_target()
 					state_timer = 0.0
 		AIState.CHASE:
-			if cached_distance > chase_range * 1.5:
-				print("AI State: Transitioning to IDLE")
-				current_state = AIState.IDLE
-			elif cached_distance <= attack_range:
-				print("AI State: Transitioning to ATTACK")
-				current_state = AIState.ATTACK
-			else:
-				_move_toward_player()
-				_face_player()
+			_handle_chase_state(delta)
 		AIState.ATTACK:
-			velocity = Vector3.ZERO
-			_face_player()
-			if cached_distance > attack_range * 1.2:
-				print("AI State: Transitioning to CHASE")
-				current_state = AIState.CHASE
-			else:
-				_try_attack()
+			_handle_attack_state(delta)
 
 func _set_patrol_target():
 	var angle = randf() * TAU
@@ -336,7 +342,15 @@ func _move_toward_player():
 	var direction = (cached_player_pos - global_position)
 	direction.y = 0
 	direction = direction.normalized()
-	# Ensure -Z is forward for enemy movement
+	velocity.x = direction.x * speed
+	velocity.z = direction.z * speed
+
+func _move_toward_target(target: Node3D, _delta):
+	if not target:
+		return
+	var direction = (target.global_position - global_position)
+	direction.y = 0
+	direction = direction.normalized()
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 
@@ -352,6 +366,17 @@ func _face_player():
 		var rotation_speed = 6.0
 		rotation.y = lerp_angle(rotation.y, target_rotation_y, rotation_speed * get_physics_process_delta_time())
 
+func _face_target(target: Node3D):
+	if not target or is_being_knocked_back:
+		return
+	var direction_to_target = (target.global_position - global_position)
+	direction_to_target.y = 0
+	if direction_to_target.length() > 0.1:
+		direction_to_target = direction_to_target.normalized()
+		var target_rotation_y = atan2(direction_to_target.x, direction_to_target.z)
+		var rotation_speed = 6.0
+		rotation.y = lerp_angle(rotation.y, target_rotation_y, rotation_speed * get_physics_process_delta_time())
+
 func _add_wobble():
 	if not mesh_instance or not is_instance_valid(mesh_instance):
 		return
@@ -360,21 +385,22 @@ func _add_wobble():
 	mesh_instance.scale.y = original_mesh_scale.y + wobble
 
 func _try_attack():
+	var target = _find_nearest_target()
+	if not target:
+		return
 	var current_time = Time.get_ticks_msec() / 1000.0
 	if current_time - last_attack_time >= attack_cooldown:
-		_start_jump_attack()
+		_perform_jump_attack(target)
 		last_attack_time = current_time
 
-func _start_jump_attack():
-	if not _is_player_valid() or is_jumping:
+func _perform_jump_attack(target: Node3D):
+	if not target:
 		return
-	var direction = (cached_player_pos - global_position)
-	direction.y = 0
-	direction = direction.normalized()
 	is_jumping = true
-	jump_start_pos = global_position
-	jump_target_pos = global_position + direction * 1.2
 	jump_timer = 0.0
+	jump_start_pos = global_position
+	jump_target_pos = target.global_position
+	print("🦘 Enemy jumping to attack: ", target.name)
 
 func _handle_jump_movement(delta):
 	if not is_jumping:
@@ -392,9 +418,13 @@ func _complete_jump_attack():
 	is_jumping = false
 	jump_timer = 0.0
 	global_position = Vector3(jump_target_pos.x, jump_start_pos.y, jump_target_pos.z)
-	if _is_player_valid() and global_position.distance_to(player.global_position) <= attack_range * 1.5:
-		if player.has_method("take_damage"):
-			player.take_damage(attack_damage, self)
+	# Find target again to ensure it's still valid
+	var target = _find_nearest_target()
+	if target and global_position.distance_to(target.global_position) <= attack_range * 1.5:
+		if target.has_method("take_damage"):
+			target.take_damage(attack_damage, self)
+		elif "health_component" in target and target.health_component.has_method("take_damage"):
+			target.health_component.take_damage(attack_damage, self)
 	current_state = AIState.IDLE
 
 func _apply_gravity(delta):
@@ -444,3 +474,32 @@ func _drop_weapon():
 
 
 @export var enabled := true
+
+
+func _handle_chase_state(delta):
+	var target = _find_nearest_target()
+	if not target:
+		current_state = AIState.PATROL
+		return
+	cached_distance = global_position.distance_to(target.global_position)
+	if cached_distance <= attack_range:
+		current_state = AIState.ATTACK
+		return
+	if cached_distance > chase_range:
+		current_state = AIState.PATROL
+		return
+	_move_toward_target(target, delta)
+	_face_target(target)
+
+func _handle_attack_state(_delta):
+	var target = _find_nearest_target()
+	if not target:
+		current_state = AIState.IDLE
+		return
+	var distance = global_position.distance_to(target.global_position)
+	if distance > attack_range * 1.2:
+		current_state = AIState.CHASE
+		return
+	if Time.get_unix_time_from_system() - last_attack_time >= attack_cooldown:
+		_perform_jump_attack(target)
+		last_attack_time = Time.get_unix_time_from_system()

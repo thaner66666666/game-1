@@ -476,7 +476,18 @@ func _input(_event):
 	if Input.is_action_just_pressed("interaction"):
 		if has_method("interact_with_nearest"):
 			interact_with_nearest()
-	# ...existing code...
+	# DEBUG: Spawn ally with F6
+	if Input.is_key_pressed(KEY_F6):
+		_spawn_debug_ally()
+
+func _spawn_debug_ally():
+	var ally_scene = preload("res://allies/Ally.tscn")
+	var ally_instance = ally_scene.instantiate()
+	# Place ally near the player
+	ally_instance.global_transform.origin = global_transform.origin + Vector3(2, 0, 0)
+	get_tree().current_scene.add_child(ally_instance)
+	print("[DEBUG] Spawned ally at ", ally_instance.global_transform.origin)
+
 func _physics_process(delta):
 	if is_dead:
 		return
