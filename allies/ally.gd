@@ -58,6 +58,9 @@ func _ready():
 		movement_component.initialize_body_animation()
 	# 🔧 FIXED: Initialize last valid position
 	last_valid_position = global_position
+	# --- Ally UI and Name ---
+	_assign_random_name()
+	_setup_ui_component()
 
 func _setup_components() -> void:
 	# Initialize each component with needed references
@@ -347,3 +350,47 @@ func apply_knockback(force: Vector3, duration: float = 0.4):
 	knockback_velocity = force
 	knockback_timer = duration
 	is_being_knocked_back = true
+
+func _assign_random_name():
+	"""Assign a random name to this ally if not already set"""
+	if not has_meta("display_name"):
+		var random_name = _generate_random_name()
+		set_meta("display_name", random_name)
+		name = random_name
+		print("🆕 Ally assigned name: ", random_name)
+
+func _generate_random_name() -> String:
+	"""Generate a random fantasy name"""
+	var first_names = [
+		"Aiden", "Luna", "Kai", "Mira", "Rowan", "Zara", "Finn", "Nova", "Ezra", "Lyra",
+		"Orin", "Sage", "Rhea", "Jax", "Vera", "Theo", "Ivy", "Dax", "Nia", "Kian",
+		"Tara", "Milo", "Suri", "Riven", "Elara", "Bryn", "Juno", "Vale", "Niko", "Sable"
+	]
+	var last_names = [
+		"Stormrider", "Dawnbringer", "Nightshade", "Ironwood", "Starfall", "Ashwalker",
+		"Frostwind", "Shadowmere", "Brightblade", "Moonwhisper", "Stonehelm", "Swiftarrow",
+		"Emberforge", "Mistvale", "Oakenshield", "Riversong", "Wolfbane", "Sunstrider"
+	]
+	var first = first_names[randi() % first_names.size()]
+	var last = last_names[randi() % last_names.size()]
+	return first + " " + last
+
+func _setup_ui_component():
+	"""Create and configure the UI component for this ally"""
+	# Update the path below to the correct location of AllyUIComponent.gd
+	var ui_component = preload("res://game/allies/components/AllyUIComponent.gd").new()
+	ui_component.name = "AllyUIComponent"
+	add_child(ui_component)
+	ui_component.setup_for_ally(self)
+	print("✅ UI component set up for ally: ", get_meta("display_name", name))
+
+func add_ui_to_existing_ally(ally: Node3D):
+	"""Add UI component to an already existing ally"""
+	if ally.has_node("AllyUIComponent"):
+		print("⚠️ Ally already has UI component")
+		return
+	var ui_component = preload("res://game/allies/components/AllyUIComponent.gd").new()
+	ui_component.name = "AllyUIComponent"
+	ally.add_child(ui_component)
+	ui_component.setup_for_ally(ally)
+	print("✅ Added UI component to existing ally: ", ally.get_meta("display_name", ally.name))
