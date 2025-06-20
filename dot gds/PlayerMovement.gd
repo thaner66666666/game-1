@@ -339,32 +339,34 @@ func handle_movement_and_dash(delta):
 	if Input.is_action_just_pressed("dash") and can_dash():
 		perform_dash()
 		return
-		
+	
 	if is_dashing or is_attacking or is_being_knocked_back:
 		apply_gravity(delta)
 		player.move_and_slide()
 		return
-		
+	
 	# Convert Vector2 input to Vector3 for movement direction calculation
 	var input_2d = player.get_movement_input()  # Get Vector2 from player
-	var input_direction = Vector3(input_2d.x, 0, input_2d.y)  # Convert to Vector3
+	var direction = Vector3(input_2d.x, 0, input_2d.y)
+	if direction.length() > 0:
+		direction = direction.normalized()
 	if not player or not player.stats_component:
 		push_error("PlayerMovement: Missing player or stats_component reference!")
 		return
-		
-	var move_speed = input_direction.length() * player.stats_component.get_speed()
-	var is_moving = input_direction.length() > player.MOVEMENT_THRESHOLD
+	
+	var move_speed = direction.length() * player.stats_component.get_speed()
+	var is_moving = direction.length() > player.MOVEMENT_THRESHOLD
 	
 	# Update movement direction for animation
 	previous_movement_direction = current_movement_direction
 	if is_moving:
 		var facing_direction = get_facing_direction()
-		current_movement_direction = get_movement_direction_type(input_direction, facing_direction)
+		current_movement_direction = get_movement_direction_type(direction, facing_direction)
 	else:
 		current_movement_direction = MovementDirection.NONE
 	
 	if is_moving:
-		move_player(input_direction)
+		move_player(direction)
 		
 		# Enhanced animation with direction awareness
 		var anim_speed = clamp(move_speed / player.stats_component.get_speed() * 2.0, 1.0, 3.5)
@@ -379,8 +381,8 @@ func handle_movement_and_dash(delta):
 		step_cycle_speed = anim_speed
 		walk_cycle_time += delta * step_cycle_speed
 		
-		_update_walking_animations(delta, input_direction)
-		_update_body_walking_animation(delta, input_direction)
+		_update_walking_animations(delta, direction)
+		_update_body_walking_animation(delta, direction)
 		
 		walk_animation_update.emit(anim_speed, exaggeration)
 		

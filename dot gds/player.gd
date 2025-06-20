@@ -282,6 +282,19 @@ func _on_health_changed(current_health: int, max_health: int):
 
 func _on_player_died():
 	is_dead = true
+	# Godot 4.1+ best practice: reload the current scene to restart on death
+	var tree = get_tree()
+	if tree:
+		var error = tree.reload_current_scene()
+		if error != OK:
+			push_error("Failed to reload scene on player death! Error code: %s" % error)
+	else:
+		push_error("SceneTree not found! Cannot restart on death.")
+	# You can add a death animation or sound here before restarting if desired
+
+
+
+	is_dead = true
 	# Handle player death logic (animation, input disable, etc.)
 	pass
 
@@ -424,9 +437,8 @@ func _set_mouth_expression(expr: String):
 
 # --- Controller/Keyboard Movement Input ---
 func get_movement_input() -> Vector2:
-	var input_vector = Vector2.ZERO
-	input_vector.x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
-	input_vector.y = Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
+	# Use Godot's built-in input vector normalization
+	var input_vector = Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if input_vector.length() < 0.2:
 		input_vector = Vector2.ZERO
 	return input_vector
