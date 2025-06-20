@@ -1,6 +1,8 @@
 extends Node
 class_name PlayerMovement
 
+@export var can_move: bool = true # Godot 4.1+ best practice: allows player.gd to enable/disable movement safely
+
 # --- Material Safety Utilities ---
 static func ensure_mesh_has_material(mesh_instance: MeshInstance3D) -> bool:
 	if not mesh_instance or not mesh_instance.mesh:

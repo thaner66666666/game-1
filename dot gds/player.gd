@@ -97,7 +97,21 @@ func _on_dash_charges_changed(current_charges: int, max_charges: int):
 	dash_charges_changed.emit(current_charges, max_charges)  # Re-emit for UI
 
 func _ready():
-	_setup_player()
+	# --- Safety checks for required components (Godot 4.1+ best practice) ---
+	if not health_component:
+		push_error("❌ HealthComponent not found! Player won't work properly.")
+		return
+	if not movement_component:
+		push_warning("⚠️ MovementComponent not found! Movement may not work.")
+	# Connect death signal with error checking
+	if health_component.has_signal("player_died"):
+		if not health_component.is_connected("player_died", _on_player_died):
+			health_component.player_died.connect(_on_player_died)
+			print("✅ Death signal connected successfully")
+		else:
+			print("⚠️ Death signal already connected")
+	else:
+		push_error("❌ HealthComponent missing 'player_died' signal!")
 	# Initialize health component with proper starting health
 	var starting_health = 100  # Set your desired starting health here
 	health_component.setup(self, starting_health)
@@ -290,64 +304,35 @@ const DEATH_RESTART_DELAY := 3.0
 func _on_player_died():
 	if is_dead:
 		return  # Prevent multiple death triggers
-	print("💀 Player died! Starting death sequence...")
 	is_dead = true
-	death_timer = 0.0
-	_disable_player_controls()
-	_play_death_effects()
-	_start_death_timer()
-
-# Disables all player input and movement
-func _disable_player_controls():
+	print("💀 Player died! Restarting game...")
+	# Disconnect death signal to prevent double triggers
+	if health_component and health_component.is_connected("player_died", _on_player_died):
+		health_component.player_died.disconnect(_on_player_died)
+	# Disable player controls immediately
 	if movement_component:
-		movement_component.set_physics_process(false)
 		movement_component.can_move = false
-	if combat_component:
-		combat_component.set_process(false)
-	velocity = Vector3.ZERO
-	set_physics_process(false)
-	print("🚫 Player controls disabled")
-
-# Plays death visual/audio effects
-func _play_death_effects():
-	if mesh_instance and mesh_instance.material_override:
-		mesh_instance.material_override.albedo_color = Color(0.7, 0.1, 0.1)
-	# Optional: Add death sound
-	# if has_node("DeathSound"):
-	#     get_node("DeathSound").play()
-	# Optional: Add death particle effect
-	# if has_node("DeathParticles"):
-	#     get_node("DeathParticles").emitting = true
-	print("💥 Death effects played")
-
-# Starts the respawn countdown timer
-func _start_death_timer():
-	var timer = Timer.new()
-	timer.wait_time = DEATH_RESTART_DELAY
-	timer.one_shot = true
-	timer.timeout.connect(_restart_game)
-	add_child(timer)
-	timer.start()
-	print("⏰ Death timer started - restarting in ", DEATH_RESTART_DELAY, " seconds")
-	_show_death_countdown()
-
-# Optionally show a countdown UI to the player
-func _show_death_countdown():
-	get_tree().call_group("UI", "_on_player_death_countdown", DEATH_RESTART_DELAY)
-
-# Restarts the current scene after the delay
-func _restart_game():
-	print("🔄 Restarting game...")
-	var tree = get_tree()
-	if tree and tree.current_scene:
-		var error = tree.reload_current_scene()
-		if error != OK:
-			push_error("Failed to reload scene! Error code: " + str(error))
-		else:
-			print("✅ Scene reloaded successfully")
+	# Stop all sounds/animations (add as needed)
+	if get_tree():
+		get_tree().paused = false  # Ensure game isn't paused
+		print("🎵 Playing death animation/sound...")
+		await get_tree().create_timer(1.0).timeout
+		_restart_game()
 	else:
-		push_error("SceneTree or current_scene not found!")
+		push_error("❌ get_tree() is null! Cannot handle death sequence.")
 
+func _restart_game():
+	"""Safely restart the current scene"""
+	var tree = get_tree()
+	if not tree:
+		push_error("❌ SceneTree (get_tree()) is null! Cannot restart.")
+		return
+	print("🔄 Restarting game scene...")
+	var reload_error = tree.reload_current_scene()
+	if reload_error != OK:
+		push_error("❌ Failed to reload scene! Error: " + str(reload_error))
+		# Fallback: try to change to main scene
+		tree.change_scene_to_file("res://main.tscn")
 
 
 	# Mark player as dead
@@ -573,6 +558,10 @@ func _input(_event):
 	if Input.is_key_pressed(KEY_F6):
 		print("[Debug] is_inside_tree(): ", is_inside_tree())
 		_spawn_debug_ally()
+	# TEMP: Test instant death for debugging
+	if Input.is_action_just_pressed("ui_accept"):
+		if health_component and health_component.has_method("take_damage"):
+			health_component.take_damage(999)
 
 func _spawn_debug_ally():
 	# Check if node is NOT in scene tree before proceeding
