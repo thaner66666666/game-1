@@ -655,10 +655,10 @@ func perform_dash():
 		dash_direction = get_facing_direction()
 	dash_direction.y = 0
 	dash_direction = dash_direction.normalized()
-	is_dashing = true
-	state = PlayerState.DASHING
-	dash_started.emit()
-	DashEffectsManager.play_dash_effects(player, dash_direction)
+	
+	# Convert Vector2 dash_direction to Vector3 for effects
+	var dash_direction_3d = Vector3(dash_direction.x, 0, dash_direction.y)
+	DashEffectsManager.play_dash_effects(player, dash_direction_3d)
 	var dash_velocity = dash_direction * (player.dash_distance / player.dash_duration)
 	player.velocity.x = dash_velocity.x
 	player.velocity.z = dash_velocity.z
@@ -736,29 +736,34 @@ func handle_mouse_look():
 	if not player.camera:
 		return
 
-	# --- Controller Look Input (Right Stick) ---
+	# Check for controller look input first
 	var look_input = player.get_look_input() if player.has_method("get_look_input") else Vector2.ZERO
-	var used_controller = false
-	if look_input != Vector2.ZERO:
-		# Rotate player horizontally (Y axis) based on right stick X
-		player.rotation.y -= look_input.x * player.look_sensitivity * get_process_delta_time()
-		used_controller = true
-		# Optionally, update current_look_direction for use elsewhere
-		player.current_look_direction = -player.transform.basis.z
+	
+	# If using controller, make player face the stick direction
+	if look_input.length() > 0.1:  # Deadzone check
+		# Create direction vector from right stick input
+		var stick_direction = Vector3(look_input.x, 0, look_input.y)
+		# Calculate the angle to face that direction
+		var target_rotation = atan2(stick_direction.x, stick_direction.z)
+		# For smooth rotation instead of instant
+		var rotation_speed = 8.0  # Adjust this value as needed
+		player.rotation.y = lerp_angle(player.rotation.y, target_rotation, rotation_speed * get_process_delta_time())
+		# Update look direction
+		player.current_look_direction = stick_direction.normalized()
+		return  # Exit early, don't process mouse
 
-	# --- Mouse Look (if no controller look this frame) ---
-	if not used_controller:
-		var mouse_pos = player.get_viewport().get_mouse_position()
-		var from = player.camera.project_ray_origin(mouse_pos)
-		var to = from + player.camera.project_ray_normal(mouse_pos) * 1000
-		var ground_plane = Plane(Vector3.UP, player.global_position.y)
-		var intersection = ground_plane.intersects_ray(from, to - from)
-		if intersection:
-			player.mouse_position_3d = intersection
-			var direction_to_mouse = (player.mouse_position_3d - player.global_position).normalized()
-			direction_to_mouse.y = 0
-			if direction_to_mouse.length() > 0.1:
-				player.look_at(player.global_position + direction_to_mouse, Vector3.UP)
+	# Only process mouse if no controller input
+	var mouse_pos = player.get_viewport().get_mouse_position()
+	var from = player.camera.project_ray_origin(mouse_pos)
+	var to = from + player.camera.project_ray_normal(mouse_pos) * 1000
+	var ground_plane = Plane(Vector3.UP, player.global_position.y)
+	var intersection = ground_plane.intersects_ray(from, to - from)
+	if intersection:
+		player.mouse_position_3d = intersection
+		var direction_to_mouse = (player.mouse_position_3d - player.global_position).normalized()
+		direction_to_mouse.y = 0
+		if direction_to_mouse.length() > 0.1:
+			player.look_at(player.global_position + direction_to_mouse, Vector3.UP)
 
 func get_facing_direction() -> Vector3:
 	return -player.transform.basis.z
