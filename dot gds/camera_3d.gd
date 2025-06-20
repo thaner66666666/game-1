@@ -1,173 +1,269 @@
+# Clean Camera Script for Godot 4.1+ with Smooth Momentum
+# Purpose: Smooth rotation and zoom camera with momentum and easing (no floor clipping)
+# Author: Thane
+# Date: 2025-06-20
+#
+# Controls:
+# - Right Mouse Button: Rotate camera around player (with smooth momentum)
+# - Mouse Wheel: Zoom in/out (with smooth transitions)
+# - R Key: Reset camera rotation
+# - Camera maintains safe height and has phone-like smooth momentum
+#
 extends Camera3D
 
-@export var follow_speed := 8.0   # Balanced follow speed - not too fast
-@export var min_zoom := 3.0
-@export var max_zoom := 25.0
-@export var zoom_speed := 2.0
-@export var camera_height := 15.0
-@export var camera_angle := -45.0
+# --- Camera Following Settings ---
+@export_group("Following")
+@export var follow_speed: float = 5.0  ## How fast camera follows player (higher = snappier)
+@export var camera_height: float = 8.0  ## Fixed height above player (prevents floor clipping)
+@export var min_height: float = 3.0  ## Minimum height to prevent floor clipping
 
-var target_distance := 15.0
-var current_distance := 15.0
-var player: Node3D
+# --- Camera Zoom Settings ---
+@export_group("Zoom")
+@export var min_zoom_distance: float = 5.0  ## Closest zoom distance
+@export var max_zoom_distance: float = 20.0  ## Farthest zoom distance
+@export var zoom_speed: float = 2.0  ## How fast zoom responds to mouse wheel
+@export var current_zoom: float = 12.0  ## Starting zoom distance
 
-# --- Dynamic camera angle ---
-var dynamic_angle := -45.0
+# --- Camera Rotation Settings ---
+@export_group("Rotation") 
+@export var rotation_speed: float = 1.0  ## Mouse sensitivity for camera rotation (lower = slower)
+@export var max_vertical_angle: float = 60.0  ## Limits how high/low camera can look (prevents floor clipping)
 
-# --- Enhanced Camera rotation variables ---
-var is_rotating_camera := false
-var mouse_sensitivity := 2.2  # Balanced sensitivity - not too fast
-var camera_rotation_x := 0.0
-var camera_rotation_y := 0.0
-var max_camera_tilt := 80.0
+# --- Smooth Momentum & Easing Settings ---
+@export_group("Momentum & Smoothing")
+@export var rotation_smoothing: float = 8.0  ## How smoothly rotation follows input (higher = snappier)
+@export var zoom_smoothing: float = 6.0  ## How smoothly zoom transitions (higher = faster)
+@export var momentum_decay: float = 0.92  ## How long momentum lasts after stopping mouse (0.9 = longer, 0.95 = shorter)
+@export var momentum_strength: float = 0.3  ## How strong the momentum effect is (0 = none, 1 = very strong)
+@export var rotation_acceleration: float = 3.0  ## How fast rotation builds up speed
 
-# --- NEW: Smooth rotation system ---
-var target_rotation_x := 0.0
-var target_rotation_y := 0.0
-var rotation_smoothing := 6.0   # Gentler smoothing - prevents jitter
-var zoom_smoothing := 5.0       # Smooth zoom interpolation
+# --- Private Variables (Don't touch these in editor) ---
+var player: Node3D  # Reference to the player we're following
+var is_rotating: bool = false  # True when right mouse button is held
+var rotation_x: float = 0.0  # Current vertical rotation
+var rotation_y: float = 0.0  # Current horizontal rotation
 
-# --- NEW: Camera momentum and smoothing ---
-var rotation_velocity_x := 0.0
-var rotation_velocity_y := 0.0
-var momentum_decay := 0.95      # Gentler momentum decay
-var position_velocity := Vector3.ZERO
-var max_position_velocity := 50.0
+# --- Smooth Momentum Variables ---
+var target_rotation_x: float = 0.0  # Where rotation_x wants to be
+var target_rotation_y: float = 0.0  # Where rotation_y wants to be
+var rotation_velocity_x: float = 0.0  # Current rotation speed for momentum
+var rotation_velocity_y: float = 0.0  # Current rotation speed for momentum
+var target_zoom: float = 12.0  # Where zoom wants to be (smooth transitions)
+var zoom_velocity: float = 0.0  # For smooth zoom momentum
 
-var debug_movement := false
-
-func _ready():
+# --- Built-in Godot Functions ---
+func _ready() -> void:
+	"""Called when camera is added to scene - finds the player and sets up initial position"""
+	print("Camera: Starting up...")
+	
+	# Find the player node safely
+	_find_player()
+	
+	# Set initial zoom distance
+	current_zoom = 12.0
+	target_zoom = current_zoom
+	
+	# Make sure we're in the camera group for easy finding
 	add_to_group("camera")
-	# Set initial distance
-	current_distance = camera_height
-	target_distance = camera_height
-	call_deferred("find_player")
 
-func find_player():
-	player = get_tree().get_first_node_in_group("player")
-	if not player:
-		print("Camera: Player not found, retrying...")
-		get_tree().create_timer(0.5).timeout.connect(find_player)
+func _find_player() -> void:
+	"""Safely finds the player node in the scene"""
+	# Look for a node in the "player" group
+	var players = get_tree().get_nodes_in_group("player")
+	
+	if players.size() > 0:
+		player = players[0] as Node3D
+		print("Camera: Found player at ", player.global_position)
+		_update_camera_position()
 	else:
-		print("Camera: Found player at: ", player.global_position)
-		# Set initial camera position
-		_update_camera_position(1.0)
+		print("Camera: Player not found, retrying in 0.5 seconds...")
+		# Try again after a short delay
+		get_tree().create_timer(0.5).timeout.connect(_find_player)
 
-func _input(event):
+func _input(event: InputEvent) -> void:
+	"""Handles all input for camera control"""
+	
+	# Right mouse button for camera rotation
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
-			is_rotating_camera = event.pressed
-			if is_rotating_camera:
+			is_rotating = event.pressed
+			
+			if is_rotating:
+				# Capture mouse for smooth rotation
 				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 			else:
+				# Free mouse cursor
 				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-				# Momentum disabled to prevent jitter
-				# _apply_rotation_momentum()
+		
+		# Mouse wheel for zooming
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-			target_distance = max(min_zoom, target_distance - zoom_speed)
+			_zoom_camera(-zoom_speed)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-			target_distance = min(max_zoom, target_distance + zoom_speed)
-	elif event is InputEventMouseMotion and is_rotating_camera:
-		# Store rotation input for smooth application
-		var rotation_input_x = -event.relative.y * mouse_sensitivity * 0.015  # Conservative sensitivity
-		var rotation_input_y = -event.relative.x * mouse_sensitivity * 0.015
-		
-		# Add to target rotation instead of direct assignment
-		target_rotation_y += rotation_input_y
-		target_rotation_x += rotation_input_x
-		target_rotation_x = clamp(target_rotation_x, deg_to_rad(-max_camera_tilt), deg_to_rad(max_camera_tilt))
-		
-		# Store velocity for momentum
-		rotation_velocity_x = rotation_input_x
-		rotation_velocity_y = rotation_input_y
-		
+			_zoom_camera(zoom_speed)
+	
+	# Mouse movement for rotation (only when right mouse held)
+	elif event is InputEventMouseMotion and is_rotating:
+		_rotate_camera(event.relative)
+	
+	# Keyboard shortcuts
 	elif event is InputEventKey and event.pressed:
 		if event.keycode == KEY_R:
-			# Smooth reset camera rotation
-			_reset_camera_smoothly()
-			print('Camera rotation reset!')
-		elif event.keycode == KEY_F1:
-			debug_movement = !debug_movement
-			print('Movement debug: ', debug_movement)
+			_reset_camera_rotation()
+			print("Camera: Rotation reset!")
 
-# NEW: Apply momentum when mouse rotation stops
-func _apply_rotation_momentum():
-	# Continue rotating briefly with momentum
-	var momentum_frames = 10
-	var momentum_strength = 0.3
+func _process(delta: float) -> void:
+	"""Called every frame - updates camera with smooth momentum and transitions"""
 	
-	for i in momentum_frames:
-		await get_tree().process_frame
-		var momentum_factor = (1.0 - float(i) / momentum_frames) * momentum_strength
-		target_rotation_x += rotation_velocity_x * momentum_factor
-		target_rotation_y += rotation_velocity_y * momentum_factor
-		target_rotation_x = clamp(target_rotation_x, deg_to_rad(-max_camera_tilt), deg_to_rad(max_camera_tilt))
-
-# NEW: Smooth camera reset
-func _reset_camera_smoothly():
-	target_rotation_x = 0.0
-	target_rotation_y = 0.0
-
-func _process(delta):
+	# Don't do anything if we don't have a valid player
 	if not player or not is_instance_valid(player):
 		return
 	
-	# --- Smooth zoom with exponential easing ---
-	current_distance = lerp(current_distance, target_distance, zoom_smoothing * delta)
+	# --- Smooth Zoom Transitions ---
+	current_zoom = lerp(current_zoom, target_zoom, zoom_smoothing * delta)
 	
-	# --- Calculate dynamic camera angle based on zoom ---
-	var angle_start = -45.0
-	var angle_end = -30.0  # Less top-down when zoomed in
-	var transition_range = 5.0
-	if current_distance <= min_zoom + transition_range:
-		var t = clamp((current_distance - min_zoom) / transition_range, 0.0, 1.0)
-		dynamic_angle = lerp(angle_end, angle_start, t)
+	# --- Smooth Rotation with Momentum ---
+	if is_rotating:
+		# While actively rotating, smoothly follow targets
+		rotation_x = lerp(rotation_x, target_rotation_x, rotation_smoothing * delta)
+		rotation_y = lerp(rotation_y, target_rotation_y, rotation_smoothing * delta)
 	else:
-		dynamic_angle = angle_start
-
-	# --- NEW: Smooth rotation interpolation ---
-	camera_rotation_x = lerp(camera_rotation_x, target_rotation_x, rotation_smoothing * delta)
-	camera_rotation_y = lerp(camera_rotation_y, target_rotation_y, rotation_smoothing * delta)
+		# When not actively rotating, apply momentum (like phone cameras)
+		_apply_rotation_momentum(delta)
+		
+		# Still smoothly approach targets but slower
+		rotation_x = lerp(rotation_x, target_rotation_x, rotation_smoothing * 0.5 * delta)
+		rotation_y = lerp(rotation_y, target_rotation_y, rotation_smoothing * 0.5 * delta)
 	
-	# Apply momentum decay
+	# Update camera position to follow player smoothly
+	_update_camera_position(delta)
+
+# --- Custom Camera Functions ---
+func _update_camera_position(delta: float = 1.0) -> void:
+	"""Smoothly moves camera to follow the player"""
+	
+	if not player:
+		return
+	
+	# Calculate where the camera should be based on player position and our rotation
+	var desired_position = _calculate_camera_position()
+	
+	# Smoothly move to the desired position
+	global_position = global_position.lerp(desired_position, follow_speed * delta)
+	
+	# Always look at the player
+	look_at(player.global_position, Vector3.UP)
+
+func _apply_rotation_momentum(delta: float) -> void:
+	"""Applies phone-like momentum when not actively rotating"""
+	
+	# Continue rotating based on stored velocity (momentum effect)
+	target_rotation_x += rotation_velocity_x * momentum_strength
+	target_rotation_y += rotation_velocity_y * momentum_strength
+	
+	# Gradually slow down the momentum (decay)
 	rotation_velocity_x *= momentum_decay
 	rotation_velocity_y *= momentum_decay
-
-	# Update camera position with enhanced smoothing
-	_update_camera_position_smooth(delta)
-
-# NEW: Enhanced camera position update with velocity-based smoothing
-func _update_camera_position_smooth(delta: float):
-	if not player or not is_instance_valid(player):
-		return
-		
-	# Combine dynamic angle with smooth camera rotation
-	var total_angle_x = deg_to_rad(dynamic_angle) + camera_rotation_x
-	var total_angle_y = camera_rotation_y
 	
-	# Calculate camera position with rotation
-	var horizontal_distance = current_distance * cos(total_angle_x)
-	var vertical_height = current_distance * sin(-total_angle_x)
+	# Stop very small movements to prevent infinite tiny rotations
+	if abs(rotation_velocity_x) < 0.001:
+		rotation_velocity_x = 0.0
+	if abs(rotation_velocity_y) < 0.001:
+		rotation_velocity_y = 0.0
 	
-	# Apply Y rotation (left/right camera orbit)
-	var rotated_offset = Vector3(
-		horizontal_distance * sin(total_angle_y),
-		vertical_height,
-		horizontal_distance * cos(total_angle_y)
+	# Clamp target rotation to stay in bounds
+	target_rotation_x = clamp(target_rotation_x, 
+		deg_to_rad(-max_vertical_angle), 
+		deg_to_rad(max_vertical_angle))
+
+func _calculate_camera_position() -> Vector3:
+	"""Calculates where the camera should be positioned based on current settings"""
+	
+	# Start with player position at fixed safe height
+	var target_position = player.global_position
+	target_position.y += camera_height
+	
+	# Calculate horizontal distance based on zoom and vertical angle
+	var horizontal_distance = current_zoom * cos(rotation_x)
+	var height_offset = current_zoom * sin(rotation_x)
+	
+	# Apply horizontal rotation around player
+	var offset = Vector3(
+		sin(rotation_y) * horizontal_distance,
+		height_offset,
+		cos(rotation_y) * horizontal_distance
 	)
 	
-	var target_position = player.global_position + rotated_offset
+	# Ensure minimum height above ground
+	var final_position = target_position + offset
+	final_position.y = max(final_position.y, player.global_position.y + min_height)
 	
-	# Use consistent follow speed to prevent jerkiness
-	var smooth_follow_speed = follow_speed
-	
-	# Smooth position interpolation
-	global_position = global_position.lerp(target_position, smooth_follow_speed * delta)
-	
-	# Less frequent look_at calls for better performance
-	if Engine.get_process_frames() % 2 == 0:  # Every other frame
-		look_at(player.global_position, Vector3.UP)
+	return final_position
 
-# Legacy function for compatibility
-func _update_camera_position(_lerp_amount: float):
-	_update_camera_position_smooth(get_process_delta_time())
+func _rotate_camera(mouse_delta: Vector2) -> void:
+	"""Handles camera rotation with smooth acceleration and momentum"""
+	
+	# Calculate rotation input with acceleration
+	var rotation_input_x = mouse_delta.y * rotation_speed * 0.005  # Vertical (inverted)
+	var rotation_input_y = -mouse_delta.x * rotation_speed * 0.005  # Horizontal
+	
+	# Apply acceleration to build up rotation speed gradually
+	rotation_velocity_x = lerp(rotation_velocity_x, rotation_input_x, rotation_acceleration * get_process_delta_time())
+	rotation_velocity_y = lerp(rotation_velocity_y, rotation_input_y, rotation_acceleration * get_process_delta_time())
+	
+	# Update target rotations (what we want to achieve)
+	target_rotation_y += rotation_velocity_y
+	target_rotation_x += rotation_velocity_x
+	
+	# Clamp vertical rotation to prevent camera flipping
+	target_rotation_x = clamp(target_rotation_x, 
+		deg_to_rad(-max_vertical_angle), 
+		deg_to_rad(max_vertical_angle))
+
+func _zoom_camera(zoom_change: float) -> void:
+	"""Changes camera zoom with smooth transitions"""
+	
+	# Update target zoom instead of current zoom for smooth transitions
+	target_zoom += zoom_change
+	target_zoom = clamp(target_zoom, min_zoom_distance, max_zoom_distance)
+	
+	print("Camera: Target zoom = ", target_zoom)
+
+func _reset_camera_rotation() -> void:
+	"""Resets camera rotation to default position with smooth transition"""
+	
+	# Reset targets for smooth transition to default
+	target_rotation_x = 0.0
+	target_rotation_y = 0.0
+	
+	# Clear any momentum
+	rotation_velocity_x = 0.0
+	rotation_velocity_y = 0.0
+
+# --- Public Functions (Can be called by other scripts) ---
+func set_follow_target(new_target: Node3D) -> void:
+	"""Changes which player the camera follows"""
+	
+	if new_target and is_instance_valid(new_target):
+		player = new_target
+		print("Camera: Now following ", player.name)
+	else:
+		print("Camera: Invalid target provided")
+
+func get_follow_target() -> Node3D:
+	"""Returns the current player being followed"""
+	
+	return player
+
+# --- Debug Functions ---
+func _on_debug_requested() -> void:
+	"""Prints debug information about camera state including momentum"""
+	
+	print("=== Camera Debug Info ===")
+	print("Player: ", player.name if player else "None")
+	print("Position: ", global_position)
+	print("Current Zoom: ", current_zoom, " | Target: ", target_zoom)
+	print("Current Rotation X: ", rad_to_deg(rotation_x), " | Target: ", rad_to_deg(target_rotation_x))
+	print("Current Rotation Y: ", rad_to_deg(rotation_y), " | Target: ", rad_to_deg(target_rotation_y))
+	print("Momentum X: ", rotation_velocity_x, " | Y: ", rotation_velocity_y)
+	print("Is Rotating: ", is_rotating)
+	print("========================")
