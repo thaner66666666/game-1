@@ -38,9 +38,15 @@ func _ready():
 	var world_env = WorldEnvironment.new()
 	var environment = Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.07, 0.07, 0.13)  # Slightly brighter
-	environment.ambient_light_energy = 0.05  # Brighter ambient
-	environment.ambient_light_color = Color(0.15, 0.15, 0.25)  # Brighter blue
+	environment.background_color = Color(0.13, 0.10, 0.05)  # Slightly warmer
+	environment.ambient_light_energy = 0.13  # Brighter ambient
+	environment.ambient_light_color = Color(0.38, 0.22, 0.10)  # Even warmer
+
+	# Add subtle bloom effect for glowing torches and highlights
+	environment.glow_enabled = true
+	environment.glow_intensity = 0.18
+	environment.glow_strength = 0.7
+	environment.glow_bloom = 0.5
 	world_env.environment = environment
 	add_child(world_env)
 

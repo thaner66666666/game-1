@@ -132,6 +132,9 @@ func _find_references():
 				ally.connect("ally_added", Callable(self, "_on_ally_added"))
 			if not ally.is_connected("ally_removed", Callable(self, "_on_ally_removed")):
 				ally.connect("ally_removed", Callable(self, "_on_ally_removed"))
+			# Connect ally_died signal for unit counter
+			if ally.has_signal("ally_died") and not ally.is_connected("ally_died", Callable(self, "_on_ally_died")):
+				ally.connect("ally_died", Callable(self, "_on_ally_died"))
 		print("UI: Connected ally signals")
 	else:
 		print("UI: Player not found!")
@@ -274,6 +277,11 @@ func _on_ally_removed():
 	print("✅ Received ally_removed signal.")
 	_update_units(get_tree().get_nodes_in_group("allies").size())
 	print("✅ Ally removed, UI updated.")
+
+func _on_ally_died():
+	var current_units = get_tree().get_nodes_in_group("allies").size()
+	_update_units(current_units)
+	print("✅ Ally died, UI unit counter updated: ", current_units)
 
 # --- Temporary Feedback Message ---
 var _message_label: Label = null

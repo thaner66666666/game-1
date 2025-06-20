@@ -39,43 +39,12 @@ var last_names = [
 	"Ridgewood", "Stonevale", "Thornbush", "Umberfield", "Violetmoor", "Willowisp", "Yarrow", "Zephyrfield"
 ]
 
-var name_label: Label3D = null
-var health_label: Label3D = null
-
 func _ready():
 	# Expand first_names and last_names to 1000+ entries each at runtime
 	while first_names.size() < 1000:
 		first_names.append("Name%d" % first_names.size())
 	while last_names.size() < 1000:
 		last_names.append("Surname%d" % last_names.size())
-	# Create name and health labels above the ally
-	call_deferred("_create_name_and_health_labels")
-
-func _create_name_and_health_labels():
-	if not ally_ref:
-		return
-	# Create name label
-	name_label = Label3D.new()
-	var display_name = ally_ref.get_meta("display_name") if ally_ref.has_meta("display_name") else ally_ref.name
-	name_label.text = display_name
-	name_label.position = Vector3(0, 2.2, 0)
-	name_label.modulate = Color(1,1,0.7,1)
-	name_label.font_size = 22
-	name_label.outline_size = 1
-	ally_ref.add_child(name_label)
-	# Create health label
-	health_label = Label3D.new()
-	health_label.text = _get_health_text()
-	health_label.position = Vector3(0, 1.9, 0)
-	health_label.modulate = Color(1,1,1,1)
-	health_label.font_size = 18
-	health_label.outline_size = 1
-	ally_ref.add_child(health_label)
-
-func _get_health_text() -> String:
-	if ally_ref and ally_ref.health_component:
-		return "HP: %d/%d" % [ally_ref.health_component.current_health, ally_ref.max_health]
-	return "HP: ?"
 
 func generate_random_name() -> String:
 	var first = first_names[randi() % first_names.size()]
@@ -101,9 +70,6 @@ func _process(delta):
 		_update_ai_state()
 		state_update_timer = 0.0
 	_execute_current_state(delta)
-	# Update health label every frame
-	if health_label:
-		health_label.text = _get_health_text()
 
 func _update_ai_state():
 	if not player_target:

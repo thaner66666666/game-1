@@ -61,6 +61,10 @@ func _ready():
 	# --- Ally UI and Name ---
 	_assign_random_name()
 	_setup_ui_component()
+	if has_node("AllyUIComponent"):
+		print("UI component setup completed for ally: ", get_meta("display_name", name))
+	else:
+		print("❌ ERROR: AllyUIComponent was not created for ally: ", get_meta("display_name", name))
 
 func _setup_components() -> void:
 	# Initialize each component with needed references
@@ -377,19 +381,23 @@ func _generate_random_name() -> String:
 
 func _setup_ui_component():
 	"""Create and configure the UI component for this ally"""
-	# Update the path below to the correct location of AllyUIComponent.gd
-	var ui_component = preload("res://game/allies/components/AllyUIComponent.gd").new()
+	# Ensure the correct path to AllyUIComponent.gd
+	var ui_component = preload("res://allies/components/AllyUIComponent.gd").new()
 	ui_component.name = "AllyUIComponent"
 	add_child(ui_component)
-	ui_component.setup_for_ally(self)
-	print("✅ UI component set up for ally: ", get_meta("display_name", name))
+	if ui_component:
+		ui_component.setup_for_ally(self)
+		print("✅ UI component set up for ally: ", get_meta("display_name", name))
+	else:
+		print("❌ ERROR: Failed to create AllyUIComponent for ally: ", get_meta("display_name", name))
 
 func add_ui_to_existing_ally(ally: Node3D):
 	"""Add UI component to an already existing ally"""
 	if ally.has_node("AllyUIComponent"):
 		print("⚠️ Ally already has UI component")
 		return
-	var ui_component = preload("res://game/allies/components/AllyUIComponent.gd").new()
+	# Ensure the correct path to AllyUIComponent.gd
+	var ui_component = preload("res://allies/components/AllyUIComponent.gd").new()
 	ui_component.name = "AllyUIComponent"
 	ally.add_child(ui_component)
 	ui_component.setup_for_ally(ally)

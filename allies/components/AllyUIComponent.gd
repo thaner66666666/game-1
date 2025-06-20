@@ -30,17 +30,18 @@ func _ready():
 func setup_for_ally(ally: Node3D):
 	"""Initialize this UI component for a specific ally"""
 	ally_ref = ally
-	
-	# Find the health component
+	# Find the health component (try multiple possible node names)
 	health_component = ally.get_node_or_null("AllyHealth")
 	if not health_component:
 		health_component = ally.get_node_or_null("HealthComponent")
-	
+	if not health_component:
+		health_component = ally.get_node_or_null("health_component")
+	if not health_component:
+		health_component = ally.get_node_or_null("ally_health")
 	if health_component:
 		# Connect to health changes
 		if health_component.has_signal("health_changed"):
 			health_component.health_changed.connect(_on_health_changed)
-	
 	# Set the ally's name
 	_update_name_display()
 	_update_health_display()
@@ -48,11 +49,12 @@ func setup_for_ally(ally: Node3D):
 func _create_name_label():
 	"""Create the 3D label for the ally's name"""
 	name_label = Label3D.new()
-	name_label.position = Vector3(0, name_height_offset, 0)
-	name_label.font_size = 24
+	# Position label above and slightly in front of the ally
+	name_label.position = Vector3(0, name_height_offset, 0.25)
+	name_label.font_size = 32
 	name_label.outline_size = 2
 	name_label.outline_modulate = Color.BLACK
-	name_label.modulate = Color(1, 1, 0.8, 1) # Slight yellow tint
+	name_label.modulate = Color(1, 1, 0.95, 1) # Bright yellowish
 	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	add_child(name_label)
 
@@ -100,26 +102,31 @@ func _create_health_text():
 	add_child(health_text_label)
 
 func _update_name_display():
-	"""Update the displayed name"""
+	"""Update the displayed name and ensure label is visible and billboarded"""
 	if not name_label or not ally_ref:
 		return
-		
 	var display_name = ""
 	if ally_ref.has_meta("display_name"):
-		display_name = ally_ref.get_meta("display_name")
+		display_name = str(ally_ref.get_meta("display_name"))
+	elif ally_ref.has_method("get_name") and ally_ref.name:
+		display_name = str(ally_ref.name)
 	else:
-		display_name = ally_ref.name
-	
+		display_name = "Unnamed Ally"
 	name_label.text = display_name
+	# Debug info
+	print("[AllyUIComponent] Display name set to:", display_name)
+	print("[AllyUIComponent] name_label position:", name_label.position)
+	print("[AllyUIComponent] name_label billboard:", name_label.billboard)
+	print("[AllyUIComponent] name_label modulate:", name_label.modulate)
+	if not name_label.visible:
+		print("[AllyUIComponent] WARNING: name_label is not visible!")
 
 func _update_health_display():
 	"""Update health bar and text"""
 	if not health_component or not ally_ref:
 		return
-	
 	var current_health = 0
 	var max_health = 100
-	
 	# Get health values
 	if health_component.has_method("get_health"):
 		current_health = health_component.get_health()
@@ -127,26 +134,21 @@ func _update_health_display():
 	elif "current_health" in health_component and "max_health" in health_component:
 		current_health = health_component.current_health
 		max_health = health_component.max_health
-	
 	# Update health bar fill
 	if health_bar_fill and max_health > 0:
 		var health_percentage = float(current_health) / float(max_health)
 		health_percentage = clamp(health_percentage, 0.0, 1.0)
-		
 		# Scale the health bar
 		var bar_scale = health_bar_fill.scale
 		bar_scale.x = health_percentage
 		health_bar_fill.scale = bar_scale
-		
 		# Adjust position so it shrinks from the right
 		var offset = (1.0 - health_percentage) * health_bar_width * 0.5
 		health_bar_fill.position.x = -offset
-		
 		# Update color based on health percentage
 		var color = _get_health_color(health_percentage)
 		if health_bar_fill.material_override:
 			health_bar_fill.material_override.albedo_color = color
-	
 	# Update health text
 	if health_text_label:
 		health_text_label.text = "%d/%d" % [current_health, max_health]
@@ -168,9 +170,6 @@ func _process(_delta):
 	"""Update UI every frame"""
 	if always_face_camera:
 		_face_camera()
-	
-	# Update health display (in case health changed without signal)
-	_update_health_display()
 
 func _face_camera():
 	"""Make UI elements face the camera"""
