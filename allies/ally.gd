@@ -48,9 +48,6 @@ func _ready():
 	# Initialize body animation after movement setup
 	if movement_component:
 		movement_component.initialize_body_animation()
-	# Connect collision for taking damage from enemies
-	if has_node("CollisionShape3D"):
-		$CollisionShape3D.connect("body_entered", Callable(self, "_on_body_entered"))
 
 func _setup_components() -> void:
 	# Initialize each component with needed references
