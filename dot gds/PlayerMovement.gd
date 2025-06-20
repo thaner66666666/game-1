@@ -86,7 +86,6 @@ var is_punch_animating := false
 signal dash_charges_changed(current_charges: int, max_charges: int)
 signal walk_animation_update(speed: float, exaggeration: float)
 signal movement_state_changed(is_moving: bool)
-signal dash_started()
 signal dash_ended()
 signal knockback_started()
 signal knockback_ended()
@@ -741,8 +740,8 @@ func handle_mouse_look():
 	
 	# If using controller, make player face the stick direction
 	if look_input.length() > 0.1:  # Deadzone check
-		# Create direction vector from right stick input
-		var stick_direction = Vector3(look_input.x, 0, look_input.y)
+		# Invert axes so stick directions match camera look expectations
+		var stick_direction = Vector3(-look_input.x, 0, -look_input.y)
 		# Calculate the angle to face that direction
 		var target_rotation = atan2(stick_direction.x, stick_direction.z)
 		# For smooth rotation instead of instant

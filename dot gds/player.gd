@@ -482,17 +482,9 @@ func _physics_process(delta):
 		return
 
 	# --- Controller Look Input Handling ---
-	var look_input = get_look_input()
-	var using_controller_look = look_input != Vector2.ZERO
 
-	# Only call mouse look if not using controller look
-	if not using_controller_look:
-		movement_component.handle_mouse_look()
-	else:
-		# Rotate player horizontally (Y axis) based on right stick X
-		rotation.y -= look_input.x * look_sensitivity * delta
-		# Optionally, update current_look_direction for use elsewhere
-		current_look_direction = -transform.basis.z
+	# Always let movement component handle look (controller or mouse)
+	movement_component.handle_mouse_look()
 
 	if movement_component.is_being_knocked_back:
 		movement_component.handle_knockback(delta)
