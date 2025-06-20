@@ -153,7 +153,7 @@ func _update_camera_position(delta: float = 1.0) -> void:
 	# Always look at the player
 	look_at(player.global_position, Vector3.UP)
 
-func _apply_rotation_momentum(delta: float) -> void:
+func _apply_rotation_momentum(_delta: float) -> void:
 	"""Applies phone-like momentum when not actively rotating"""
 	
 	# Continue rotating based on stored velocity (momentum effect)
@@ -259,7 +259,7 @@ func _on_debug_requested() -> void:
 	"""Prints debug information about camera state including momentum"""
 	
 	print("=== Camera Debug Info ===")
-	print("Player: ", player.name if player else "None")
+	print("Player: ", player.name if player != null else "None")
 	print("Position: ", global_position)
 	print("Current Zoom: ", current_zoom, " | Target: ", target_zoom)
 	print("Current Rotation X: ", rad_to_deg(rotation_x), " | Target: ", rad_to_deg(target_rotation_x))

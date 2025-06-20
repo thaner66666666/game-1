@@ -1,4 +1,4 @@
-# enemy.gd - Natural Slime Enemy with Subtle Animations
+# enemy.gd - Natural Slime Enemy with Telegraph Attack System
 extends CharacterBody3D
 
 signal enemy_died
@@ -33,8 +33,15 @@ var damage_flash_timer = 0.0
 var movement_intensity = 0.0
 
 # Animation states
-enum AnimState { IDLE, MOVING, ATTACKING, DAMAGED, SPAWNING }
+enum AnimState { IDLE, MOVING, ATTACKING, DAMAGED, SPAWNING, TELEGRAPHING }
 var current_anim_state = AnimState.SPAWNING
+
+# Telegraph system for fair combat
+var is_telegraphing = false
+var telegraph_timer = 0.0
+const TELEGRAPH_DURATION = 1.0  # Increased for better reaction time
+var telegraph_start_scale = Vector3.ONE
+var telegraph_start_color = Color.WHITE
 
 # Spawn settings
 var spawn_timer = 0.0
@@ -55,7 +62,7 @@ var jump_duration = 0.6
 var is_anticipating_jump = false
 
 # AI state
-enum AIState { SPAWNING, IDLE, PATROL, CHASE, ATTACK }
+enum AIState { SPAWNING, IDLE, PATROL, CHASE, TELEGRAPH, ATTACK }
 var current_state = AIState.SPAWNING
 var state_timer = 0.0
 var patrol_target = Vector3.ZERO
@@ -123,7 +130,7 @@ func _setup_slime_material():
 func _setup_physics():
 	add_to_group("enemies")
 	collision_layer = 2
-	collision_mask = 1 | 2 | 8  # 🔧 FIXED: Now enemies detect allies (layer 8)
+	collision_mask = 1 | 2 | 8  # Enemies detect allies (layer 8)
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
 	max_health = health
 	velocity = Vector3.ZERO
@@ -163,29 +170,110 @@ func _physics_process(delta):
 		return
 
 	_update_cache(delta)
-	
+
 	if not is_spawn_complete:
 		_handle_spawn_animation(delta)
 	else:
 		_handle_ai(delta)
 		_handle_slime_animation(delta)
-	
+		_process_telegraph(delta)  # Critical for telegraph system!
+
 	_handle_knockback(delta)
 	_handle_enemy_separation(delta)
 	_apply_sliding(delta)
 	_apply_gravity(delta)
 	_handle_jump_movement(delta)
-	
+
 	move_and_slide()
 	_prevent_wall_clipping()
-	
-	# Player collision damage
-	if _is_player_valid() and not is_dead and not is_jumping and not is_being_knocked_back:
+
+	# Player collision damage (but not during telegraph!)
+	if _is_player_valid() and not is_dead and not is_jumping and not is_being_knocked_back and not is_telegraphing:
 		var player_dist = global_position.distance_to(player.global_position)
 		if player_dist <= 1.2:
 			print("💥 Slime touching player - dealing damage: ", attack_damage)
 			if player.has_method("take_damage"):
 				player.take_damage(attack_damage, self)
+
+# TELEGRAPH SYSTEM - This was missing!
+func _process_telegraph(delta):
+	"""Handle telegraph animation - this is the key function that was missing!"""
+	if is_telegraphing:
+		telegraph_timer -= delta
+		
+		# Pulse effect - makes slime bigger and redder
+		var pulse = sin((TELEGRAPH_DURATION - telegraph_timer) * 15.0) * 0.2 + 1.0
+		slime_scale = telegraph_start_scale * pulse
+		if mesh_instance:
+			mesh_instance.scale = slime_scale
+		
+		# Red warning color
+		if slime_material:
+			var red_intensity = 1.0 - (telegraph_timer / TELEGRAPH_DURATION)
+			slime_material.albedo_color = Color.RED.lerp(telegraph_start_color, red_intensity)
+		
+		# Telegraph finished - now attack!
+		if telegraph_timer <= 0.0:
+			is_telegraphing = false
+			slime_scale = telegraph_start_scale
+			if slime_material:
+				slime_material.albedo_color = telegraph_start_color
+			_execute_actual_attack()
+
+func start_attack_telegraph(target: Node3D):
+	"""Begins the attack warning phase - gives player time to react"""
+	is_telegraphing = true
+	telegraph_timer = TELEGRAPH_DURATION
+	current_anim_state = AnimState.TELEGRAPHING
+	current_state = AIState.TELEGRAPH
+	
+	# Store original values
+	telegraph_start_scale = slime_scale
+	telegraph_start_color = slime_material.albedo_color if slime_material else Color.WHITE
+	
+	# Optional: Play warning sound if AudioStreamPlayer3D exists
+	var audio_player = get_node_or_null("AttackWarningSound")
+	if audio_player:
+		audio_player.play()
+	
+	print("🔴 Slime telegraphing attack!")
+	# Face the target
+	_face_target(target)
+
+func _execute_actual_attack():
+	"""Actually performs the attack after telegraph warning"""
+	current_anim_state = AnimState.ATTACKING
+	current_state = AIState.ATTACK
+	
+	# Now do the actual jump/damage
+	var target = _find_nearest_target()
+	_perform_jump_attack(target)
+	print("💥 Slime attacking NOW!")
+	
+	# Start recovery after attack
+	_start_attack_recovery()
+
+func _perform_jump_attack(target: Node3D):
+	"""Bridge function - called by _execute_actual_attack"""
+	if not target or is_jumping:
+		return
+	
+	print("🟢 Slime executing jump attack on: ", target.name)
+	
+	is_jumping = true
+	jump_timer = 0.0
+	jump_start_pos = global_position
+	jump_target_pos = target.global_position
+	
+	# Face the target during jump
+	_face_target(target)
+
+func _start_attack_recovery():
+	"""After attack, enter recovery phase (vulnerable)"""
+	await get_tree().create_timer(0.5).timeout
+	current_state = AIState.IDLE
+	current_anim_state = AnimState.IDLE
+	print("🟢 Slime recovery complete!")
 
 func _handle_slime_animation(delta):
 	animation_timer += delta
@@ -203,7 +291,9 @@ func _handle_slime_animation(delta):
 	_apply_slime_deformation(delta)
 
 func _update_animation_state():
-	if is_anticipating_jump:
+	if is_telegraphing:
+		current_anim_state = AnimState.TELEGRAPHING
+	elif is_anticipating_jump:
 		current_anim_state = AnimState.ATTACKING
 	elif damage_flash_timer > 0.0:
 		current_anim_state = AnimState.DAMAGED
@@ -247,10 +337,15 @@ func _apply_slime_deformation(delta):
 			target_scale.y = base_scale.y * damage_squash
 			target_scale.x = base_scale.x * (2.0 - damage_squash) * 0.4 + base_scale.x * 0.6
 			target_scale.z = base_scale.z * (2.0 - damage_squash) * 0.4 + base_scale.z * 0.6
+		
+		AnimState.TELEGRAPHING:
+			# Special telegraph animation (handled in _process_telegraph)
+			pass
 	
-	# Smooth interpolation
-	slime_scale = slime_scale.lerp(target_scale, 8.0 * delta)
-	mesh_instance.scale = slime_scale
+	# Smooth interpolation (but skip during telegraph - that's handled separately)
+	if not is_telegraphing:
+		slime_scale = slime_scale.lerp(target_scale, 8.0 * delta)
+		mesh_instance.scale = slime_scale
 
 func _handle_spawn_animation(delta):
 	spawn_timer += delta
@@ -447,7 +542,10 @@ func _handle_ai(delta):
 
 		AIState.ATTACK:
 			_handle_attack_state_natural(delta)
-
+		
+		AIState.TELEGRAPH:
+			# During telegraph, just stay still and let _process_telegraph handle visuals
+			velocity = Vector3.ZERO
 
 func _set_patrol_target():
 	var angle = randf() * TAU
@@ -464,15 +562,6 @@ func _move_to_target(target: Vector3, move_speed: float):
 	else:
 		velocity = Vector3.ZERO
 
-func _move_toward_target(target: Node3D, _delta):
-	if not target:
-		return
-	var direction = (target.global_position - global_position)
-	direction.y = 0
-	direction = direction.normalized()
-	velocity.x = direction.x * speed
-	velocity.z = direction.z * speed
-
 func _face_target(target: Node3D):
 	if not target or is_being_knocked_back:
 		return
@@ -484,59 +573,56 @@ func _face_target(target: Node3D):
 		var rotation_speed = 6.0
 		rotation.y = lerp_angle(rotation.y, target_rotation_y, rotation_speed * get_physics_process_delta_time())
 
-func _handle_chase_state(delta):
+func _handle_chase_state_natural(delta):
 	var target = _find_nearest_target()
 	if not target:
 		current_state = AIState.PATROL
 		return
-	
+
 	cached_distance = global_position.distance_to(target.global_position)
 	if cached_distance <= attack_range:
 		current_state = AIState.ATTACK
 		return
-	
+
 	if cached_distance > chase_range:
 		current_state = AIState.PATROL
 		return
-	
-	_move_toward_target(target, delta)
+
+	# Add zig-zag and hesitation to movement
+	var direction = (target.global_position - global_position)
+	direction.y = 0
+	if direction.length() > 0.8:
+		direction = direction.normalized()
+		# Zig-zag offset using Time.get_ticks_msec()
+		var t = Time.get_ticks_msec() * 0.001
+		var zigzag = Vector3(
+			sin(t * randf_range(2.0, 3.5)) * 0.5,
+			0,
+			cos(t * randf_range(2.0, 3.5)) * 0.5
+		)
+		var hesitation = randf() < 0.05 * delta
+		if hesitation:
+			velocity = Vector3.ZERO
+		else:
+			velocity.x = direction.x * speed + zigzag.x
+			velocity.z = direction.z * speed + zigzag.z
 	_face_target(target)
 
-func _handle_attack_state(_delta):
+func _handle_attack_state_natural(_delta):
 	var target = _find_nearest_target()
 	if not target:
 		current_state = AIState.IDLE
 		return
-	
+
 	var distance = global_position.distance_to(target.global_position)
 	if distance > attack_range * 1.2:
 		current_state = AIState.CHASE
 		return
-	
-	if Time.get_unix_time_from_system() - last_attack_time >= attack_cooldown:
-		_perform_slime_jump_attack(target)
-		last_attack_time = Time.get_unix_time_from_system()
 
-func _perform_slime_jump_attack(target: Node3D):
-	if not target or is_anticipating_jump or is_jumping:
-		return
-	
-	print("🟢 Slime preparing jump attack on: ", target.name)
-	
-	# Brief anticipation
-	is_anticipating_jump = true
-	velocity = Vector3.ZERO
-	
-	await get_tree().create_timer(0.3).timeout
-	
-	if not is_instance_valid(self) or is_dead:
-		return
-	
-	is_anticipating_jump = false
-	is_jumping = true
-	jump_timer = 0.0
-	jump_start_pos = global_position
-	jump_target_pos = target.global_position
+	# Only start telegraph if not already telegraphing and cooldown ready
+	if not is_telegraphing and not is_jumping and Time.get_unix_time_from_system() - last_attack_time >= attack_cooldown:
+		start_attack_telegraph(target)
+		last_attack_time = Time.get_unix_time_from_system()
 
 func _handle_jump_movement(delta):
 	if not is_jumping:
@@ -634,62 +720,3 @@ func _drop_weapon():
 			LootManager.drop_weapon(global_position, self.weapon_resource)
 		else:
 			LootManager.drop_weapon(global_position)
-
-
-func _handle_chase_state_natural(delta):
-	var target = _find_nearest_target()
-	if not target:
-		current_state = AIState.PATROL
-		return
-
-	cached_distance = global_position.distance_to(target.global_position)
-	if cached_distance <= attack_range:
-		current_state = AIState.ATTACK
-		return
-
-	if cached_distance > chase_range:
-		current_state = AIState.PATROL
-		return
-
-	# Add zig-zag and hesitation to movement
-	var direction = (target.global_position - global_position)
-	direction.y = 0
-	if direction.length() > 0.8:
-		direction = direction.normalized()
-		# Zig-zag offset using Time.get_ticks_msec()
-		var t = Time.get_ticks_msec() * 0.001
-		var zigzag = Vector3(
-			sin(t * randf_range(2.0, 3.5)) * 0.5,
-			0,
-			cos(t * randf_range(2.0, 3.5)) * 0.5
-		)
-		var hesitation = randf() < 0.05 * delta
-		if hesitation:
-			velocity = Vector3.ZERO
-		else:
-			velocity.x = direction.x * speed + zigzag.x
-			velocity.z = direction.z * speed + zigzag.z
-	_face_target(target)
-
-
-func _handle_attack_state_natural(_delta):
-	var target = _find_nearest_target()
-	if not target:
-		current_state = AIState.IDLE
-		return
-
-	var distance = global_position.distance_to(target.global_position)
-	if distance > attack_range * 1.2:
-		current_state = AIState.CHASE
-		return
-
-	# Add fakeout and attack windup
-	if Time.get_unix_time_from_system() - last_attack_time >= attack_cooldown:
-		if randf() < 0.3:
-			# Fakeout: quick hop without attacking
-			velocity = Vector3(randf_range(-1,1), 0, randf_range(-1,1)) * 1.2
-			await get_tree().create_timer(0.18).timeout
-			velocity = Vector3.ZERO
-		else:
-			_perform_slime_jump_attack(target)
-			last_attack_time = Time.get_unix_time_from_system()
