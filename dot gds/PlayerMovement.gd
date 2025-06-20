@@ -1,6 +1,26 @@
 extends Node
 class_name PlayerMovement
 
+# --- Material Safety Utilities ---
+static func safe_get_material(mesh_instance: MeshInstance3D) -> Material:
+	"""Safely get material with null check - prevents material parameter errors"""
+	if not mesh_instance:
+		return null
+	if not mesh_instance.mesh:
+		return null
+	var material = mesh_instance.get_active_material(0)
+	if not material:
+		# Create default material if none exists
+		material = StandardMaterial3D.new()
+		mesh_instance.set_surface_override_material(0, material)
+	return material
+
+static func check_material_safely(mesh_instance: MeshInstance3D) -> bool:
+	if not mesh_instance or not mesh_instance.mesh:
+		return false
+	var material = mesh_instance.get_active_material(0)
+	return material != null
+
 # Player state enum for robust state management
 enum PlayerState {
 	IDLE,
