@@ -94,6 +94,10 @@ signal foot_animation_update(left_pos: Vector3, right_pos: Vector3)
 signal body_animation_update(body_pos: Vector3, body_rot: Vector3)
 signal animation_state_changed(is_idle: bool)
 
+# Add these variables at class level
+var using_controller: bool = false
+var controller_deadzone: float = 0.2
+
 func _ready():
 	randomize()
 	await get_tree().process_frame
@@ -649,18 +653,21 @@ func perform_dash():
 	last_dash_time = Time.get_ticks_msec() / 1000.0
 	var max_charges = get_safe_max_dash_charges()
 	dash_charges_changed.emit(current_dash_charges, max_charges)
-	var dash_direction = get_movement_input()
-	if dash_direction.length() == 0:
-		dash_direction = get_facing_direction()
-	dash_direction.y = 0
-	dash_direction = dash_direction.normalized()
-	
+	# Fix Vector2/Vector3 type mismatch in dash
+	# get_movement_input returns Vector2, get_facing_direction returns Vector3
+	# Need to handle both types properly and convert to consistent format
+	# Don't set y=0 on Vector2 as that removes forward/backward movement
+	var dash_direction_2d = get_movement_input()  # Vector2
+	if dash_direction_2d.length() == 0:
+		var facing_3d = get_facing_direction()  # Vector3
+		dash_direction_2d = Vector2(facing_3d.x, facing_3d.z)  # Convert 3D to 2D properly
+	dash_direction_2d = dash_direction_2d.normalized()
 	# Convert Vector2 dash_direction to Vector3 for effects
-	var dash_direction_3d = Vector3(dash_direction.x, 0, dash_direction.y)
+	var dash_direction_3d = Vector3(dash_direction_2d.x, 0, dash_direction_2d.y)
 	DashEffectsManager.play_dash_effects(player, dash_direction_3d)
-	var dash_velocity = dash_direction * (player.dash_distance / player.dash_duration)
+	var dash_velocity = dash_direction_2d * (player.dash_distance / player.dash_duration)
 	player.velocity.x = dash_velocity.x
-	player.velocity.z = dash_velocity.z
+	player.velocity.z = dash_velocity.y
 	player.move_and_slide()
 	await player.get_tree().create_timer(player.dash_duration).timeout
 	is_dashing = false
@@ -731,38 +738,50 @@ func apply_knockback_from_enemy(enemy: Node3D):
 	state = PlayerState.KNOCKED_BACK
 	knockback_started.emit()
 
+# Add this function to detect input device
+func _detect_input_device():
+	# Check for any controller input
+	var controller_input = Vector2(
+		Input.get_action_strength("look_right") - Input.get_action_strength("look_left"),
+		Input.get_action_strength("look_down") - Input.get_action_strength("look_up")
+	)
+	if controller_input.length() > controller_deadzone:
+		if not using_controller:
+			using_controller = true
+			Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
+	elif Input.get_last_mouse_velocity().length() > 0:
+		if using_controller:
+			using_controller = false
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
 func handle_mouse_look():
+	_detect_input_device()
 	if not player.camera:
 		return
-
-	# Check for controller look input first
-	var look_input = player.get_look_input() if player.has_method("get_look_input") else Vector2.ZERO
-	
-	# If using controller, make player face the stick direction
-	if look_input.length() > 0.1:  # Deadzone check
-		# Invert axes so stick directions match camera look expectations
-		var stick_direction = Vector3(-look_input.x, 0, -look_input.y)
-		# Calculate the angle to face that direction
-		var target_rotation = atan2(stick_direction.x, stick_direction.z)
-		# For smooth rotation instead of instant
-		var rotation_speed = 8.0  # Adjust this value as needed
-		player.rotation.y = lerp_angle(player.rotation.y, target_rotation, rotation_speed * get_process_delta_time())
-		# Update look direction
-		player.current_look_direction = stick_direction.normalized()
-		return  # Exit early, don't process mouse
-
-	# Only process mouse if no controller input
-	var mouse_pos = player.get_viewport().get_mouse_position()
-	var from = player.camera.project_ray_origin(mouse_pos)
-	var to = from + player.camera.project_ray_normal(mouse_pos) * 1000
-	var ground_plane = Plane(Vector3.UP, player.global_position.y)
-	var intersection = ground_plane.intersects_ray(from, to - from)
-	if intersection:
-		player.mouse_position_3d = intersection
-		var direction_to_mouse = (player.mouse_position_3d - player.global_position).normalized()
-		direction_to_mouse.y = 0
-		if direction_to_mouse.length() > 0.1:
-			player.look_at(player.global_position + direction_to_mouse, Vector3.UP)
+	# Replace your mouse look code with this conditional version
+	if not using_controller:
+		# Only process mouse look when no controller input is detected
+		# Your existing mouse look code here
+		var mouse_pos = player.get_viewport().get_mouse_position()
+		var from = player.camera.project_ray_origin(mouse_pos)
+		var to = from + player.camera.project_ray_normal(mouse_pos) * 1000
+		var ground_plane = Plane(Vector3.UP, player.global_position.y)
+		var intersection = ground_plane.intersects_ray(from, to - from)
+		if intersection:
+			player.mouse_position_3d = intersection
+			var direction_to_mouse = (player.mouse_position_3d - player.global_position).normalized()
+			direction_to_mouse.y = 0
+			if direction_to_mouse.length() > 0.1:
+				player.look_at(player.global_position + direction_to_mouse, Vector3.UP)
+	else:
+		# Use controller look input instead
+		var look_input = player.get_look_input() if player.has_method("get_look_input") else Vector2.ZERO
+		if look_input.length() > controller_deadzone:
+			var stick_direction = Vector3(-look_input.x, 0, -look_input.y)
+			var target_rotation = atan2(stick_direction.x, stick_direction.z)
+			var rotation_speed = 8.0
+			player.rotation.y = lerp_angle(player.rotation.y, target_rotation, rotation_speed * get_process_delta_time())
+			player.current_look_direction = stick_direction.normalized()
 
 func get_facing_direction() -> Vector3:
 	return -player.transform.basis.z
