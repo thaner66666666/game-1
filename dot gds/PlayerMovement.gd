@@ -341,15 +341,12 @@ func handle_movement_and_dash(delta):
 	if Input.is_action_just_pressed("dash") and can_dash():
 		perform_dash()
 		return
-	
 	if is_dashing or is_attacking or is_being_knocked_back:
 		apply_gravity(delta)
 		player.move_and_slide()
 		return
-	
-	# Convert Vector2 input to Vector3 for movement direction calculation
-	var input_2d = player.get_movement_input()  # Get Vector2 from player
-	var direction = Vector3(input_2d.x, 0, input_2d.y)
+	# Use camera-relative movement
+	var direction = get_camera_relative_movement()
 	if direction.length() > 0:
 		direction = direction.normalized()
 	if not player or not player.stats_component:
@@ -790,6 +787,27 @@ func _detect_input_device():
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func handle_mouse_look():
+	# Camera-relative facing when rotating camera
+	var camera = player.get_viewport().get_camera_3d()
+	if camera and camera.has_method('get') and camera.get('is_rotating_camera'):
+		# When camera is rotating, use movement direction for player facing
+		var input_2d = get_movement_input()
+		if input_2d.length() > 0.1:
+			var camera_basis = camera.global_transform.basis
+			var camera_forward = -camera_basis.z
+			var camera_right = camera_basis.x
+			camera_forward.y = 0
+			camera_right.y = 0
+			var facing_direction = (camera_forward * -input_2d.y) + (camera_right * input_2d.x)
+			if facing_direction.length() > 0.1:
+				player.look_at(player.global_position + facing_direction.normalized(), Vector3.UP)
+		return
+	# Don't process mouse look if camera is being rotated
+	if camera and camera.has_method('get') and camera.get('is_rotating_camera'):
+		return
+	# Add safety check before existing mouse look code
+	if Input.get_mouse_mode() != Input.MOUSE_MODE_VISIBLE:
+		return
 	_detect_input_device()
 	if not player.camera:
 		return
@@ -817,6 +835,27 @@ func handle_mouse_look():
 			var rotation_speed = 8.0
 			player.rotation.y = lerp_angle(player.rotation.y, target_rotation, rotation_speed * get_process_delta_time())
 			player.current_look_direction = stick_direction.normalized()
+
+func get_camera_relative_movement() -> Vector3:
+	var input_2d = get_movement_input()
+	if input_2d.length() < 0.1:
+		return Vector3.ZERO
+	var camera = player.get_viewport().get_camera_3d()
+	if not camera:
+		# Fallback to world-space if no camera
+		return Vector3(input_2d.x, 0, input_2d.y).normalized()
+	# Get camera directions (ground-projected)
+	var camera_basis = camera.global_transform.basis
+	var camera_forward = -camera_basis.z
+	var camera_right = camera_basis.x
+	# Remove Y component and normalize
+	camera_forward.y = 0
+	camera_right.y = 0
+	camera_forward = camera_forward.normalized()
+	camera_right = camera_right.normalized()
+	# Calculate camera-relative direction
+	var direction = (camera_forward * -input_2d.y) + (camera_right * input_2d.x)
+	return direction.normalized()
 
 func get_facing_direction() -> Vector3:
 	return -player.transform.basis.z

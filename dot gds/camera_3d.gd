@@ -14,6 +14,15 @@ var player: Node3D
 # --- Add: dynamic camera angle ---
 var dynamic_angle := -45.0
 
+# --- Camera rotation variables (right-click) ---
+var is_rotating_camera := false
+var mouse_sensitivity := 2.0
+var camera_rotation_x := 0.0
+var camera_rotation_y := 0.0
+var max_camera_tilt := 80.0
+
+var debug_movement := false
+
 func _ready():
 	add_to_group("camera")
 	# Set initial distance
@@ -33,10 +42,29 @@ func find_player():
 
 func _input(event):
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			is_rotating_camera = event.pressed
+			if is_rotating_camera:
+				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+			else:
+				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			target_distance = max(min_zoom, target_distance - zoom_speed)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			target_distance = min(max_zoom, target_distance + zoom_speed)
+	elif event is InputEventMouseMotion and is_rotating_camera:
+		camera_rotation_y -= event.relative.x * mouse_sensitivity * 0.01
+		camera_rotation_x -= event.relative.y * mouse_sensitivity * 0.01
+		camera_rotation_x = clamp(camera_rotation_x, deg_to_rad(-max_camera_tilt), deg_to_rad(max_camera_tilt))
+	elif event is InputEventKey and event.pressed:
+		if event.keycode == KEY_R:
+			# Reset camera rotation
+			camera_rotation_x = 0.0
+			camera_rotation_y = 0.0
+			print('Camera rotation reset!')
+		elif event.keycode == KEY_F1:
+			debug_movement = !debug_movement
+			print('Movement debug: ', debug_movement)
 
 func _process(delta):
 	if not player or not is_instance_valid(player):
@@ -55,16 +83,29 @@ func _process(delta):
 	else:
 		dynamic_angle = angle_start
 
+	# --- Camera rotation logic ---
+	if is_rotating_camera:
+		# Camera rotation is handled in _input
+		pass
+
 	# Update camera position to follow player
 	_update_camera_position(follow_speed * delta)
 
 func _update_camera_position(lerp_amount: float):
-	# --- Use dynamic_angle instead of static camera_angle ---
-	var angle_rad = deg_to_rad(dynamic_angle)
-	var horizontal_distance = current_distance * cos(angle_rad)
-	var vertical_height = current_distance * sin(-angle_rad)  # Negative because we want height above
-
-	var offset = Vector3(0, vertical_height, horizontal_distance)
-	var target_position = player.global_position + offset
+	if not player or not is_instance_valid(player):
+		return
+	# Combine dynamic angle with camera rotation
+	var total_angle_x = deg_to_rad(dynamic_angle) + camera_rotation_x
+	var total_angle_y = camera_rotation_y
+	# Calculate camera position with rotation
+	var horizontal_distance = current_distance * cos(total_angle_x)
+	var vertical_height = current_distance * sin(-total_angle_x)
+	# Apply Y rotation (left/right camera orbit)
+	var rotated_offset = Vector3(
+		horizontal_distance * sin(total_angle_y),
+		vertical_height,
+		horizontal_distance * cos(total_angle_y)
+	)
+	var target_position = player.global_position + rotated_offset
 	global_position = global_position.lerp(target_position, lerp_amount)
 	look_at(player.global_position, Vector3.UP)
