@@ -7,11 +7,23 @@ var player_progression: PlayerProgression
 @onready var button2 = $Panel/VBoxContainer/Button2
 @onready var button3 = $Panel/VBoxContainer/Button3
 
+# Controller navigation variables
+var selected_button_index: int = 0
+var buttons: Array = []
+var controller_navigation_enabled: bool = false
+
 func _ready():
 	add_to_group("levelupui")
 	visible = false
 	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-	
+	# Initialize buttons array and set initial focus
+	buttons = [button1, button2, button3]
+	selected_button_index = 0
+	update_button_focus()
+	# Detect controller connection
+	Input.connect("joy_connection_changed", Callable(self, "_on_joy_connection_changed"))
+	controller_navigation_enabled = Input.get_connected_joypads().size() > 0
+
 func show_upgrade_choices(options: Array):
 	print("🎯 LevelUpUI: show_upgrade_choices called")
 	print("📋 Received options: ", options)
@@ -88,3 +100,36 @@ func show_level_up_ui():
 	button1.text = "💪 Damage +5"
 	button2.text = "💨 Speed +1.0"
 	button3.text = "⚡ Attack Speed"
+
+# Controller input handler for navigation
+func _input(event):
+	if not visible or not controller_navigation_enabled:
+		return
+	if event.is_action_pressed("ui_down"):
+		selected_button_index = (selected_button_index + 1) % buttons.size()
+		update_button_focus()
+		accept_event()
+	elif event.is_action_pressed("ui_up"):
+		selected_button_index = (selected_button_index - 1 + buttons.size()) % buttons.size()
+		update_button_focus()
+		accept_event()
+	elif event.is_action_pressed("ui_accept"):
+		_choose_upgrade(selected_button_index)
+		accept_event()
+
+# Visual focus system for buttons
+func update_button_focus():
+	for i in buttons.size():
+		if buttons[i]:
+			if i == selected_button_index:
+				buttons[i].modulate = Color(1, 1, 0.5, 1) # Highlighted (yellowish)
+				buttons[i].grab_focus()
+			else:
+				buttons[i].modulate = Color(1, 1, 1, 1) # Normal
+
+# Controller detection for UI
+func _on_joy_connection_changed(_device_id: int, _connected: bool):
+	controller_navigation_enabled = Input.get_connected_joypads().size() > 0
+	if controller_navigation_enabled and visible:
+		selected_button_index = 0
+		update_button_focus()

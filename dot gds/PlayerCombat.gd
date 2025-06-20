@@ -45,6 +45,9 @@ var punch_sounds = []
 var whoosh_sound = null
 var impact_sound = null
 
+# Track if attack button is held
+var attack_button_held: bool = false
+
 func initialize(player_ref: CharacterBody3D, movement_ref: Node = null):
 	player = player_ref
 	movement_component = movement_ref
@@ -121,8 +124,19 @@ func _attack_cooldown_ready() -> bool:
 	return (now - last_attack_time) >= current_cooldown or attack_timer.is_stopped()
 
 func handle_attack_input():
-	if Input.is_action_just_pressed("attack") or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		try_attack()
+	# This is now handled by _input/_process for hold-to-attack
+	pass
+
+func _input(event):
+	if event.is_action_pressed("attack"):
+		attack_button_held = true
+	elif event.is_action_released("attack"):
+		attack_button_held = false
+
+func _process(_delta):
+	if attack_button_held:
+		if can_attack():
+			try_attack()
 
 func try_attack():
 	if not can_attack():
@@ -584,3 +598,4 @@ func _ready():
 		push_error("[PlayerCombat] WeaponAnimationPlayer node not found on player!")
 	else:
 		print("[PlayerCombat] WeaponAnimationPlayer node found.")
+	set_process(true)
