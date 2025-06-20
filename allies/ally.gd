@@ -45,7 +45,18 @@ const DEFAULT_ALLY_COLOR = Color(0.9, 0.7, 0.6)  # Default skin tone
 
 var last_valid_position: Vector3
 
-func _ready():
+# ...existing code...
+# --- Ally UI and Name ---
+# Remove random name assignment from here
+_setup_ui_component()
+if has_node("AllyUIComponent"):
+	print("UI component setup completed for ally: ", get_meta("display_name", name))
+else:
+	print("❌ ERROR: AllyUIComponent was not created for ally: ", get_meta("display_name", name))
+# ...existing code...
+
+
+
 	add_to_group("allies")
 	_setup_components()
 	_ensure_hands_visible()
@@ -355,7 +366,12 @@ func apply_knockback(force: Vector3, duration: float = 0.4):
 	knockback_timer = duration
 	is_being_knocked_back = true
 
-func _assign_random_name():
+# ...existing code...
+# Remove _assign_random_name and _generate_random_name, let AI component handle naming
+# ...existing code...
+
+
+
 	"""Assign a random name to this ally if not already set"""
 	if not has_meta("display_name"):
 		var random_name = _generate_random_name()
@@ -363,7 +379,12 @@ func _assign_random_name():
 		name = random_name
 		print("🆕 Ally assigned name: ", random_name)
 
-func _generate_random_name() -> String:
+# ...existing code...
+# Remove _generate_random_name, let AI component handle naming
+# ...existing code...
+
+
+
 	"""Generate a random fantasy name"""
 	var first_names = [
 		"Aiden", "Luna", "Kai", "Mira", "Rowan", "Zara", "Finn", "Nova", "Ezra", "Lyra",

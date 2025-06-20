@@ -30,6 +30,27 @@ func _ready():
 func setup_for_ally(ally: Node3D):
 	"""Initialize this UI component for a specific ally"""
 	ally_ref = ally
+	# Prioritize HealthComponent node name
+	health_component = ally.get_node_or_null("HealthComponent")
+	if not health_component:
+		health_component = ally.get_node_or_null("AllyHealth")
+	if not health_component:
+		health_component = ally.get_node_or_null("health_component")
+	if not health_component:
+		health_component = ally.get_node_or_null("ally_health")
+	if health_component:
+		if health_component.has_signal("health_changed"):
+			if not health_component.health_changed.is_connected(_on_health_changed):
+				health_component.health_changed.connect(_on_health_changed)
+	else:
+		push_error("[AllyUIComponent] Health component not found for ally: %s" % [ally_ref])
+	_update_name_display()
+	_update_health_display()
+
+
+
+	"""Initialize this UI component for a specific ally"""
+	ally_ref = ally
 	# Find the health component (try multiple possible node names)
 	health_component = ally.get_node_or_null("AllyHealth")
 	if not health_component:
@@ -85,6 +106,41 @@ func _create_health_bar():
 	fill_material.albedo_color = health_color_full
 	fill_material.flags_unshaded = true
 	fill_material.no_depth_test = true
+	fill_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fill_material.blend_mode = BaseMaterial3D.BLEND_MODE_ALPHA
+	health_bar_fill.material_override = fill_material
+	
+	health_bar_fill.position = Vector3(0, ui_height_offset, 0.01)
+	add_child(health_bar_fill)
+
+
+
+	"""Create a 3D health bar using mesh instances"""
+	# Background bar
+	health_bar_background = MeshInstance3D.new()
+	var bg_mesh = BoxMesh.new()
+	bg_mesh.size = Vector3(health_bar_width, health_bar_height, 0.02)
+	health_bar_background.mesh = bg_mesh
+	
+	var bg_material = StandardMaterial3D.new()
+	bg_material.albedo_color = Color(0.2, 0.2, 0.2, 0.8)
+	bg_material.flags_unshaded = true
+	bg_material.no_depth_test = true
+	health_bar_background.material_override = bg_material
+	
+	health_bar_background.position = Vector3(0, ui_height_offset, 0)
+	add_child(health_bar_background)
+	
+	# Fill bar (health)
+	health_bar_fill = MeshInstance3D.new()
+	var fill_mesh = BoxMesh.new()
+	fill_mesh.size = Vector3(health_bar_width, health_bar_height, 0.01)
+	health_bar_fill.mesh = fill_mesh
+	
+	var fill_material = StandardMaterial3D.new()
+	fill_material.albedo_color = health_color_full
+	fill_material.flags_unshaded = true
+	fill_material.no_depth_test = true
 	health_bar_fill.material_override = fill_material
 	
 	health_bar_fill.position = Vector3(0, ui_height_offset, 0.01)
@@ -102,6 +158,32 @@ func _create_health_text():
 	add_child(health_text_label)
 
 func _update_name_display():
+	"""Update the displayed name and ensure label is visible and billboarded"""
+	if not name_label or not ally_ref:
+		return
+	var display_name = ""
+	if ally_ref.has_meta("display_name"):
+		display_name = str(ally_ref.get_meta("display_name"))
+	elif ally_ref.has_method("get_name") and ally_ref.name:
+		display_name = str(ally_ref.name)
+	else:
+		display_name = "Unnamed Ally"
+	name_label.text = display_name
+	# Make text more readable for Godot 4.1
+	name_label.font_size = 36
+	name_label.outline_size = 3
+	name_label.outline_modulate = Color.BLACK
+	name_label.modulate = Color(1, 1, 0.95, 1)
+	# Debug info
+	if not name_label.visible:
+		print("[AllyUIComponent] WARNING: name_label is not visible!")
+	print("[AllyUIComponent] Display name set to:", display_name)
+	print("[AllyUIComponent] name_label position:", name_label.position)
+	print("[AllyUIComponent] name_label billboard:", name_label.billboard)
+	print("[AllyUIComponent] name_label modulate:", name_label.modulate)
+
+
+
 	"""Update the displayed name and ensure label is visible and billboarded"""
 	if not name_label or not ally_ref:
 		return
