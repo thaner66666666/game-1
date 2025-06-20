@@ -1,7 +1,8 @@
 [gd_scene load_steps=4 format=3 uid="uid://1h1mtax3fssp"]
 
 [ext_resource type="Script" uid="uid://dkf34jngxetjr" path="res://dot gds/enemy.gd" id="1_7k104"]
-[ext_resource type="ArrayMesh" uid="uid://d0ulm16lan2ub" path="res://3d Models/Smiling_Slime_Cube_0606115431_texture_obj/Smiling_Slime_Cube_0606115431_texture.obj" id="2_4gyqm"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_hghv2"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_7k104"]
 
@@ -9,8 +10,7 @@
 script = ExtResource("1_7k104")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
-mesh = ExtResource("2_4gyqm")
+mesh = SubResource("BoxMesh_hghv2")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource("BoxShape3D_7k104")

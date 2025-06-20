@@ -34,11 +34,21 @@ var body_waddle_time: float = 0.0
 
 var player_ref: CharacterBody3D
 
+# Default ally color for flash restorataion
+const DEFAULT_ALLY_COLOR = Color(0.9, 0.7, 0.6)  # Default skin tone
+
+var health_bar: Control
+var health_bar_hide_timer: SceneTreeTimer = null
+
 func _ready():
 	add_to_group("allies")
 	_setup_components()
 	_ensure_hands_visible()
 	_find_player()
+	# Find HealthBar child if present
+	health_bar = get_node_or_null("HealthBar")
+	if health_bar:
+		health_bar.set_health(health_component.current_health, health_component.max_health)
 	# Connect health component death signal
 	if health_component:
 		health_component.health_depleted.connect(_on_health_depleted)
@@ -46,7 +56,6 @@ func _ready():
 	if movement_component:
 		movement_component.initialize_body_animation()
 
-# Use 'await' instead of 'yield' for Godot 4.x compatibility
 func _setup_components() -> void:
 	# Initialize each component with needed references
 	health_component.setup(self, max_health)
@@ -176,9 +185,35 @@ func _physics_process(delta):
 		var bob = sin(body_waddle_time * 2.0) * 0.06  # Very subtle up-down bobbing
 		var forward_lean = sin(body_waddle_time * 0.5) * 0.01  # Minimal lean
 		body_node.position = body_original_pos + Vector3(sway, bob, forward_lean)
+	# --- Health bar follow ---
+	if health_bar:
+		var head_pos = global_transform.origin + Vector3(0, 2.2, 0) # Adjust Y as needed
+		var viewport = get_viewport()
+		if viewport:
+			var cam = viewport.get_camera_3d()
+			if cam:
+				health_bar.global_position = cam.unproject_position(head_pos)
+
 
 func take_damage(amount: int, attacker: Node = null):
 	health_component.take_damage(amount, attacker)
+	_flash_red()  # Add flash effect when ally takes damage
+	# --- Update health bar ---
+	if health_bar:
+		health_bar.set_health(health_component.current_health, health_component.max_health)
+		health_bar.visible = true
+		# Reset timer if already running
+		if health_bar_hide_timer:
+			health_bar_hide_timer.disconnect_all()
+		else:
+			health_bar_hide_timer = get_tree().create_timer(3.0)
+		health_bar_hide_timer.timeout.connect(_hide_health_bar)
+
+func _hide_health_bar():
+	if health_bar:
+		health_bar.visible = false
+	health_bar_hide_timer = null
+
 
 func _on_health_depleted():
 	ally_died.emit()
@@ -189,7 +224,9 @@ func _on_ally_died():
 	collision_layer = 0
 	collision_mask = 0
 	mesh_instance.visible = false
-	
+	# Hide health bar if present
+	if health_bar:
+		health_bar.visible = false
 	# Clean up after delay
 	get_tree().create_timer(1.0).timeout.connect(queue_free)
 
@@ -210,3 +247,16 @@ func _ensure_hands_visible():
 		print("👋 Made RightHand visible for ally")
 	else:
 		print("⚠️ RightHand not found for ally")
+
+# Flash the ally red briefly when taking damage
+func _flash_red():
+	if not mesh_instance or not is_instance_valid(mesh_instance):
+		return
+	if not mesh_instance.material_override:
+		return
+	mesh_instance.material_override.albedo_color = Color(1,0,0)
+	# Use modern Godot 4.1 approach with create_timer
+	get_tree().create_timer(0.5).timeout.connect(func():
+		if mesh_instance and is_instance_valid(mesh_instance) and mesh_instance.material_override:
+			mesh_instance.material_override.albedo_color = DEFAULT_ALLY_COLOR
+	)
