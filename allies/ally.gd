@@ -34,6 +34,12 @@ var body_waddle_time: float = 0.0
 
 var player_ref: CharacterBody3D
 
+# Knockback system
+var knockback_velocity := Vector3.ZERO
+var knockback_timer := 0.0
+var knockback_duration := 0.4
+var is_being_knocked_back := false
+
 # Default ally color for flash restorataion
 const DEFAULT_ALLY_COLOR = Color(0.9, 0.7, 0.6)  # Default skin tone
 
@@ -149,8 +155,22 @@ func _physics_process(delta):
 	# Add gravity
 	if not is_on_floor():
 		velocity.y -= ProjectSettings.get_setting("physics/3d/default_gravity") * delta
-	# Apply movement
-	move_and_slide()
+	# Apply knockback if active
+	if knockback_timer > 0.0:
+		knockback_timer -= delta
+		velocity.x = knockback_velocity.x
+		velocity.z = knockback_velocity.z
+		# Decay knockback
+		var decay = knockback_timer / knockback_duration
+		knockback_velocity.x *= decay
+		knockback_velocity.z *= decay
+		is_being_knocked_back = true
+		if knockback_timer <= 0.0:
+			knockback_velocity = Vector3.ZERO
+			is_being_knocked_back = false
+	else:
+		# Apply movement
+		move_and_slide()
 	# Animate feet based on movement (with safety checks)
 	animation_time += delta
 	if left_foot and right_foot and left_foot is MeshInstance3D and right_foot is MeshInstance3D:
@@ -180,19 +200,13 @@ func _physics_process(delta):
 		body_node.position = body_original_pos + Vector3(sway, bob, forward_lean)
 
 func take_damage(amount: int, _source = null):
-	if get_tree().get_first_node_in_group("damage_numbers"):
-		# Show red numbers for ally damage
-		get_tree().get_first_node_in_group("damage_numbers").show_damage(amount, self, "massive")
-	_flash_red()
-	# ...existing health/damage logic here...
-
-
-
-	if get_tree().get_first_node_in_group("damage_numbers"):
-		get_tree().get_first_node_in_group("damage_numbers").show_damage(amount, self, "normal")
-	_flash_red()
-	# ...existing health/damage logic here...
-
+	if health_component:
+		health_component.take_damage(amount, _source)
+	else:
+		# fallback: just flash and show damage
+		if get_tree().get_first_node_in_group("damage_numbers"):
+			get_tree().get_first_node_in_group("damage_numbers").show_damage(amount, self, "massive")
+		_flash_red()
 
 func _on_health_depleted():
 	ally_died.emit()
@@ -247,3 +261,14 @@ func _on_body_entered(body):
 			mcp.request_ally_take_damage(self, body.attack_damage)
 		else:
 			take_damage(body.attack_damage, body)
+
+func apply_knockback_from_attacker(attacker):
+	if not attacker or not attacker.has_method("get_global_position"):
+		return
+	var direction = global_position - attacker.global_position
+	direction.y = 0
+	if direction.length() > 0.1:
+		direction = direction.normalized()
+		knockback_velocity = direction * 8.0
+		knockback_timer = knockback_duration
+		is_being_knocked_back = true

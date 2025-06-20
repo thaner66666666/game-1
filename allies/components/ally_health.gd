@@ -43,15 +43,8 @@ func take_damage(amount: int, attacker: Node = null):
 		health_depleted.emit()
 
 func _apply_knockback(attacker: Node):
-	if not attacker.has_method("get_global_position"):
-		return
-	
-	var knockback_dir = ally_ref.global_position - attacker.global_position
-	knockback_dir.y = 0
-	if knockback_dir.length() > 0.1:
-		knockback_dir = knockback_dir.normalized() * 8.0
-		ally_ref.velocity.x = knockback_dir.x
-		ally_ref.velocity.z = knockback_dir.z
+	if ally_ref and ally_ref.has_method("apply_knockback_from_attacker"):
+		ally_ref.apply_knockback_from_attacker(attacker)
 
 func heal(amount: int):
 	current_health = min(max_health, current_health + amount)
