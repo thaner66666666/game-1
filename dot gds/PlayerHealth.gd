@@ -57,41 +57,12 @@ func update_invulnerability(delta: float):
 		return invulnerability_timer > 0
 	return false
 
+# Show visual and audio feedback for taking damage
 func _show_damage_feedback(damage_amount: int):
 	# Flash red for damage feedback
 	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
 		player_ref.mesh_instance.material_override.albedo_color = Color(1.0, 0.2, 0.2)
 	# Show damage numbers if the damage system exists and the tree is valid
-	var scene_tree = player_ref.get_tree() if player_ref else null
-	if scene_tree:
-		var damage_system = scene_tree.get_first_node_in_group("damage_numbers")
-		if damage_system:
-			damage_system.show_damage(damage_amount, player_ref, "massive") # Use red for player damage
-	# Play damage sound if available
-	if player_ref.has_node("DamageSound"):
-		player_ref.get_node("DamageSound").play()
-
-
-
-	# Flash red for damage feedback
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(1.0, 0.2, 0.2)
-	# Show damage numbers if the damage system exists and the tree is valid
-	var scene_tree = player_ref.get_tree() if player_ref else null
-	if scene_tree:
-		var damage_system = scene_tree.get_first_node_in_group("damage_numbers")
-		if damage_system:
-			damage_system.show_damage(damage_amount, player_ref, "massive") # Use red for player damage
-	# Play damage sound if available
-	if player_ref.has_node("DamageSound"):
-		player_ref.get_node("DamageSound").play()
-
-
-
-	# Flash red for damage feedback
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(1.0, 0.2, 0.2)
-	# Show damage numbers if the damage system exists and the tree is valid
 	var tree = player_ref.get_tree() if player_ref else null
 	if tree:
 		var damage_system = tree.get_first_node_in_group("damage_numbers")
@@ -101,69 +72,13 @@ func _show_damage_feedback(damage_amount: int):
 	if player_ref.has_node("DamageSound"):
 		player_ref.get_node("DamageSound").play()
 
-
-
-	# Flash red
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(1.0, 0.2, 0.2)
-	# Show damage numbers if the damage system exists and the tree is valid
-	var tree = player_ref.get_tree() if player_ref else null
-	if tree:
-		var damage_system = tree.get_first_node_in_group("damage_numbers")
-		if damage_system:
-			damage_system.show_damage(damage_amount, player_ref, "massive") # Use red for player damage
-	# Play damage sound
-	if player_ref.has_node("DamageSound"):
-		player_ref.get_node("DamageSound").play()
-
-
-
-	# Flash red
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(1.0, 0.2, 0.2)
-	# Show damage numbers
-	var damage_system = player_ref.get_tree().get_first_node_in_group("damage_numbers")
-	if damage_system:
-		damage_system.show_damage(damage_amount, player_ref, "massive") # Use red for player damage
-	# Play damage sound
-	if player_ref.has_node("DamageSound"):
-		player_ref.get_node("DamageSound").play()
-
+# Show visual and audio feedback for healing
 func _show_heal_feedback(heal_amount: int):
 	# Flash green for heal feedback
 	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
 		player_ref.mesh_instance.material_override.albedo_color = Color(0.3, 1.0, 0.3)
 	# Show heal numbers if the heal system exists and the tree is valid
-	var scene_tree = player_ref.get_tree() if player_ref else null
-	if scene_tree:
-		var heal_system = scene_tree.get_first_node_in_group("damage_numbers")
-		if heal_system:
-			heal_system.show_heal(heal_amount, player_ref)
-	# Play heal sound if available (uncomment if you add a sound)
-	# if player_ref.has_node("HealSound"):
-	# 	player_ref.get_node("HealSound").play()
-
-
-
-	# Flash green for heal feedback
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(0.3, 1.0, 0.3)
-	# Show heal numbers if the heal system exists and the tree is valid
-	var scene_tree = player_ref.get_tree() if player_ref else null
-	if scene_tree:
-		var heal_system = scene_tree.get_first_node_in_group("damage_numbers")
-		if heal_system:
-			heal_system.show_heal(heal_amount, player_ref)
-	# Play heal sound if available (uncomment if you add a sound)
-	# if player_ref.has_node("HealSound"):
-	# 	player_ref.get_node("HealSound").play()
-
-
-
-	# Flash green for heal feedback
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(0.3, 1.0, 0.3)
-	# Show heal numbers if the heal system exists and the tree is valid
+	# Reuse the 'tree' variable to avoid redeclaration in the same scope
 	var tree = player_ref.get_tree() if player_ref else null
 	if tree:
 		var heal_system = tree.get_first_node_in_group("damage_numbers")
@@ -173,32 +88,14 @@ func _show_heal_feedback(heal_amount: int):
 	# if player_ref.has_node("HealSound"):
 	# 	player_ref.get_node("HealSound").play()
 
-
-
-	# Flash green
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(0.3, 1.0, 0.3)
-	# Show heal numbers if the damage system exists and the tree is valid
-	var tree = player_ref.get_tree() if player_ref else null
-	if tree:
-		var heal_system = tree.get_first_node_in_group("damage_numbers")
-		if heal_system:
-			heal_system.show_heal(heal_amount, player_ref)
-	# Play heal sound (if you have one)
-	# if player_ref.has_node("HealSound"):
-	# 	player_ref.get_node("HealSound").play()
-
-
-
-	# Flash green
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(0.3, 1.0, 0.3)
-	# Show heal numbers
-	var damage_system = player_ref.get_tree().get_first_node_in_group("damage_numbers")
-	if damage_system:
-		damage_system.show_heal(heal_amount, player_ref)
-
+# Handles player death: emits signals and logs for debugging
 func _handle_player_death():
+	print("💀 Player death triggered! Emitting signals...")
+	# Emit signals for other systems to respond (UI, respawn, etc.)
+	health_depleted.emit()
+	player_died.emit()
+
+
 	health_depleted.emit()
 	player_died.emit()
 

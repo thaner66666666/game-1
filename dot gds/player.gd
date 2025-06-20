@@ -280,23 +280,101 @@ func _on_health_changed(current_health: int, max_health: int):
 		# Make sure UI gets updated with new health values
 		get_tree().call_group("UI", "_on_player_health_changed", current_health, max_health)
 
+# Handles player death: disables input, plays animation/sound, and reloads the scene with error handling.
+# --- Death State Variables ---
+# var is_dead: bool = false  # Removed duplicate declaration; already declared at the top for clarity and to avoid bugs.
+var death_timer: float = 0.0
+const DEATH_RESTART_DELAY := 3.0
+
+# Handles player death: disables controls, plays effects, and starts respawn timer
 func _on_player_died():
+	if is_dead:
+		return  # Prevent multiple death triggers
+	print("💀 Player died! Starting death sequence...")
 	is_dead = true
-	# Godot 4.1+ best practice: reload the current scene to restart on death
+	death_timer = 0.0
+	_disable_player_controls()
+	_play_death_effects()
+	_start_death_timer()
+
+# Disables all player input and movement
+func _disable_player_controls():
+	if movement_component:
+		movement_component.set_physics_process(false)
+		movement_component.can_move = false
+	if combat_component:
+		combat_component.set_process(false)
+	velocity = Vector3.ZERO
+	set_physics_process(false)
+	print("🚫 Player controls disabled")
+
+# Plays death visual/audio effects
+func _play_death_effects():
+	if mesh_instance and mesh_instance.material_override:
+		mesh_instance.material_override.albedo_color = Color(0.7, 0.1, 0.1)
+	# Optional: Add death sound
+	# if has_node("DeathSound"):
+	#     get_node("DeathSound").play()
+	# Optional: Add death particle effect
+	# if has_node("DeathParticles"):
+	#     get_node("DeathParticles").emitting = true
+	print("💥 Death effects played")
+
+# Starts the respawn countdown timer
+func _start_death_timer():
+	var timer = Timer.new()
+	timer.wait_time = DEATH_RESTART_DELAY
+	timer.one_shot = true
+	timer.timeout.connect(_restart_game)
+	add_child(timer)
+	timer.start()
+	print("⏰ Death timer started - restarting in ", DEATH_RESTART_DELAY, " seconds")
+	_show_death_countdown()
+
+# Optionally show a countdown UI to the player
+func _show_death_countdown():
+	get_tree().call_group("UI", "_on_player_death_countdown", DEATH_RESTART_DELAY)
+
+# Restarts the current scene after the delay
+func _restart_game():
+	print("🔄 Restarting game...")
 	var tree = get_tree()
-	if tree:
+	if tree and tree.current_scene:
 		var error = tree.reload_current_scene()
+		if error != OK:
+			push_error("Failed to reload scene! Error code: " + str(error))
+		else:
+			print("✅ Scene reloaded successfully")
+	else:
+		push_error("SceneTree or current_scene not found!")
+
+
+
+	# Mark player as dead
+	is_dead = true
+
+	# Disable player input and movement
+	set_process_input(false)
+	if movement_component:
+		movement_component.set_physics_process(false)
+	if combat_component:
+		combat_component.set_physics_process(false)
+
+	# Play death animation or sound (placeholder)
+	# TODO: Add your death animation or sound here
+	print("\u2620 Player death triggered. Playing animation/sound...")
+
+	# Wait briefly before reloading scene (for animation/sound to play)
+	await get_tree().create_timer(0.7).timeout
+
+	# Godot 4.1+ best practice: reload the current scene to restart on death
+	var scene_tree = get_tree()
+	if scene_tree:
+		var error = scene_tree.reload_current_scene()
 		if error != OK:
 			push_error("Failed to reload scene on player death! Error code: %s" % error)
 	else:
 		push_error("SceneTree not found! Cannot restart on death.")
-	# You can add a death animation or sound here before restarting if desired
-
-
-
-	is_dead = true
-	# Handle player death logic (animation, input disable, etc.)
-	pass
 
 func _on_health_depleted():
 	# Handle logic when health reaches zero (game over, respawn, etc.)
