@@ -478,15 +478,37 @@ func _input(_event):
 			interact_with_nearest()
 	# DEBUG: Spawn ally with F6
 	if Input.is_key_pressed(KEY_F6):
+		print("[Debug] is_inside_tree(): ", is_inside_tree())
 		_spawn_debug_ally()
 
 func _spawn_debug_ally():
+	# Check if node is NOT in scene tree before proceeding
+	if not is_inside_tree():
+		print("[Debug] Cannot spawn ally - not in scene tree")
+		return Transform3D()
+
+	# Load ally scene safely with error checking
 	var ally_scene = preload("res://allies/Ally.tscn")
+	if not ally_scene:
+		print("[Error] Failed to load ally scene")
+		return Transform3D()
+
+	# Create instance and verify it was created
 	var ally_instance = ally_scene.instantiate()
-	# Place ally near the player
-	ally_instance.global_transform.origin = global_transform.origin + Vector3(2, 0, 0)
+	if not ally_instance:
+		print("[Error] Failed to instantiate ally")
+		return Transform3D()
+
+	# Set spawn position (adjust offset as needed)
+	var spawn_offset = Vector3(2, 0, 0)
+	ally_instance.global_transform.origin = global_transform.origin + spawn_offset
+
+	# Add to scene tree
 	get_tree().current_scene.add_child(ally_instance)
-	print("[DEBUG] Spawned ally at ", ally_instance.global_transform.origin)
+
+	print("[Debug] Spawned ally at ", ally_instance.global_transform.origin)
+	return ally_instance.global_transform
+
 
 func _physics_process(delta):
 	if is_dead:
