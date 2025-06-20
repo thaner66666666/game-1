@@ -44,6 +44,7 @@ var right_foot: MeshInstance3D
 @onready var inventory_component: PlayerInventoryComponent = get_node_or_null("InventoryComponent")
 @onready var stats_component: PlayerStats = get_node_or_null("PlayerStats")
 @onready var ui = get_tree().get_root().find_child("HealthUI", true, false)
+@onready var ally_command_manager = preload("res://dot gds/AllyCommandManager.gd").new()
 
 # Player state
 var is_dead := false
@@ -147,6 +148,8 @@ func _ready():
 	movement_component.reinitialize_feet()
 	Input.joy_connection_changed.connect(_on_controller_connection_changed)
 	_check_initial_controllers()
+	# Add ally command manager
+	_setup_ally_command_manager()
 
 func _setup_player():
 	add_to_group("player")
@@ -506,6 +509,9 @@ func _spawn_debug_ally():
 	# Add to scene tree
 	get_tree().current_scene.add_child(ally_instance)
 
+	# Update UI for ally count
+	get_tree().call_group("UI", "_update_units", get_tree().get_nodes_in_group("allies").size())
+
 	print("[Debug] Spawned ally at ", ally_instance.global_transform.origin)
 	return ally_instance.global_transform
 
@@ -628,3 +634,24 @@ func take_damage(amount: int, from: Node3D = null):
 func interact_with_nearest():
 	# Implement interaction logic here or leave as a stub for now
 	print("Player: interact_with_nearest() called (stub)")
+
+func _setup_ally_command_manager():
+	"""Setup the ally command system"""
+	add_child(ally_command_manager)
+	# Connect signals if needed
+	if ally_command_manager.has_signal("command_issued"):
+		ally_command_manager.command_issued.connect(_on_ally_command_issued)
+	print("🎮 Ally command system initialized! Press '1' to command allies")
+
+func _on_ally_command_issued(command_type: String, cmd_position: Vector3):
+	"""Handle ally command feedback"""
+	match command_type:
+		"move_to_position":
+			print("✅ Command issued: Move allies to search at ", cmd_position)
+			# You can add sound effects, UI feedback, etc. here
+
+# If you want to add controller vibration feedback for commands
+func _add_command_feedback():
+	"""Add controller feedback when commanding allies"""
+	if has_method("add_controller_feedback"):
+		add_controller_feedback(0.3, 0.1) # Light vibration

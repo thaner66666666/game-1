@@ -3,7 +3,7 @@ extends StaticBody3D
 
 @export var ally_scene: PackedScene = preload("res://allies/ally.tscn")
 @export var recruitment_cost := 0  # Could add coin cost later
-@export var max_allies := 6
+@export var max_allies := 3
 
 signal ally_recruited
 

@@ -1,6 +1,6 @@
 extends Control
 
-var max_allies := 6
+var max_allies := 3
 var current_allies := 0
 
 func _ready():
