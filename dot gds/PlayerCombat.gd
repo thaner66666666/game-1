@@ -59,7 +59,8 @@ func initialize(player_ref: CharacterBody3D, movement_ref: Node = null):
 	attack_cooldown = player.attack_cooldown if "attack_cooldown" in player else 1.0
 	weapon_animation_player = player.get_node('WeaponAnimationPlayer')
 	if weapon_animation_player:
-		weapon_animation_player.animation_finished.connect(_on_animation_finished)
+		if not weapon_animation_player.is_connected("animation_finished", _on_animation_finished):
+			weapon_animation_player.animation_finished.connect(_on_animation_finished)
 	_setup_hand_references()
 	# --- Audio setup ---
 	punch_sounds = []

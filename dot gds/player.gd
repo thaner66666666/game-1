@@ -49,6 +49,7 @@ var right_foot: MeshInstance3D
 # Player state
 var is_dead := false
 var nearby_weapon_pickup = null
+@onready var death_timer: Timer
 
 # --- Health System Component ---
 # Removed duplicate declaration of health_component
@@ -103,41 +104,21 @@ func _ready():
 		return
 	if not movement_component:
 		push_warning("⚠️ MovementComponent not found! Movement may not work.")
-	# Connect death signal with error checking
-	if health_component.has_signal("player_died"):
-		if not health_component.is_connected("player_died", _on_player_died):
-			health_component.player_died.connect(_on_player_died)
-			print("✅ Death signal connected successfully")
-		else:
-			print("⚠️ Death signal already connected")
-	else:
-		push_error("❌ HealthComponent missing 'player_died' signal!")
-	# Initialize health component with proper starting health
-	var starting_health = 100  # Set your desired starting health here
-	health_component.setup(self, starting_health)
-	print("🔧 Player health initialized with: ", starting_health)
-	# Initialize components
+
+	# Setup health component ONCE
+	if health_component:
+		health_component.setup(self, 100)
+		print("🔧 Health component initialized")
+
+	# Initialize other components...
 	if movement_component and movement_component.has_method("initialize"):
 		movement_component.initialize(self)
 	if combat_component and combat_component.has_method("initialize"):
 		combat_component.initialize(self, movement_component)
-	if stats_component and stats_component.has_method("get_max_health"):
-		health_component.setup(self, stats_component.get_max_health())
-	else:
-		health_component.setup(self, 100)
-	health_component.health_changed.connect(_on_health_changed)
-	health_component.player_died.connect(_on_player_died)
-	health_component.health_depleted.connect(_on_health_depleted)
-	progression_component.setup(self)
-	progression_component.show_level_up_choices.connect(_on_show_level_up_choices)
-	progression_component.stat_choice_made.connect(_on_stat_choice_made)
-	progression_component.xp_changed.connect(_on_xp_changed)
-	progression_component.coin_collected.connect(_on_coin_collected)
-	# Inventory system setup
-	if inventory_component and inventory_component.has_method("setup"):
-		inventory_component.setup(self)
 	if stats_component and stats_component.has_method("setup"):
 		stats_component.setup(self)
+	if inventory_component and inventory_component.has_method("setup"):
+		inventory_component.setup(self)
 	if movement_component and movement_component.has_method("set_animation_settings"):
 		movement_component.set_animation_settings({
 			"body_lean_strength": body_lean_strength,
@@ -146,15 +127,29 @@ func _ready():
 			"foot_step_strength": foot_step_strength,
 			"side_step_modifier": side_step_modifier
 		})
+
+	# Connect signals ONCE at the end
+	if health_component:
+		_connect_signal_safely(health_component, "health_changed", _on_health_changed)
+		_connect_signal_safely(health_component, "player_died", _on_player_died)
+		_connect_signal_safely(health_component, "health_depleted", _on_health_depleted)
+		print("✅ All health signals connected")
+
 	if movement_component:
-		movement_component.dash_charges_changed.connect(_on_dash_charges_changed)
-		movement_component.hand_animation_update.connect(_on_hand_animation_update)
-		movement_component.foot_animation_update.connect(_on_foot_animation_update)
-		movement_component.animation_state_changed.connect(_on_animation_state_changed)
-		movement_component.body_animation_update.connect(_on_body_animation_update)
+		_connect_signal_safely(movement_component, "dash_charges_changed", _on_dash_charges_changed)
+		_connect_signal_safely(movement_component, "hand_animation_update", _on_hand_animation_update)
+		_connect_signal_safely(movement_component, "foot_animation_update", _on_foot_animation_update)
+		_connect_signal_safely(movement_component, "animation_state_changed", _on_animation_state_changed)
+		_connect_signal_safely(movement_component, "body_animation_update", _on_body_animation_update)
 	if combat_component:
-		combat_component.attack_state_changed.connect(_on_combat_attack_state_changed)
-	progression_component.level_up_stats.connect(_on_level_up_stats) # Connect missing signal
+		_connect_signal_safely(combat_component, "attack_state_changed", _on_combat_attack_state_changed)
+	if progression_component:
+		_connect_signal_safely(progression_component, "show_level_up_choices", _on_show_level_up_choices)
+		_connect_signal_safely(progression_component, "stat_choice_made", _on_stat_choice_made)
+		_connect_signal_safely(progression_component, "xp_changed", _on_xp_changed)
+		_connect_signal_safely(progression_component, "coin_collected", _on_coin_collected)
+		_connect_signal_safely(progression_component, "level_up_stats", _on_level_up_stats)
+
 	_reset_blink_timer()
 	var config = CharacterGenerator.generate_random_character_config()
 	CharacterAppearanceManager.create_player_appearance(self, config)
@@ -162,8 +157,14 @@ func _ready():
 	movement_component.reinitialize_feet()
 	Input.joy_connection_changed.connect(_on_controller_connection_changed)
 	_check_initial_controllers()
-	# Add ally command manager
 	_setup_ally_command_manager()
+
+	# Setup death timer
+	death_timer = Timer.new()
+	death_timer.wait_time = 2.0
+	death_timer.one_shot = true
+	add_child(death_timer)
+	death_timer.timeout.connect(_restart_scene)
 
 func _setup_player():
 	add_to_group("player")
@@ -293,73 +294,6 @@ func _on_health_changed(current_health: int, max_health: int):
 	if ui:
 		# Make sure UI gets updated with new health values
 		get_tree().call_group("UI", "_on_player_health_changed", current_health, max_health)
-
-# Handles player death: disables input, plays animation/sound, and reloads the scene with error handling.
-# --- Death State Variables ---
-# var is_dead: bool = false  # Removed duplicate declaration; already declared at the top for clarity and to avoid bugs.
-var death_timer: float = 0.0
-const DEATH_RESTART_DELAY := 3.0
-
-# Handles player death: disables controls, plays effects, and starts respawn timer
-func _on_player_died():
-	if is_dead:
-		return  # Prevent multiple death triggers
-	is_dead = true
-	print("💀 Player died! Restarting game...")
-	# Disconnect death signal to prevent double triggers
-	if health_component and health_component.is_connected("player_died", _on_player_died):
-		health_component.player_died.disconnect(_on_player_died)
-	# Disable player controls immediately
-	if movement_component:
-		movement_component.can_move = false
-	# Stop all sounds/animations (add as needed)
-	if get_tree():
-		get_tree().paused = false  # Ensure game isn't paused
-		print("🎵 Playing death animation/sound...")
-		await get_tree().create_timer(1.0).timeout
-		_restart_game()
-	else:
-		push_error("❌ get_tree() is null! Cannot handle death sequence.")
-
-func _restart_game():
-	"""Safely restart the current scene"""
-	var tree = get_tree()
-	if not tree:
-		push_error("❌ SceneTree (get_tree()) is null! Cannot restart.")
-		return
-	print("🔄 Restarting game scene...")
-	var reload_error = tree.reload_current_scene()
-	if reload_error != OK:
-		push_error("❌ Failed to reload scene! Error: " + str(reload_error))
-		# Fallback: try to change to main scene
-		tree.change_scene_to_file("res://main.tscn")
-
-
-	# Mark player as dead
-	is_dead = true
-
-	# Disable player input and movement
-	set_process_input(false)
-	if movement_component:
-		movement_component.set_physics_process(false)
-	if combat_component:
-		combat_component.set_physics_process(false)
-
-	# Play death animation or sound (placeholder)
-	# TODO: Add your death animation or sound here
-	print("\u2620 Player death triggered. Playing animation/sound...")
-
-	# Wait briefly before reloading scene (for animation/sound to play)
-	await get_tree().create_timer(0.7).timeout
-
-	# Godot 4.1+ best practice: reload the current scene to restart on death
-	var scene_tree = get_tree()
-	if scene_tree:
-		var error = scene_tree.reload_current_scene()
-		if error != OK:
-			push_error("Failed to reload scene on player death! Error code: %s" % error)
-	else:
-		push_error("SceneTree not found! Cannot restart on death.")
 
 func _on_health_depleted():
 	# Handle logic when health reaches zero (game over, respawn, etc.)
@@ -560,8 +494,11 @@ func _input(_event):
 		_spawn_debug_ally()
 	# TEMP: Test instant death for debugging
 	if Input.is_action_just_pressed("ui_accept"):
-		if health_component and health_component.has_method("take_damage"):
-			health_component.take_damage(999)
+		if not is_dead and health_component and health_component.has_method("take_damage"):
+			print("🩸 Debug death triggered")
+			print("Current health before damage: ", health_component.get_health())
+			print("Max health: ", health_component.get_max_health())
+			health_component.take_damage(health_component.get_max_health())
 
 func _spawn_debug_ally():
 	# Check if node is NOT in scene tree before proceeding
@@ -613,17 +550,7 @@ func _physics_process(delta):
 	movement_component.handle_movement_and_dash(delta)
 	combat_component.handle_attack_input()
 	movement_component.handle_dash_cooldown(delta)
-	_handle_invulnerability(delta)
 	_handle_advanced_blinking(delta)
-
-func _handle_invulnerability(delta: float):
-	var still_invulnerable = health_component.update_invulnerability(delta)
-	if mesh_instance and mesh_instance.material_override:
-		if still_invulnerable:
-			var flash_intensity = sin(health_component.invulnerability_timer * 30) * 0.5 + 0.5
-			mesh_instance.material_override.albedo_color = Color.RED if flash_intensity > 0.5 else Color(0.9, 0.7, 0.6)
-		else:
-			mesh_instance.material_override.albedo_color = Color(0.9, 0.7, 0.6)
 
 func set_character_appearance(config: Dictionary):
 	if mesh_instance and CharacterAppearanceManager:
@@ -734,3 +661,28 @@ func _add_command_feedback():
 	"""Add controller feedback when commanding allies"""
 	if has_method("add_controller_feedback"):
 		add_controller_feedback(0.3, 0.1) # Light vibration
+
+func _on_player_died():
+	if is_dead:
+		return
+	is_dead = true
+	print("💀 Player died - restarting in 2 seconds...")
+	set_process_input(false)
+	if movement_component:
+		movement_component.set_physics_process(false)
+	if combat_component:
+		combat_component.set_physics_process(false)
+	death_timer.start()
+
+func _restart_scene():
+	var error = get_tree().reload_current_scene()
+	if error != OK:
+		print("❌ Failed to restart scene: ", error)
+
+func _connect_signal_safely(source_object, signal_name: String, target_callable: Callable):
+	if source_object and source_object.has_signal(signal_name):
+		if not source_object.is_connected(signal_name, target_callable):
+			source_object.connect(signal_name, target_callable)
+			print("✅ Connected signal: ", signal_name)
+		else:
+			print("⚠️ Signal already connected: ", signal_name)
