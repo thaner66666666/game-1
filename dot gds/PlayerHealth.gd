@@ -42,10 +42,13 @@ func take_damage(amount: int, _from: Node3D = null):
 		_show_damage_feedback(amount)
 
 func heal(heal_amount: int):
+	print("[DEBUG] heal() called: heal_amount=", heal_amount, " current_health=", current_health, " max_health=", max_health)
 	if current_health <= 0 or current_health >= max_health:
+		print("[DEBUG] heal() - No healing applied (dead or full health)")
 		return
 	var old_health = current_health
 	current_health = min(current_health + heal_amount, max_health)
+	print("[DEBUG] heal() - Health changed from ", old_health, " to ", current_health)
 	if current_health != old_health:
 		health_changed.emit(current_health, max_health)
 		_show_heal_feedback(heal_amount)
@@ -58,7 +61,6 @@ func update_invulnerability(delta: float):
 	return false
 
 # Show visual and audio feedback for taking damage
-var _original_skin_colors := {}
 var _flash_timer: Timer = null
 var _flash_count := 0
 const FLASH_TOTAL := 4

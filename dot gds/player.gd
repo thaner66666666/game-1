@@ -273,11 +273,14 @@ func can_heal() -> bool:
 	return health_component.get_health() < health_component.get_max_health()
 
 func _pickup_health_potion(area: Area3D):
+	print("[DEBUG] _pickup_health_potion called. health_component=", health_component, " can_heal=", can_heal())
 	if not can_heal():
 		# Show feedback for full health
 		print("Already at full health!")
 		return
-	health_component.heal(health_component.heal_amount_from_potion)
+	var heal_amount = area.get_meta("heal_amount") if area.has_meta("heal_amount") else health_component.heal_amount_from_potion
+	print("[DEBUG] About to heal for ", heal_amount)
+	health_component.heal(heal_amount)
 	if is_instance_valid(area):
 		area.queue_free()
 
