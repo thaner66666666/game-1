@@ -90,45 +90,14 @@ func _input(event: InputEvent) -> void:
 				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 			else:
 				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		# Middle mouse wheel for zooming
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed and event.button_mask & MOUSE_BUTTON_MASK_MIDDLE:
-			_zoom_camera(-zoom_speed)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and event.button_mask & MOUSE_BUTTON_MASK_MIDDLE:
-			_zoom_camera(zoom_speed)
-	# Mouse movement for rotation (only when right mouse held)
-	elif event is InputEventMouseMotion and is_rotating:
-		_rotate_camera(event.relative)
-	# Keyboard shortcuts
-	elif event is InputEventKey and event.pressed:
-		if event.keycode == KEY_R:
-			_reset_camera_rotation()
-			print("Camera: Rotation reset!")
-
-
-	"""Handles all input for camera control"""
-	
-	# Right mouse button for camera rotation
-	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_RIGHT:
-			is_rotating = event.pressed
-			
-			if is_rotating:
-				# Capture mouse for smooth rotation
-				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-			else:
-				# Free mouse cursor
-				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		
-		# Mouse wheel for zooming
+		# Mouse wheel for zooming (no middle mouse required)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			_zoom_camera(-zoom_speed)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			_zoom_camera(zoom_speed)
-	
 	# Mouse movement for rotation (only when right mouse held)
 	elif event is InputEventMouseMotion and is_rotating:
 		_rotate_camera(event.relative)
-	
 	# Keyboard shortcuts
 	elif event is InputEventKey and event.pressed:
 		if event.keycode == KEY_R:
@@ -225,19 +194,18 @@ func _calculate_camera_position() -> Vector3:
 
 func _rotate_camera(mouse_delta: Vector2) -> void:
 	"""Handles camera rotation with smooth acceleration and momentum"""
-	
-	# Calculate rotation input with acceleration
-	var rotation_input_x = mouse_delta.y * rotation_speed * 0.005  # Vertical (inverted)
-	var rotation_input_y = -mouse_delta.x * rotation_speed * 0.005  # Horizontal
-	
+	# Only rotate horizontally (left/right) with mouse X movement
+	var rotation_input_x = 0.0  # No vertical rotation on right click
+	var rotation_input_y = -mouse_delta.x * rotation_speed * 0.005  # Horizontal only
+
 	# Apply acceleration to build up rotation speed gradually
 	rotation_velocity_x = lerp(rotation_velocity_x, rotation_input_x, rotation_acceleration * get_process_delta_time())
 	rotation_velocity_y = lerp(rotation_velocity_y, rotation_input_y, rotation_acceleration * get_process_delta_time())
-	
+
 	# Update target rotations (what we want to achieve)
 	target_rotation_y += rotation_velocity_y
-	target_rotation_x += rotation_velocity_x
-	
+	# No change to target_rotation_x (vertical) when rotating
+
 	# Clamp vertical rotation to prevent camera flipping
 	target_rotation_x = clamp(target_rotation_x, 
 		deg_to_rad(-max_vertical_angle), 
