@@ -95,18 +95,15 @@ func _on_scene_changed():
 
 func _clear_all_labels():
 	print("DamageNumbers: Clearing ", floating_labels.size(), " labels")
-	
 	# Clean up floating labels
 	for entity in floating_labels.keys():
 		var label = floating_labels[entity]
 		if is_instance_valid(label):
 			label.queue_free()
-	
 	# Clean up pooled labels
 	for label in label_pool:
 		if is_instance_valid(label):
 			label.queue_free()
-	
 	# Clear all data structures
 	label_pool.clear()
 	floating_labels.clear()
@@ -114,28 +111,29 @@ func _clear_all_labels():
 	label_timers.clear()
 	label_fading.clear()
 
-func _process(delta):
+func _process(_delta):
 	# Performance check
 	if Engine.get_frames_per_second() < MIN_FPS:
 		return
-	
+
 	var now_time = Time.get_ticks_msec() / 1000.0
-	
+
 	# Update all floating labels
-	for entity in floating_labels.keys().duplicate():
-		var label = floating_labels[entity] as Label
-		
+	for id in floating_labels.keys().duplicate():
+		var label = floating_labels[id] as Label
+		var entity = instance_from_id(id)
+
 		if not is_instance_valid(label):
-			_clear_entity_data(entity)
+			_clear_entity_data(id)
 			continue
-		
+
 		# Update position if entity is valid
 		if is_instance_valid(entity):
 			_update_label_position(label, entity)
-			label_last_position[entity] = entity.global_position
-		elif entity in label_last_position:
+			label_last_position[id] = entity.global_position
+		elif id in label_last_position:
 			# Use last known position if entity is gone
-			var world_pos = label_last_position[entity] + Vector3(0, float_height, 0)
+			var world_pos = label_last_position[id] + Vector3(0, float_height, 0)
 			var screen_pos = _world_to_screen(world_pos)
 			if screen_pos != Vector2(-1, -1):
 				label.position = screen_pos - (label.size / 2)
@@ -143,15 +141,15 @@ func _process(delta):
 			else:
 				label.visible = false
 		else:
-			_clear_entity_data(entity)
+			_clear_entity_data(id)
 			continue
-		
+
 		# Handle fading
-		if entity in label_timers and is_instance_valid(label):
-			var time_since_last = now_time - label_timers[entity]
-			if not label_fading.get(entity, false) and time_since_last > combine_window:
-				label_fading[entity] = true
-				_start_fade(label, entity)
+		if id in label_timers and is_instance_valid(label):
+			var time_since_last = now_time - label_timers[id]
+			if not label_fading.get(id, false) and time_since_last > combine_window:
+				label_fading[id] = true
+				_start_fade(label, id)
 
 # Main API function - call this to show damage
 func show_damage(damage_amount: int, entity: Node3D, damage_type: String = "normal"):
@@ -175,11 +173,13 @@ func call_show_damage(amount: int, entity: Node3D, damage_type: String = "normal
 	show_damage(amount, entity, damage_type)
 
 func _create_or_update_label(entity: Node3D, text: String, damage_type: String):
+	var id = entity.get_instance_id()
+
 	# Check label limit
 	if floating_labels.size() >= MAX_LABELS:
 		print("⚠️ DamageNumbers: Max labels reached, skipping")
 		return
-	
+
 	# Ensure scene is valid
 	if not is_instance_valid(current_scene):
 		print("⚠️ DamageNumbers: No valid scene, updating references")
@@ -187,34 +187,38 @@ func _create_or_update_label(entity: Node3D, text: String, damage_type: String):
 		if not is_instance_valid(current_scene):
 			print("❌ DamageNumbers: Still no valid scene!")
 			return
-	
+
 	var damage_label: Label
 	var now_time = Time.get_ticks_msec() / 1000.0
-	
+
 	# Update existing label if present
-	if entity in floating_labels:
-		damage_label = floating_labels[entity] as Label
+	if id in floating_labels:
+		damage_label = floating_labels[id] as Label
 		if is_instance_valid(damage_label):
 			_update_existing_label(damage_label, text)
-			label_timers[entity] = now_time
-			label_fading[entity] = false
+			label_timers[id] = now_time
+			label_fading[id] = false
 			damage_label.modulate.a = 1.0
 			return
 		else:
-			_clear_entity_data(entity)
-	
+			_clear_entity_data(id)
+
 	# Create new label
 	damage_label = _get_label_from_pool(text, damage_type)
-	floating_labels[entity] = damage_label
-	
+	floating_labels[id] = damage_label
+
+	# Remove from previous parent if needed
+	if damage_label.get_parent():
+		damage_label.get_parent().remove_child(damage_label)
+
 	# Add to scene
 	current_scene.add_child(damage_label)
-	
+
 	# Position and initialize
 	_update_label_position(damage_label, entity)
-	label_last_position[entity] = entity.global_position
-	label_timers[entity] = now_time
-	label_fading[entity] = false
+	label_last_position[id] = entity.global_position
+	label_timers[id] = now_time
+	label_fading[id] = false
 
 func _create_label(text: String, damage_type: String) -> Label:
 	var label = Label.new()
@@ -281,35 +285,37 @@ func _world_to_screen(world_pos: Vector3) -> Vector2:
 	
 	return screen_pos
 
-func _start_fade(label: Label, entity: Node3D):
+func _start_fade(label: Label, id: int):
 	if not is_instance_valid(label):
 		return
-	
+	if not label.is_inside_tree():
+		return
+
 	var tween = create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(label, "modulate:a", 0.0, fade_duration)
 	tween.tween_property(label, "position:y", label.position.y - 50, fade_duration)
-	tween.tween_callback(_remove_label.bind(entity)).set_delay(fade_duration)
+	# Bind the entity (dictionary key) instead of the label
+	tween.tween_callback(Callable(self, "_remove_label").bind(id)).set_delay(fade_duration)
 
-func _remove_label(entity: Node3D):
-	if entity in floating_labels:
-		var label = floating_labels[entity]
+func _remove_label(id: int):
+	if id in floating_labels:
+		var label = floating_labels[id]
 		if is_instance_valid(label):
 			label.visible = false
 			label_pool.append(label)
-	_clear_entity_data(entity)
+		_clear_entity_data(id)
 
-func _clear_entity_data(entity: Node3D):
-	if entity in floating_labels:
-		var label = floating_labels[entity]
+func _clear_entity_data(id: int):
+	if id in floating_labels:
+		var label = floating_labels[id]
 		if is_instance_valid(label):
 			label.visible = false
 			label_pool.append(label)
-		floating_labels.erase(entity)
-	
-	label_last_position.erase(entity)
-	label_timers.erase(entity)
-	label_fading.erase(entity)
+		floating_labels.erase(id)
+	label_last_position.erase(id)
+	label_timers.erase(id)
+	label_fading.erase(id)
 
 func _report_health_status():
 	var cam_status = is_instance_valid(camera)
