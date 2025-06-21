@@ -492,13 +492,6 @@ func _input(_event):
 	if Input.is_key_pressed(KEY_F6):
 		print("[Debug] is_inside_tree(): ", is_inside_tree())
 		_spawn_debug_ally()
-	# TEMP: Test instant death for debugging
-	if Input.is_action_just_pressed("ui_accept"):
-		if not is_dead and health_component and health_component.has_method("take_damage"):
-			print("🩸 Debug death triggered")
-			print("Current health before damage: ", health_component.get_health())
-			print("Max health: ", health_component.get_max_health())
-			health_component.take_damage(health_component.get_max_health())
 
 func _spawn_debug_ally():
 	# Check if node is NOT in scene tree before proceeding

@@ -19,8 +19,8 @@ extends Camera3D
 
 # --- Camera Zoom Settings ---
 @export_group("Zoom")
-@export var min_zoom_distance: float = 5.0  ## Closest zoom distance
-@export var max_zoom_distance: float = 20.0  ## Farthest zoom distance
+@export var min_zoom_distance: float = 1.0  ## Closest zoom distance (was 5.0)
+@export var max_zoom_distance: float = 30.0  ## Farthest zoom distance (was 20.0)
 @export var zoom_speed: float = 2.0  ## How fast zoom responds to mouse wheel
 @export var current_zoom: float = 12.0  ## Starting zoom distance
 
@@ -170,26 +170,27 @@ func _apply_rotation_momentum(_delta: float) -> void:
 
 func _calculate_camera_position() -> Vector3:
 	"""Calculates where the camera should be positioned based on current settings"""
-	
 	# Start with player position at fixed safe height
 	var target_position = player.global_position
-	target_position.y += camera_height
-	
+	# Lower the camera height as we zoom in for less top-down effect
+	var _dynamic_height = camera_height * (current_zoom / max_zoom_distance)
+	target_position.y += lerp(camera_height * 0.5, camera_height, current_zoom / max_zoom_distance)
+
 	# Calculate horizontal distance based on zoom and vertical angle
 	var horizontal_distance = current_zoom * cos(rotation_x)
 	var height_offset = current_zoom * sin(rotation_x)
-	
+
 	# Apply horizontal rotation around player
 	var offset = Vector3(
 		sin(rotation_y) * horizontal_distance,
 		height_offset,
 		cos(rotation_y) * horizontal_distance
 	)
-	
+
 	# Ensure minimum height above ground
 	var final_position = target_position + offset
 	final_position.y = max(final_position.y, player.global_position.y + min_height)
-	
+
 	return final_position
 
 func _rotate_camera(mouse_delta: Vector2) -> void:
