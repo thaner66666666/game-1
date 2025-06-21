@@ -567,7 +567,10 @@ func _create_arrow_system():
 	print("🏹 Simple arrow system ready!")
 
 # Change the player's skin tone at runtime
+var current_skin_color: Color = Color(1,1,1)
+
 func change_player_skin_tone(skin_color: Color):
+	current_skin_color = skin_color
 	var mesh = get_node_or_null("MeshInstance3D")
 	if mesh and mesh.material_override:
 		mesh.material_override.albedo_color = skin_color
@@ -577,10 +580,6 @@ func change_player_skin_tone(skin_color: Color):
 		if node and node.material_override:
 			node.material_override.albedo_color = skin_color
 	print("✅ Player skin tone updated to: ", skin_color)
-# Disabled staff logic for now
-# case int(WeaponResource.WeaponType.STAFF):
-# ...existing code...
-
 
 func test_skin_tones():
 	print("=== TESTING SKIN TONES ===")
