@@ -82,6 +82,30 @@ func _find_player() -> void:
 
 func _input(event: InputEvent) -> void:
 	"""Handles all input for camera control"""
+	# Right mouse button for camera rotation ONLY
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			is_rotating = event.pressed
+			if is_rotating:
+				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+			else:
+				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		# Middle mouse wheel for zooming
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed and event.button_mask & MOUSE_BUTTON_MASK_MIDDLE:
+			_zoom_camera(-zoom_speed)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and event.button_mask & MOUSE_BUTTON_MASK_MIDDLE:
+			_zoom_camera(zoom_speed)
+	# Mouse movement for rotation (only when right mouse held)
+	elif event is InputEventMouseMotion and is_rotating:
+		_rotate_camera(event.relative)
+	# Keyboard shortcuts
+	elif event is InputEventKey and event.pressed:
+		if event.keycode == KEY_R:
+			_reset_camera_rotation()
+			print("Camera: Rotation reset!")
+
+
+	"""Handles all input for camera control"""
 	
 	# Right mouse button for camera rotation
 	if event is InputEventMouseButton:
@@ -259,6 +283,7 @@ func _on_debug_requested() -> void:
 	"""Prints debug information about camera state including momentum"""
 	
 	print("=== Camera Debug Info ===")
+	@warning_ignore("incompatible_ternary")
 	print("Player: ", player.name if player != null else "None")
 	print("Position: ", global_position)
 	print("Current Zoom: ", current_zoom, " | Target: ", target_zoom)
