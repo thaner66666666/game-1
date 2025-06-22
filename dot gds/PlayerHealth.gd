@@ -42,10 +42,13 @@ func take_damage(amount: int, _from: Node3D = null):
 		_show_damage_feedback(amount)
 
 func heal(heal_amount: int):
+	print("[DEBUG] heal() called: heal_amount=", heal_amount, " current_health=", current_health, " max_health=", max_health)
 	if current_health <= 0 or current_health >= max_health:
+		print("[DEBUG] heal() - No healing applied (dead or full health)")
 		return
 	var old_health = current_health
 	current_health = min(current_health + heal_amount, max_health)
+	print("[DEBUG] heal() - Health changed from ", old_health, " to ", current_health)
 	if current_health != old_health:
 		health_changed.emit(current_health, max_health)
 		_show_heal_feedback(heal_amount)
@@ -58,19 +61,72 @@ func update_invulnerability(delta: float):
 	return false
 
 # Show visual and audio feedback for taking damage
+var _flash_timer: Timer = null
+var _flash_count := 0
+const FLASH_TOTAL := 4
+const FLASH_ON_TIME := 0.08
+const FLASH_OFF_TIME := 0.08
+
 func _show_damage_feedback(damage_amount: int):
-	# Flash red for damage feedback
-	if player_ref.mesh_instance and player_ref.mesh_instance.material_override:
-		player_ref.mesh_instance.material_override.albedo_color = Color(1.0, 0.2, 0.2)
+	_flash_count = 0
+	_start_flash_sequence()
 	# Show damage numbers if the damage system exists and the tree is valid
 	var tree = player_ref.get_tree() if player_ref else null
 	if tree:
 		var damage_system = tree.get_first_node_in_group("damage_numbers")
 		if damage_system:
-			damage_system.show_damage(damage_amount, player_ref, "massive") # Use red for player damage
+			damage_system.show_damage(damage_amount, player_ref, "massive")
 	# Play damage sound if available
 	if player_ref.has_node("DamageSound"):
 		player_ref.get_node("DamageSound").play()
+
+func _start_flash_sequence():
+	if _flash_timer == null:
+		_flash_timer = Timer.new()
+		_flash_timer.one_shot = true
+		player_ref.add_child(_flash_timer)
+	if not _flash_timer.is_connected("timeout", Callable(self, "_do_flash_step")):
+		_flash_timer.timeout.connect(_do_flash_step)
+	_do_flash_step()
+
+func _do_flash_step():
+	var color = player_ref.current_skin_color if player_ref.has_method("current_skin_color") or "current_skin_color" in player_ref else Color(1,1,1)
+	var parts = ["MeshInstance3D", "LeftHand", "RightHand", "LeftFoot", "RightFoot"]
+	if _flash_count % 2 == 0:
+		# Flash red
+		for part in parts:
+			var node = player_ref.get_node_or_null(part)
+			if node and node.material_override:
+				node.material_override.albedo_color = Color(1.0, 0.2, 0.2)
+		_flash_timer.wait_time = FLASH_ON_TIME
+	else:
+		# Restore color
+		for part in parts:
+			var node = player_ref.get_node_or_null(part)
+			if node and node.material_override:
+				node.material_override.albedo_color = color
+		_flash_timer.wait_time = FLASH_OFF_TIME
+	_flash_count += 1
+	if _flash_count < FLASH_TOTAL * 2:
+		_flash_timer.start()
+	else:
+		# Ensure final color is restored
+		for part in parts:
+			var node = player_ref.get_node_or_null(part)
+			if node and node.material_override:
+				node.material_override.albedo_color = color
+
+func _restore_skin_color():
+	# Use the player's current_skin_color for all parts
+	var color = player_ref.current_skin_color if player_ref.has_method("current_skin_color") or "current_skin_color" in player_ref else Color(1,1,1)
+	var parts = ["MeshInstance3D", "LeftHand", "RightHand", "LeftFoot", "RightFoot"]
+	for part in parts:
+		var node = player_ref.get_node_or_null(part)
+		if node and node.material_override:
+			node.material_override.albedo_color = color
+	if _flash_timer:
+		_flash_timer.stop()
+
 
 # Show visual and audio feedback for healing
 func _show_heal_feedback(heal_amount: int):
